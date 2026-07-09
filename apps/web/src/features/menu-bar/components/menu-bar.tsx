@@ -5,8 +5,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Sun, Moon, Monitor, Lock, Moon as MoonIcon, Power, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth.store';
-import { useService } from '@/providers/service-provider';
-import type { ThemeService } from '@arunaos/services';
+import { useService, useEventBus } from '@/providers/service-provider';
+import type { ThemeService, ThemeMode } from '@arunaos/services';
 import type { LifecycleService } from '@/services/lifecycle/lifecycle-service';
 
 function useTime() {
@@ -37,11 +37,15 @@ function formatDate(date: Date) {
 
 function ThemeToggle() {
   const themeService = useService<ThemeService>('theme');
-  const [currentMode, setCurrentMode] = useState(themeService.getMode());
+  const bus = useEventBus();
+  const [currentMode, setCurrentMode] = useState<ThemeMode>(themeService.getMode());
 
   useEffect(() => {
-    setCurrentMode(themeService.getMode());
-  }, [themeService]);
+    const unsub = bus.on('theme:changed', ({ mode }: { mode: ThemeMode }) => {
+      setCurrentMode(mode);
+    });
+    return unsub;
+  }, [bus]);
 
   const isDark =
     currentMode === 'dark' ||
@@ -325,8 +329,7 @@ export function MenuBar() {
                   : 'text-foreground/80 hover:text-foreground hover:bg-muted/50',
               )}
             >
-              <span className="text-base leading-none"></span>
-              <span className="text-sm">ArunaOS</span>
+              <img src="/logo.png" alt="ArunaOS" className="h-4 w-4" />
             </button>
 
             <AnimatePresence>

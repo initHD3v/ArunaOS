@@ -6,8 +6,6 @@ export interface DesktopState {
   icons: DesktopIconData[];
   selectedIconId: string | null;
   renamingIconId: string | null;
-  wallpaperIndex: number;
-  blur: number;
   refreshKey: number;
 
   setSelectedIcon: (id: string | null) => void;
@@ -16,7 +14,6 @@ export interface DesktopState {
   removeIcon: (id: string) => void;
   renameIcon: (id: string, title: string) => void;
   moveIcon: (fromIndex: number, toIndex: number) => void;
-  cycleWallpaper: () => void;
   triggerRefresh: () => void;
 }
 
@@ -30,8 +27,6 @@ export const useDesktopStore = create<DesktopState>()(
       ],
       selectedIconId: null,
       renamingIconId: null,
-      wallpaperIndex: 0,
-      blur: 0,
       refreshKey: 0,
 
       setSelectedIcon: (id) => set({ selectedIconId: id }),
@@ -67,15 +62,12 @@ export const useDesktopStore = create<DesktopState>()(
           };
         }),
 
-      cycleWallpaper: () => set((s) => ({ wallpaperIndex: (s.wallpaperIndex + 1) % 4 })),
-
       triggerRefresh: () => set((s) => ({ refreshKey: s.refreshKey + 1 })),
     }),
     {
       name: 'arunaos-desktop',
       partialize: (state) => ({
         icons: state.icons,
-        wallpaperIndex: state.wallpaperIndex,
       }),
     },
   ),

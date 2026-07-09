@@ -8,6 +8,10 @@ import '@/styles/globals.css';
 export const metadata: Metadata = {
   title: 'ArunaOS',
   description: 'AI-Native Operating Workspace',
+  icons: {
+    icon: '/favicon.ico',
+    apple: '/apple-touch-icon.png',
+  },
 };
 
 export const viewport: Viewport = {

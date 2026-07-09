@@ -124,7 +124,18 @@ export function ServiceProvider({ children }: { children: ReactNode }) {
             description: 'Cycle desktop wallpaper',
             category: 'Action',
             action: () => {
-              /* TODO: implement wallpaper cycling */
+              const cfg = settings.get('wallpaper');
+              const types: Record<string, 'default' | 'gradient' | 'image'> = {
+                default: 'gradient',
+                gradient: 'image',
+                image: 'default',
+              };
+              const nextType = types[cfg.type] ?? 'default';
+              settings.set('wallpaper', {
+                ...cfg,
+                type: nextType,
+                imagePath: nextType === 'image' && !cfg.imagePath ? '' : cfg.imagePath,
+              });
             },
           },
         ]);

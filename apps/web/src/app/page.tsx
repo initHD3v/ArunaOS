@@ -7,14 +7,31 @@ import { Selection } from '@/features/selection/components/selection';
 import { useUIStore } from '@/stores/ui-store';
 import { useDesktopStore } from '@/features/desktop/stores/desktop.store';
 import { useWindowStore } from '@/features/window-manager/stores/window.store';
+import { useService } from '@/providers/service-provider';
+import type { SettingsService } from '@arunaos/services';
 import type { DesktopIconData } from '@/types';
 
 export default function Home() {
   const showContextMenu = useUIStore((s) => s.showContextMenu);
   const addIcon = useDesktopStore((s) => s.addIcon);
-  const cycleWallpaper = useDesktopStore((s) => s.cycleWallpaper);
   const triggerRefresh = useDesktopStore((s) => s.triggerRefresh);
   const openWindow = useWindowStore((s) => s.openWindow);
+  const settingsService = useService<SettingsService>('settings');
+
+  const cycleWallpaper = useCallback(() => {
+    const cfg = settingsService.get('wallpaper');
+    const types: Record<string, 'default' | 'gradient' | 'image'> = {
+      default: 'gradient',
+      gradient: 'image',
+      image: 'default',
+    };
+    const nextType = types[cfg.type] ?? 'default';
+    settingsService.set('wallpaper', {
+      ...cfg,
+      type: nextType,
+      imagePath: nextType === 'image' && !cfg.imagePath ? '' : cfg.imagePath,
+    });
+  }, [settingsService]);
 
   const desktopMenuItems = useMemo(
     () => [

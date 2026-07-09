@@ -1,10 +1,19 @@
 import type { EventBus } from './event-bus';
 import type { StorageService } from './storage';
 
+export type WallpaperType = 'default' | 'gradient' | 'image';
+
+export interface WallpaperConfig {
+  type: WallpaperType;
+  gradientIndex: number;
+  imagePath: string;
+  blur: number;
+}
+
 export interface SettingsSchema {
   version: number;
   theme: 'light' | 'dark' | 'system' | 'amoled' | 'high-contrast';
-  wallpaper: { index: number; blur: number };
+  wallpaper: WallpaperConfig;
   language: string;
   accessibility: {
     reducedMotion: boolean;
@@ -19,9 +28,9 @@ export interface SettingsSchema {
 }
 
 export const DEFAULT_SETTINGS: SettingsSchema = {
-  version: 1,
+  version: 2,
   theme: 'system',
-  wallpaper: { index: 0, blur: 0 },
+  wallpaper: { type: 'default', gradientIndex: 0, imagePath: '', blur: 0 },
   language: 'en',
   accessibility: {
     reducedMotion: false,
@@ -51,12 +60,32 @@ export class SettingsService {
   }
 
   async init(): Promise<void> {
-    const stored = await this.storage.get<Partial<SettingsSchema>>(SETTINGS_KEY);
+    let stored = await this.storage.get<Partial<SettingsSchema>>(SETTINGS_KEY);
     if (stored) {
+      if (!stored.version || stored.version < DEFAULT_SETTINGS.version) {
+        stored = this.migrate(stored);
+      }
       this.settings = { ...DEFAULT_SETTINGS, ...stored, version: DEFAULT_SETTINGS.version };
     }
     this.ready = true;
     this.bus.emit('settings:loaded', { settings: this.settings });
+  }
+
+  private migrate(stored: Partial<SettingsSchema>): Partial<SettingsSchema> {
+    if (!stored.version || stored.version < 2) {
+      const oldWallpaper = (stored as Record<string, unknown>).wallpaper as
+        { index?: number; blur?: number } | undefined;
+      if (oldWallpaper && 'index' in oldWallpaper) {
+        stored.wallpaper = {
+          type: oldWallpaper.index && oldWallpaper.index > 0 ? 'gradient' : 'default',
+          gradientIndex: oldWallpaper.index ?? 0,
+          imagePath: '',
+          blur: oldWallpaper.blur ?? 0,
+        };
+      }
+      stored.version = 2;
+    }
+    return stored;
   }
 
   get<K extends keyof SettingsSchema>(key: K): SettingsSchema[K] {
