@@ -1,0 +1,10 @@
+{
+  "name": "@arunaos/prettier-config",
+  "version": "0.1.0",
+  "private": true,
+  "main": "index.js",
+  "dependencies": {
+    "prettier": "^3.5.0",
+    "prettier-plugin-tailwindcss": "^0.6.0"
+  }
+}

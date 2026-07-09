@@ -1,0 +1,40 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "strictNullChecks": true,
+    "noUncheckedIndexedAccess": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "exactOptionalPropertyTypes": false,
+    "forceConsistentCasingInFileNames": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "allowJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "resolveJsonModule": true,
+    "jsx": "preserve",
+    "incremental": true,
+    "paths": {
+      "@arunaos/ui/*": ["../../packages/ui/src/*"],
+      "@arunaos/config/*": ["../../packages/config/src/*"],
+      "@arunaos/types/*": ["../../packages/types/src/*"],
+      "@arunaos/utils/*": ["../../packages/utils/src/*"],
+      "@arunaos/ai/*": ["../../packages/ai/src/*"],
+      "@arunaos/database/*": ["../../packages/database/src/*"],
+      "@arunaos/auth/*": ["../../packages/auth/src/*"],
+      "@arunaos/hooks/*": ["../../packages/hooks/src/*"],
+      "@arunaos/icons/*": ["../../packages/icons/src/*"],
+      "@arunaos/constants/*": ["../../packages/constants/src/*"],
+      "@arunaos/services/*": ["../../packages/services/src/*"],
+      "@arunaos/shared/*": ["../../packages/shared/src/*"],
+      "@arunaos/animations/*": ["../../packages/animations/src/*"],
+      "@arunaos/design-tokens/*": ["../../packages/design-tokens/src/*"]
+    }
+  }
+}
