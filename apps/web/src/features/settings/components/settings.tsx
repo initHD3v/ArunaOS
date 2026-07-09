@@ -1,10 +1,10 @@
 'use client';
 
 import { memo, useState, useCallback } from 'react';
-import { useTheme } from 'next-themes';
 import { cn } from '@/lib/utils';
-import { useDesktopStore } from '@/features/desktop/stores/desktop.store';
 import { useAuthStore } from '@/stores/auth.store';
+import { useService } from '@/providers/service-provider';
+import type { ThemeService, SettingsService } from '@arunaos/services';
 import { Sun, Moon, Monitor, Keyboard, Info, Lock, AlertCircle, CheckCircle } from 'lucide-react';
 
 type SettingsTab = 'general' | 'appearance' | 'keyboard' | 'security' | 'about';
@@ -42,9 +42,24 @@ function GeneralPanel() {
 }
 
 function AppearancePanel() {
-  const { theme, setTheme } = useTheme();
-  const wallpaperIndex = useDesktopStore((s) => s.wallpaperIndex);
-  const cycleWallpaper = useDesktopStore((s) => s.cycleWallpaper);
+  const themeService = useService<ThemeService>('theme');
+  const settingsService = useService<SettingsService>('settings');
+  const [currentTheme, setCurrentTheme] = useState(themeService.getMode());
+  const [wallpaperIdx, setWallpaperIdx] = useState(() => settingsService.get('wallpaper').index);
+
+  const cycleWallpaper = useCallback(() => {
+    const next = (wallpaperIdx + 1) % 4;
+    setWallpaperIdx(next);
+    settingsService.set('wallpaper', { index: next, blur: 0 });
+  }, [wallpaperIdx, settingsService]);
+
+  const setTheme = useCallback(
+    async (mode: 'light' | 'dark' | 'system' | 'amoled' | 'high-contrast') => {
+      await themeService.setMode(mode);
+      setCurrentTheme(mode);
+    },
+    [themeService],
+  );
 
   const wallpapers = ['Default', 'Ocean', 'Sunset', 'Forest'];
 
@@ -60,7 +75,7 @@ function AppearancePanel() {
                 onClick={() => setTheme('light')}
                 className={cn(
                   'flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs transition-colors',
-                  theme === 'light'
+                  currentTheme === 'light'
                     ? 'bg-primary text-primary-foreground'
                     : 'bg-muted text-foreground/60 hover:text-foreground',
                 )}
@@ -71,7 +86,7 @@ function AppearancePanel() {
                 onClick={() => setTheme('dark')}
                 className={cn(
                   'flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs transition-colors',
-                  theme === 'dark'
+                  currentTheme === 'dark'
                     ? 'bg-primary text-primary-foreground'
                     : 'bg-muted text-foreground/60 hover:text-foreground',
                 )}
@@ -86,7 +101,7 @@ function AppearancePanel() {
               onClick={cycleWallpaper}
               className="bg-muted text-foreground/60 hover:text-foreground rounded-lg px-3 py-1.5 text-xs transition-colors"
             >
-              {wallpapers[wallpaperIndex] ?? 'Default'}
+              {wallpapers[wallpaperIdx] ?? 'Default'}
             </button>
           </div>
         </div>

@@ -1,9 +1,9 @@
 'use client';
 
-import { useTheme } from 'next-themes';
 import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
-import { useDesktopStore } from '@/features/desktop/stores/desktop.store';
+import { useService } from '@/providers/service-provider';
+import type { ThemeService, SettingsService } from '@arunaos/services';
 
 const WALLPAPERS = [
   '',
@@ -22,10 +22,17 @@ function generateGradient(theme: string | undefined, index: number) {
   return WALLPAPERS[index];
 }
 
+function resolveMode(theme: string, prefersDark: boolean): 'dark' | 'light' {
+  if (theme === 'dark') return 'dark';
+  if (theme === 'light') return 'light';
+  if (theme === 'amoled' || theme === 'high-contrast') return 'dark';
+  return prefersDark ? 'dark' : 'light';
+}
+
 export function Wallpaper() {
-  const { theme } = useTheme();
+  const themeService = useService<ThemeService>('theme');
+  const settingsService = useService<SettingsService>('settings');
   const [mounted, setMounted] = useState(false);
-  const wallpaperIndex = useDesktopStore((s) => s.wallpaperIndex);
 
   useEffect(() => {
     setMounted(true);
@@ -35,10 +42,14 @@ export function Wallpaper() {
     return <div className="bg-background fixed inset-0 -z-10" />;
   }
 
+  const mode = themeService.getMode();
+  const isDark = resolveMode(mode, window.matchMedia('(prefers-color-scheme: dark)').matches);
+  const wallpaperIndex = settingsService.get('wallpaper').index;
+
   return (
     <div
       className="fixed inset-0 -z-10"
-      style={{ background: generateGradient(theme, wallpaperIndex) }}
+      style={{ background: generateGradient(isDark, wallpaperIndex) }}
     >
       <div
         className={cn(

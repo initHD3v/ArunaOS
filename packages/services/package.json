@@ -5,10 +5,13 @@
   "scripts": {
     "lint": "eslint . --ext .ts,.tsx",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "clean": "rm -rf node_modules dist"
   },
   "devDependencies": {
+    "@arunaos/types": "workspace:*",
     "typescript": "^5.8.0",
-    "@arunaos/types": "workspace:*"
+    "vitest": "^4.1.10"
   }
 }

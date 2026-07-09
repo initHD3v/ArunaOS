@@ -1,11 +1,13 @@
 'use client';
 
-import { useTheme } from 'next-themes';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Sun, Moon, Monitor, Lock, Moon as MoonIcon, Power, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth.store';
+import { useService } from '@/providers/service-provider';
+import type { ThemeService } from '@arunaos/services';
+import type { LifecycleService } from '@/services/lifecycle/lifecycle-service';
 
 function useTime() {
   const [time, setTime] = useState(new Date());
@@ -34,20 +36,22 @@ function formatDate(date: Date) {
 }
 
 function ThemeToggle() {
-  const { theme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
+  const themeService = useService<ThemeService>('theme');
+  const [currentMode, setCurrentMode] = useState(themeService.getMode());
 
   useEffect(() => {
-    setMounted(true);
-  }, []);
+    setCurrentMode(themeService.getMode());
+  }, [themeService]);
 
-  if (!mounted) {
-    return <div className="h-5 w-5" />;
-  }
+  const isDark =
+    currentMode === 'dark' ||
+    (currentMode === 'system' &&
+      typeof window !== 'undefined' &&
+      window.matchMedia('(prefers-color-scheme: dark)').matches);
 
   return (
     <button
-      onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+      onClick={() => themeService.setMode(isDark ? 'light' : 'dark')}
       className={cn(
         'flex items-center justify-center',
         'h-6 w-6 rounded-md',
@@ -56,7 +60,7 @@ function ThemeToggle() {
       )}
       aria-label="Toggle theme"
     >
-      {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
+      {isDark ? <Sun size={14} /> : <Moon size={14} />}
     </button>
   );
 }
@@ -282,10 +286,20 @@ export function MenuBar() {
   const [sleepActive, setSleepActive] = useState(false);
   const [shutdownActive, setShutdownActive] = useState(false);
   const [restartActive, setRestartActive] = useState(false);
+  const lifecycle = useService<LifecycleService>('lifecycle');
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    const unsubSleep = lifecycle.onSleep(() => setSleepActive(true));
+    const unsubResume = lifecycle.onResume(() => setSleepActive(false));
+    return () => {
+      unsubSleep();
+      unsubResume();
+    };
+  }, [lifecycle]);
 
   return (
     <>
@@ -325,9 +339,15 @@ export function MenuBar() {
                 >
                   <AppleMenu
                     onClose={() => setMenuOpen(false)}
-                    onSleep={() => setSleepActive(true)}
+                    onSleep={() => {
+                      lifecycle.sleep();
+                      setSleepActive(true);
+                    }}
                     onRestart={() => setRestartActive(true)}
-                    onShutdown={() => setShutdownActive(true)}
+                    onShutdown={() => {
+                      lifecycle.shutdown();
+                      setShutdownActive(true);
+                    }}
                   />
                 </motion.div>
               )}

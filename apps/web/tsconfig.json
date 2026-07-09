@@ -24,19 +24,13 @@
       "@arunaos/hooks/*": ["../../packages/hooks/src/*"],
       "@arunaos/icons/*": ["../../packages/icons/src/*"],
       "@arunaos/constants/*": ["../../packages/constants/src/*"],
+      "@arunaos/services": ["../../packages/services/src/index.ts"],
       "@arunaos/services/*": ["../../packages/services/src/*"],
       "@arunaos/shared/*": ["../../packages/shared/src/*"],
       "@arunaos/animations/*": ["../../packages/animations/src/*"],
       "@arunaos/design-tokens/*": ["../../packages/design-tokens/src/*"]
     }
   },
-  "include": [
-    "next-env.d.ts",
-    "**/*.ts",
-    "**/*.tsx",
-    ".next/types/**/*.ts"
-  ],
-  "exclude": [
-    "node_modules"
-  ]
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "exclude": ["node_modules"]
 }

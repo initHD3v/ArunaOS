@@ -8,10 +8,14 @@ import { WindowManager } from '@/features/window-manager/components/window-manag
 import { ContextMenu } from '@/features/context-menu/components/context-menu';
 import { Overlay } from '@/features/overlay/components/overlay';
 import { AuthGate } from '@/features/auth/components/auth-gate';
-import { useGlobalKeys } from '@/hooks/use-global-keys';
+import { useShortcutManager } from '@/hooks/use-shortcut-manager';
+import { ToastContainer } from '@/services/notification/components/notification-ui';
+import { ModalRenderer } from '@/services/modal/modal-service';
+import { CommandPaletteProvider } from '@/features/command-palette/command-palette-provider';
+import { DebugPanel } from '@/components/debug-panel';
 
 export function DesktopShell({ children }: { children: ReactNode }) {
-  useGlobalKeys();
+  useShortcutManager();
 
   return (
     <AuthGate>
@@ -24,6 +28,10 @@ export function DesktopShell({ children }: { children: ReactNode }) {
         <div id="portal-root" />
         <ContextMenu />
         <Overlay />
+        <ToastContainer />
+        <ModalRenderer />
+        <CommandPaletteProvider />
+        <DebugPanel />
       </div>
     </AuthGate>
   );

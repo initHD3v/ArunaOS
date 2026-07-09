@@ -39,7 +39,7 @@ export const LoginScreen = memo(function LoginScreen() {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
+      exit={{ opacity: 0, pointerEvents: 'none' }}
       transition={{ duration: 0.4 }}
       className="from-background via-background to-background/95 fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-gradient-to-b"
     >
