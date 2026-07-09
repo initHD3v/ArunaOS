@@ -1,10 +1,10 @@
-"use client";
+'use client';
 
-import { memo } from "react";
-import { DesktopIcon } from "@/features/desktop-icons/components/desktop-icon";
-import { useDesktopStore } from "@/features/desktop/stores/desktop.store";
-import { useWindowStore } from "@/features/window-manager/stores/window.store";
-import type { DesktopIconData } from "@/types";
+import { memo, useCallback, useRef, useState } from 'react';
+import { DesktopIcon } from '@/features/desktop-icons/components/desktop-icon';
+import { useDesktopStore } from '@/features/desktop/stores/desktop.store';
+import { useWindowStore } from '@/features/window-manager/stores/window.store';
+import type { DesktopIconData } from '@/types';
 
 function createWindowFromIcon(data: DesktopIconData) {
   const id = `window-${data.id}-${Date.now()}`;
@@ -22,35 +22,98 @@ function createWindowFromIcon(data: DesktopIconData) {
     },
     size: { width: 960, height: 640 },
     zIndex: 1,
-    state: "active" as const,
+    state: 'active' as const,
   };
 }
 
 export const DesktopGrid = memo(function DesktopGrid() {
   const icons = useDesktopStore((s) => s.icons);
+  const refreshKey = useDesktopStore((s) => s.refreshKey);
   const selectedIconId = useDesktopStore((s) => s.selectedIconId);
   const setSelectedIcon = useDesktopStore((s) => s.setSelectedIcon);
   const openWindow = useWindowStore((s) => s.openWindow);
+  const moveIcon = useDesktopStore((s) => s.moveIcon);
 
-  const handleDoubleClick = (data: DesktopIconData) => {
-    const win = createWindowFromIcon(data);
-    openWindow(win);
-  };
+  const dragItemIndex = useRef<number | null>(null);
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+
+  const handleDoubleClick = useCallback(
+    (data: DesktopIconData) => {
+      const win = createWindowFromIcon(data);
+      openWindow(win);
+    },
+    [openWindow],
+  );
+
+  const handleDragStart = useCallback((e: React.DragEvent, index: number) => {
+    dragItemIndex.current = index;
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(index));
+    e.dataTransfer.setDragImage(new Image(), 0, 0);
+  }, []);
+
+  const handleDragOver = useCallback(
+    (e: React.DragEvent, index: number) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      if (dragOverIndex !== index) {
+        setDragOverIndex(index);
+      }
+    },
+    [dragOverIndex],
+  );
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent, toIndex: number) => {
+      e.preventDefault();
+      const fromIndex = dragItemIndex.current;
+      if (fromIndex !== null && fromIndex !== toIndex) {
+        moveIcon(fromIndex, toIndex);
+      }
+      dragItemIndex.current = null;
+      setDraggedIndex(null);
+      setDragOverIndex(null);
+    },
+    [moveIcon],
+  );
+
+  const handleDragEnd = useCallback(() => {
+    dragItemIndex.current = null;
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  }, []);
 
   return (
     <div
+      key={refreshKey}
       className="flex flex-wrap content-start gap-2 p-4 pt-6"
       style={{ maxWidth: 96 * 4 + 32 }}
     >
-      {icons.map((icon) => (
-        <DesktopIcon
-          key={icon.id}
-          data={icon}
-          isSelected={selectedIconId === icon.id}
-          onSelect={setSelectedIcon}
-          onDoubleClick={handleDoubleClick}
-        />
-      ))}
+      {icons.map((icon, index) => {
+        const isDragOver = dragOverIndex === index && draggedIndex !== index;
+        return (
+          <div
+            key={icon.id}
+            draggable
+            onDragStart={(e) => handleDragStart(e, index)}
+            onDragOver={(e) => handleDragOver(e, index)}
+            onDrop={(e) => handleDrop(e, index)}
+            onDragEnd={handleDragEnd}
+            className={`transition-all duration-150 ${
+              isDragOver ? 'scale-95 opacity-50' : ''
+            } ${draggedIndex === index ? 'opacity-60' : ''}`}
+          >
+            <DesktopIcon
+              data={icon}
+              isSelected={selectedIconId === icon.id}
+              onSelect={setSelectedIcon}
+              onDoubleClick={handleDoubleClick}
+            />
+          </div>
+        );
+      })}
     </div>
   );
 });

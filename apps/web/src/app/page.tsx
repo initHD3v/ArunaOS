@@ -1,30 +1,69 @@
-"use client";
+'use client';
 
-import { useCallback } from "react";
-import { DesktopShell } from "@/layouts/desktop-shell";
-import { DesktopGrid } from "@/features/desktop-icons/components/desktop-grid";
-import { Selection } from "@/features/selection/components/selection";
-import { useUIStore } from "@/stores/ui-store";
-
-const desktopMenuItems = [
-  { id: "new-folder", label: "New Folder", action: () => {} },
-  { id: "sep1", label: "", action: () => {}, separator: true },
-  { id: "refresh", label: "Refresh", action: () => {} },
-  { id: "sep2", label: "", action: () => {}, separator: true },
-  { id: "wallpaper", label: "Change Wallpaper", action: () => {} },
-  { id: "sep3", label: "", action: () => {}, separator: true },
-  { id: "settings", label: "Settings", action: () => {} },
-];
+import { useCallback, useMemo } from 'react';
+import { DesktopShell } from '@/layouts/desktop-shell';
+import { DesktopGrid } from '@/features/desktop-icons/components/desktop-grid';
+import { Selection } from '@/features/selection/components/selection';
+import { useUIStore } from '@/stores/ui-store';
+import { useDesktopStore } from '@/features/desktop/stores/desktop.store';
+import { useWindowStore } from '@/features/window-manager/stores/window.store';
+import type { DesktopIconData } from '@/types';
 
 export default function Home() {
   const showContextMenu = useUIStore((s) => s.showContextMenu);
+  const addIcon = useDesktopStore((s) => s.addIcon);
+  const cycleWallpaper = useDesktopStore((s) => s.cycleWallpaper);
+  const triggerRefresh = useDesktopStore((s) => s.triggerRefresh);
+  const openWindow = useWindowStore((s) => s.openWindow);
+
+  const desktopMenuItems = useMemo(
+    () => [
+      {
+        id: 'new-folder',
+        label: 'New Folder',
+        action: () => {
+          const id = `folder-${Date.now()}`;
+          const newIcon: DesktopIconData = {
+            id,
+            title: 'untitled folder',
+            icon: 'folder',
+            position: 0,
+            appId: 'files',
+          };
+          addIcon(newIcon);
+        },
+      },
+      { id: 'sep1', label: '', action: () => {}, separator: true },
+      { id: 'refresh', label: 'Refresh', action: triggerRefresh },
+      { id: 'sep2', label: '', action: () => {}, separator: true },
+      { id: 'wallpaper', label: 'Change Wallpaper', action: cycleWallpaper },
+      { id: 'sep3', label: '', action: () => {}, separator: true },
+      {
+        id: 'settings',
+        label: 'Settings',
+        action: () => {
+          openWindow({
+            id: `window-settings-${Date.now()}`,
+            title: 'Settings',
+            icon: 'settings',
+            appId: 'settings',
+            position: { x: 200, y: 100 },
+            size: { width: 800, height: 600 },
+            zIndex: 1,
+            state: 'active',
+          });
+        },
+      },
+    ],
+    [addIcon, triggerRefresh, cycleWallpaper, openWindow],
+  );
 
   const handleContextMenu = useCallback(
     (e: React.MouseEvent) => {
       e.preventDefault();
       showContextMenu({ x: e.clientX, y: e.clientY }, desktopMenuItems);
     },
-    [showContextMenu],
+    [showContextMenu, desktopMenuItems],
   );
 
   return (
