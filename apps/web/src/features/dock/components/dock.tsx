@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Monitor, Sparkles, FolderOpen, Settings, Activity } from 'lucide-react';
+import { Monitor, Sparkles, FolderOpen, Settings, Activity, Camera } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useWindowStore } from '@/features/window-manager/stores/window.store';
 
@@ -10,6 +10,7 @@ const dockItems = [
   { id: 'finder', icon: Monitor, label: 'Finder', appId: 'finder' },
   { id: 'ai', icon: Sparkles, label: 'AI', appId: 'ai' },
   { id: 'files', icon: FolderOpen, label: 'Files', appId: 'files' },
+  { id: 'camera', icon: Camera, label: 'Camera', appId: 'camera' },
   { id: 'astat', icon: Activity, label: 'AStat', appId: 'astat' },
   { id: 'settings', icon: Settings, label: 'Settings', appId: 'settings' },
 ] as const;
@@ -74,6 +75,7 @@ export function Dock() {
       > = {
         files: { title: 'Files', icon: 'folder', size: { width: 960, height: 640 } },
         settings: { title: 'Settings', icon: 'settings', size: { width: 720, height: 520 } },
+        camera: { title: 'Camera', icon: 'camera', size: { width: 800, height: 600 } },
         astat: { title: 'Activity Monitor', icon: 'activity', size: { width: 800, height: 500 } },
         ai: { title: 'AI', icon: 'sparkles', size: { width: 640, height: 480 } },
         finder: { title: 'Finder', icon: 'folder', size: { width: 960, height: 640 } },

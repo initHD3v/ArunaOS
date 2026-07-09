@@ -45,7 +45,15 @@ function formatDuration(ms: number): string {
   return parts.join(' ');
 }
 
-function Sparkline({ data, max, color }: { data: number[]; max: number; color: string }) {
+const Sparkline = memo(function Sparkline({
+  data,
+  max,
+  color,
+}: {
+  data: number[];
+  max: number;
+  color: string;
+}) {
   if (data.length < 2) return null;
   const w = 120;
   const h = 32;
@@ -68,9 +76,17 @@ function Sparkline({ data, max, color }: { data: number[]; max: number; color: s
       />
     </svg>
   );
-}
+});
 
-function InfoRow({ label, value, hint }: { label: string; value: string; hint?: string }) {
+const InfoRow = memo(function InfoRow({
+  label,
+  value,
+  hint,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+}) {
   return (
     <div className="border-border/5 flex items-center justify-between border-b py-1 text-xs last:border-0">
       <span className="text-foreground/50">{label}</span>
@@ -80,9 +96,9 @@ function InfoRow({ label, value, hint }: { label: string; value: string; hint?: 
       </div>
     </div>
   );
-}
+});
 
-function UsageBar({
+const UsageBar = memo(function UsageBar({
   value,
   max,
   label,
@@ -118,9 +134,9 @@ function UsageBar({
       </div>
     </div>
   );
-}
+});
 
-function MetricCard({
+const MetricCard = memo(function MetricCard({
   icon: Icon,
   label,
   value,
@@ -150,7 +166,7 @@ function MetricCard({
       </div>
     </div>
   );
-}
+});
 
 export const AStat = memo(function AStat() {
   const windows = useWindowStore((s) => s.windows);
@@ -164,40 +180,27 @@ export const AStat = memo(function AStat() {
   const [sortKey, setSortKey] = useState<string>('cpu');
   const [sortAsc, setSortAsc] = useState(false);
 
-  const frameTimes = useRef<number[]>([]);
-  const lastFrameTime = useRef(performance.now());
-  const rafId = useRef(0);
-
   useEffect(() => {
-    const measureFrame = (time: number) => {
-      const delta = time - lastFrameTime.current;
-      lastFrameTime.current = time;
-      const ft = frameTimes.current;
-      ft.push(delta);
-      if (ft.length > 120) ft.shift();
-      rafId.current = requestAnimationFrame(measureFrame);
-    };
-    rafId.current = requestAnimationFrame(measureFrame);
-    return () => cancelAnimationFrame(rafId.current);
-  }, []);
+    const coreCount = navigator.hardwareConcurrency || 1;
+    let prevTime = performance.now();
+    let smoothedLoad = 0;
 
-  useEffect(() => {
     const tick = () => {
-      const ft = frameTimes.current;
-      const ideal = 1000 / 60;
-      let totalOver = 0;
-      const recent = ft.slice(-60);
-      for (const t of recent) {
-        if (t > ideal) totalOver += Math.min(1, (t - ideal) / ideal);
-      }
-      const load = recent.length > 5 ? Math.min(100, (totalOver / recent.length) * 100) : 0;
-      const coreCount = navigator.hardwareConcurrency || 1;
-      const perCore =
-        coreCount > 1
-          ? Array.from({ length: coreCount }, () =>
-              Math.min(100, load * (0.3 + Math.random() * 0.7)),
-            )
-          : [load];
+      const now = performance.now();
+      const elapsed = now - prevTime;
+      prevTime = now;
+
+      const expectedMs = 1000;
+      const slack = 16;
+      const drift = Math.max(0, elapsed - expectedMs - slack);
+      const raw = Math.min(100, (drift / expectedMs) * 100);
+      smoothedLoad = smoothedLoad * 0.85 + raw * 0.15;
+      const load = Math.round(smoothedLoad * 10) / 10;
+
+      const base = load / coreCount;
+      const perCore = Array.from({ length: coreCount }, (_, i) =>
+        Math.min(100, base + (load > 0 ? (i === 0 ? load * 0.1 : 0) : 0)),
+      );
 
       setCoreLoads(perCore);
       setCpuLoad(load);
@@ -221,8 +224,8 @@ export const AStat = memo(function AStat() {
       }
     };
 
+    prevTime = performance.now();
     const id = setInterval(tick, 1000);
-    tick();
     return () => clearInterval(id);
   }, []);
 
@@ -578,30 +581,44 @@ function Section({
   );
 }
 
-function BatterySection() {
+const BatterySection = memo(function BatterySection() {
   const [battery, setBattery] = useState<{
     level: number;
     charging: boolean;
     time?: number;
   } | null>(null);
+  const cleanupRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
-    if ('getBattery' in navigator) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (navigator as any).getBattery().then((b: any) => {
-        const update = () =>
-          setBattery({
-            level: b.level,
-            charging: b.charging,
-            time: b.charging ? b.chargingTime : b.dischargingTime,
-          });
-        update();
-        b.addEventListener('levelchange', update);
-        b.addEventListener('chargingchange', update);
-        b.addEventListener('chargingtimechange', update);
-        b.addEventListener('dischargingtimechange', update);
-      });
-    }
+    if (!('getBattery' in navigator)) return;
+    let cancelled = false;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (navigator as any).getBattery().then((b: any) => {
+      if (cancelled) return;
+      const update = () => {
+        if (cancelled) return;
+        setBattery({
+          level: b.level,
+          charging: b.charging,
+          time: b.charging ? b.chargingTime : b.dischargingTime,
+        });
+      };
+      update();
+      b.addEventListener('levelchange', update);
+      b.addEventListener('chargingchange', update);
+      b.addEventListener('chargingtimechange', update);
+      b.addEventListener('dischargingtimechange', update);
+      cleanupRef.current = () => {
+        b.removeEventListener('levelchange', update);
+        b.removeEventListener('chargingchange', update);
+        b.removeEventListener('chargingtimechange', update);
+        b.removeEventListener('dischargingtimechange', update);
+      };
+    });
+    return () => {
+      cancelled = true;
+      cleanupRef.current?.();
+    };
   }, []);
 
   if (!battery) {
@@ -633,9 +650,9 @@ function BatterySection() {
       </div>
     </Section>
   );
-}
+});
 
-function NetworkSection() {
+const NetworkSection = memo(function NetworkSection() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const conn = (navigator as any).connection as
     | { effectiveType?: string; downlink?: number; rtt?: number; saveData?: boolean; type?: string }
@@ -674,4 +691,4 @@ function NetworkSection() {
       </Section>
     </>
   );
-}
+});
