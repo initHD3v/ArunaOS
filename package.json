@@ -2,6 +2,7 @@
   "name": "arunaos",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "description": "AI-Native Operating Workspace",
   "scripts": {
     "dev": "turbo dev",
@@ -15,12 +16,15 @@
     "prepare": "husky"
   },
   "devDependencies": {
-    "turbo": "^2.5.0",
+    "@changesets/cli": "^2.27.0",
+    "@eslint/js": "^9.39.4",
+    "eslint": "^9.39.4",
     "husky": "^9.1.7",
     "lint-staged": "^15.5.0",
     "prettier": "^3.5.3",
     "prettier-plugin-tailwindcss": "^0.6.0",
-    "@changesets/cli": "^2.27.0"
+    "turbo": "^2.5.0",
+    "typescript-eslint": "^8.63.0"
   },
   "packageManager": "pnpm@10.10.0",
   "engines": {

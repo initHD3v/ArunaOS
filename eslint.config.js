@@ -1,18 +1,18 @@
-import { defineConfig } from 'eslint/config';
+import js from '@eslint/js';
+import tseslint from 'typescript-eslint';
 
-export default defineConfig({
-  root: true,
-  extends: ['eslint:recommended'],
-  parser: '@typescript-eslint/parser',
-  plugins: ['@typescript-eslint'],
-  parserOptions: {
-    ecmaVersion: 'latest',
-    sourceType: 'module',
+export default tseslint.config(
+  {
+    ignores: ['**/node_modules/**', '**/dist/**', '**/.next/**', '**/out/**', '**/*.js'],
   },
-  rules: {
-    'no-unused-vars': 'off',
-    '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
-    'no-console': ['warn', { allow: ['warn', 'error'] }],
+  js.configs.recommended,
+  ...tseslint.configs.recommended,
+  {
+    files: ['**/*.ts', '**/*.tsx'],
+    rules: {
+      'no-unused-vars': 'off',
+      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+      'no-console': ['warn', { allow: ['warn', 'error'] }],
+    },
   },
-  ignorePatterns: ['node_modules/', 'dist/', '.next/', 'out/'],
-});
+);

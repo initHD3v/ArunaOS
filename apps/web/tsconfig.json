@@ -1,11 +1,42 @@
 {
-  "extends": "@arunaos/config/tsconfig.base.json",
+  "extends": "../../packages/config/tsconfig.base.json",
   "compilerOptions": {
     "jsx": "preserve",
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "plugins": [{ "name": "next" }]
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "noEmit": true,
+    "esModuleInterop": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"],
+      "@arunaos/ui/*": ["../../packages/ui/src/*"],
+      "@arunaos/config/*": ["../../packages/config/src/*"],
+      "@arunaos/types/*": ["../../packages/types/src/*"],
+      "@arunaos/utils/*": ["../../packages/utils/src/*"],
+      "@arunaos/ai/*": ["../../packages/ai/src/*"],
+      "@arunaos/database/*": ["../../packages/database/src/*"],
+      "@arunaos/auth/*": ["../../packages/auth/src/*"],
+      "@arunaos/hooks/*": ["../../packages/hooks/src/*"],
+      "@arunaos/icons/*": ["../../packages/icons/src/*"],
+      "@arunaos/constants/*": ["../../packages/constants/src/*"],
+      "@arunaos/services/*": ["../../packages/services/src/*"],
+      "@arunaos/shared/*": ["../../packages/shared/src/*"],
+      "@arunaos/animations/*": ["../../packages/animations/src/*"],
+      "@arunaos/design-tokens/*": ["../../packages/design-tokens/src/*"]
+    }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules"]
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
 }
