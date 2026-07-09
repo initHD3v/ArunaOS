@@ -1,17 +1,19 @@
 'use client';
 
-import { memo, useState } from 'react';
+import { memo, useState, useCallback } from 'react';
 import { useTheme } from 'next-themes';
 import { cn } from '@/lib/utils';
 import { useDesktopStore } from '@/features/desktop/stores/desktop.store';
-import { Sun, Moon, Monitor, Keyboard, Info } from 'lucide-react';
+import { useAuthStore } from '@/stores/auth.store';
+import { Sun, Moon, Monitor, Keyboard, Info, Lock, AlertCircle, CheckCircle } from 'lucide-react';
 
-type SettingsTab = 'general' | 'appearance' | 'keyboard' | 'about';
+type SettingsTab = 'general' | 'appearance' | 'keyboard' | 'security' | 'about';
 
 const tabs: { id: SettingsTab; label: string; icon: React.ElementType }[] = [
   { id: 'general', label: 'General', icon: Info },
   { id: 'appearance', label: 'Appearance', icon: Sun },
   { id: 'keyboard', label: 'Keyboard', icon: Keyboard },
+  { id: 'security', label: 'Security', icon: Lock },
   { id: 'about', label: 'About', icon: Monitor },
 ];
 
@@ -126,6 +128,225 @@ function KeyboardPanel() {
   );
 }
 
+function SecurityPanel() {
+  const {
+    username,
+    setUsername,
+    isAuthEnabled,
+    enableAuth,
+    disableAuth,
+    setPassword,
+    login,
+    lock,
+  } = useAuthStore();
+  const [localUsername, setLocalUsername] = useState(username);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const handleEnable = useCallback(async () => {
+    if (!localUsername.trim()) {
+      setMsg({ type: 'error', text: 'Please enter a username.' });
+      return;
+    }
+    if (!newPassword) {
+      setMsg({ type: 'error', text: 'Please set a password.' });
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setMsg({ type: 'error', text: 'Passwords do not match.' });
+      return;
+    }
+    setUsername(localUsername.trim());
+    await setPassword(newPassword);
+    enableAuth();
+    setMsg({
+      type: 'success',
+      text: 'Authentication enabled. You will be prompted on next page load.',
+    });
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
+  }, [localUsername, newPassword, confirmPassword, setUsername, setPassword, enableAuth]);
+
+  const handleDisable = useCallback(async () => {
+    if (currentPassword) {
+      const ok = await login(currentPassword);
+      if (!ok) {
+        setMsg({ type: 'error', text: 'Current password is incorrect.' });
+        return;
+      }
+    }
+    disableAuth();
+    setMsg({ type: 'success', text: 'Authentication disabled.' });
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
+  }, [currentPassword, login, disableAuth]);
+
+  const handleChangePassword = useCallback(async () => {
+    if (!newPassword) {
+      setMsg({ type: 'error', text: 'Please enter a new password.' });
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setMsg({ type: 'error', text: 'Passwords do not match.' });
+      return;
+    }
+    if (currentPassword) {
+      const ok = await login(currentPassword);
+      if (!ok) {
+        setMsg({ type: 'error', text: 'Current password is incorrect.' });
+        return;
+      }
+    }
+    await setPassword(newPassword);
+    setMsg({ type: 'success', text: 'Password changed successfully.' });
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
+  }, [newPassword, confirmPassword, currentPassword, login, setPassword]);
+
+  const handleLockNow = useCallback(() => {
+    lock();
+  }, [lock]);
+
+  return (
+    <div className="space-y-5">
+      <div>
+        <h3 className="text-foreground mb-3 text-sm font-semibold">User Account</h3>
+        <div className="bg-muted/30 border-border/20 space-y-4 rounded-xl border p-4">
+          <div className="flex items-center justify-between">
+            <span className="text-foreground text-sm">Username</span>
+            <input
+              type="text"
+              value={localUsername}
+              onChange={(e) => setLocalUsername(e.target.value)}
+              className="bg-muted border-border/40 focus:border-primary/50 focus:ring-primary/20 w-48 rounded-lg border px-3 py-1.5 text-sm outline-none transition-colors focus:ring-2"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <h3 className="text-foreground mb-3 text-sm font-semibold">Authentication</h3>
+        <div className="bg-muted/30 border-border/20 space-y-4 rounded-xl border p-4">
+          <div className="flex items-center justify-between">
+            <span className="text-foreground text-sm">Password Protection</span>
+            <span
+              className={cn(
+                'rounded-full px-2.5 py-0.5 text-[11px] font-medium',
+                isAuthEnabled ? 'bg-green-500/15 text-green-400' : 'bg-muted text-foreground/40',
+              )}
+            >
+              {isAuthEnabled ? 'Enabled' : 'Disabled'}
+            </span>
+          </div>
+
+          {!isAuthEnabled ? (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-foreground/60 text-xs">New Password</span>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="bg-muted border-border/40 focus:border-primary/50 focus:ring-primary/20 w-48 rounded-lg border px-3 py-1.5 text-sm outline-none transition-colors focus:ring-2"
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-foreground/60 text-xs">Confirm Password</span>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="bg-muted border-border/40 focus:border-primary/50 focus:ring-primary/20 w-48 rounded-lg border px-3 py-1.5 text-sm outline-none transition-colors focus:ring-2"
+                />
+              </div>
+              <button
+                onClick={handleEnable}
+                className="bg-foreground/10 hover:bg-foreground/15 text-foreground/80 rounded-lg px-4 py-1.5 text-xs font-medium transition-colors"
+              >
+                Enable Authentication
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-foreground/60 text-xs">Current Password</span>
+                <input
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="bg-muted border-border/40 focus:border-primary/50 focus:ring-primary/20 w-48 rounded-lg border px-3 py-1.5 text-sm outline-none transition-colors focus:ring-2"
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-foreground/60 text-xs">New Password</span>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="bg-muted border-border/40 focus:border-primary/50 focus:ring-primary/20 w-48 rounded-lg border px-3 py-1.5 text-sm outline-none transition-colors focus:ring-2"
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-foreground/60 text-xs">Confirm Password</span>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="bg-muted border-border/40 focus:border-primary/50 focus:ring-primary/20 w-48 rounded-lg border px-3 py-1.5 text-sm outline-none transition-colors focus:ring-2"
+                />
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleChangePassword}
+                  className="bg-foreground/10 hover:bg-foreground/15 text-foreground/80 rounded-lg px-4 py-1.5 text-xs font-medium transition-colors"
+                >
+                  Change Password
+                </button>
+                <button
+                  onClick={handleDisable}
+                  className="rounded-lg bg-red-500/10 px-4 py-1.5 text-xs font-medium text-red-400 transition-colors hover:bg-red-500/20"
+                >
+                  Disable Authentication
+                </button>
+                <button
+                  onClick={handleLockNow}
+                  className="bg-foreground/10 hover:bg-foreground/15 text-foreground/80 rounded-lg px-4 py-1.5 text-xs font-medium transition-colors"
+                >
+                  Lock Now
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {msg && (
+        <div
+          className={cn(
+            'flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs',
+            msg.type === 'success'
+              ? 'bg-green-500/10 text-green-400'
+              : 'bg-red-500/10 text-red-400',
+          )}
+        >
+          {msg.type === 'success' ? <CheckCircle size={12} /> : <AlertCircle size={12} />}
+          {msg.text}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AboutPanel() {
   return (
     <div className="space-y-4">
@@ -153,6 +374,7 @@ const panelComponents: Record<SettingsTab, React.ElementType> = {
   general: GeneralPanel,
   appearance: AppearancePanel,
   keyboard: KeyboardPanel,
+  security: SecurityPanel,
   about: AboutPanel,
 };
 

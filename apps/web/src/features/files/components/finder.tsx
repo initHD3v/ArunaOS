@@ -1,6 +1,6 @@
 'use client';
 
-import { memo, useCallback, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import {
   FolderOpen,
@@ -14,6 +14,11 @@ import {
   X,
   Disc,
   ArrowUpDown,
+  FileImage,
+  FileAudio,
+  FileVideo,
+  FileText,
+  FileCode,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useDesktopStore } from '@/features/desktop/stores/desktop.store';
@@ -23,6 +28,7 @@ import { useClipboardStore, storeNativeHandle, clipboardHandleMap } from '@/stor
 import { useFilesStore, type FileItem } from '../stores/files.store';
 import { putBlob, getBlob, deleteBlob } from '@/stores/file-blobs.db';
 import { useNativeFSStore, type NativeEntry } from '../stores/native-fs.store';
+import { getFileCategory, type FileCategory } from '@/features/viewer/utils/file-types';
 import type { DesktopIconData } from '@/types';
 
 const iconMap: Record<string, React.ElementType> = {
@@ -34,8 +40,12 @@ const iconMap: Record<string, React.ElementType> = {
 
 const FOLDER_IDS = ['root', 'documents', 'downloads'];
 
-function getIcon(item: { icon: string; type: string }) {
+function getIcon(item: { icon: string; type: string; name?: string }) {
   if (item.type === 'folder') return FolderOpen;
+  if (item.name) {
+    const cat = getFileCategory(item.name);
+    return typeIconMap[cat] ?? File;
+  }
   return iconMap[item.icon] ?? File;
 }
 
@@ -51,6 +61,17 @@ function getExtension(name: string): string {
   const i = name.lastIndexOf('.');
   return i > 0 ? name.slice(i + 1).toLowerCase() : '';
 }
+
+const typeIconMap: Record<FileCategory, React.ElementType> = {
+  image: FileImage,
+  audio: FileAudio,
+  video: FileVideo,
+  text: FileText,
+  markdown: FileText,
+  pdf: FileText,
+  code: FileCode,
+  unknown: File,
+};
 
 type SortBy = 'name' | 'type' | 'extension';
 
@@ -91,6 +112,57 @@ function sortItems<T>(items: T[], sortBy: SortBy): T[] {
     }
   });
 }
+
+const IMAGE_CATS = new Set<FileCategory>(['image']);
+
+const FileThumbnail = memo(function FileThumbnail({
+  name,
+  blobId,
+  icon,
+}: {
+  name: string;
+  blobId?: string;
+  icon: React.ElementType;
+}) {
+  const cat = getFileCategory(name);
+  const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
+  const Icon = icon;
+
+  useEffect(() => {
+    if (!IMAGE_CATS.has(cat)) return;
+    let cancelled = false;
+    let url: string | null = null;
+    (async () => {
+      try {
+        if (blobId) {
+          const blob = await getBlob(blobId);
+          if (!blob || cancelled) return;
+          url = URL.createObjectURL(blob);
+          if (!cancelled) setThumbnailUrl(url);
+        }
+      } catch {
+        /* no blob */
+      }
+    })();
+    return () => {
+      cancelled = true;
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [blobId, cat]);
+
+  if (thumbnailUrl) {
+    return (
+      <img
+        src={thumbnailUrl}
+        alt=""
+        className="absolute inset-0 h-full w-full object-cover"
+        draggable={false}
+      />
+    );
+  }
+
+  return <Icon size={24} className="text-foreground/70" strokeWidth={1.5} />;
+});
 
 const sortLabels: Record<SortBy, string> = {
   name: 'Name',
@@ -804,8 +876,12 @@ export const Finder = memo(function Finder() {
                 }}
               >
                 {sortedNativeEntries.map((entry) => {
-                  const Icon = entry.type === 'directory' ? FolderOpen : File;
+                  const isDir = entry.type === 'directory';
+                  const Icon = isDir
+                    ? FolderOpen
+                    : (typeIconMap[getFileCategory(entry.name)] ?? File);
                   const isSelected = selectedIds.has(entry.name);
+                  const cat = getFileCategory(entry.name);
                   return (
                     <motion.button
                       key={entry.name}
@@ -826,8 +902,12 @@ export const Finder = memo(function Finder() {
                         isSelected ? 'bg-primary/15 ring-primary/30 ring-1' : 'hover:bg-white/5',
                       )}
                     >
-                      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/10 backdrop-blur-sm">
-                        <Icon size={24} className="text-foreground/70" strokeWidth={1.5} />
+                      <div className="relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-xl bg-white/10 backdrop-blur-sm">
+                        {!isDir && IMAGE_CATS.has(cat) ? (
+                          <FileThumbnail name={entry.name} icon={Icon} />
+                        ) : (
+                          <Icon size={24} className="text-foreground/70" strokeWidth={1.5} />
+                        )}
                       </div>
                       <span className="text-foreground/60 max-w-full break-words px-1 text-center text-[11px] font-medium leading-tight">
                         {entry.name}
@@ -850,11 +930,12 @@ export const Finder = memo(function Finder() {
               }}
             >
               {subItems.map((item) => {
-                const Icon = isDesktopItem(item)
-                  ? (iconMap[item.icon] ?? FolderOpen)
-                  : getIcon(item);
+                const isDesktop = isDesktopItem(item);
+                const Icon = isDesktop ? (iconMap[item.icon] ?? FolderOpen) : getIcon(item);
                 const label = getItemLabel(item);
                 const isSelected = selectedIds.has(item.id);
+                const fi = !isDesktop ? (item as FileItem) : null;
+                const cat = fi ? getFileCategory(fi.name) : 'unknown';
                 return (
                   <motion.button
                     key={item.id}
@@ -875,8 +956,12 @@ export const Finder = memo(function Finder() {
                       isSelected ? 'bg-primary/15 ring-primary/30 ring-1' : 'hover:bg-white/5',
                     )}
                   >
-                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/10 backdrop-blur-sm">
-                      <Icon size={24} className="text-foreground/70" strokeWidth={1.5} />
+                    <div className="relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-xl bg-white/10 backdrop-blur-sm">
+                      {fi && IMAGE_CATS.has(cat) ? (
+                        <FileThumbnail name={fi.name} blobId={fi.id} icon={Icon} />
+                      ) : (
+                        <Icon size={24} className="text-foreground/70" strokeWidth={1.5} />
+                      )}
                     </div>
                     <span className="text-foreground/60 max-w-full break-words px-1 text-center text-[11px] font-medium leading-tight">
                       {label}
