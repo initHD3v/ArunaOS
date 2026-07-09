@@ -11,8 +11,8 @@ ArunaOS itu operating environment yang jalan di browser. Bukan pengganti macOS, 
 | Phase | Fokus | Status |
 |-------|-------|--------|
 | **Phase 0** | Product Definition, Tech Stack Finalization, Repository Structure, Development Standard, UI Direction, Performance Budget | ✅ Selesai |
-| **Phase 1** | Bootstrap project (Next.js, Tailwind, shadcn/ui, Drizzle, Redis) + Tampilin ArunaOS Shell pertama (Desktop kosong + Wallpaper + Dock + Menu Bar) | ⏳ Selanjutnya |
-| **Phase 2** | Window Manager, Dock interactions, Menu Bar functionality | 📝 Rencana |
+| **Phase 1** | Bootstrap project (Next.js, Tailwind, shadcn/ui, Drizzle, Redis) + Tampilin ArunaOS Shell pertama (Desktop kosong + Wallpaper + Dock + Menu Bar) | ✅ Selesai  |
+| **Phase 2** | Window Manager, Dock interactions, Menu Bar functionality | ✅ Selesai  |
 | **Phase 3** | AI Engine integration, Command Palette, Intent Parser | 📝 Rencana |
 | **Phase 4** | File Explorer, Search, Notification Center | 📝 Rencana |
 | **Phase 5** | Settings, Theme Engine, Plugin System, Voice Assistant | 📝 Rencana |
