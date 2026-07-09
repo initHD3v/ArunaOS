@@ -4,6 +4,7 @@ import { memo, useCallback, useRef, useState } from 'react';
 import { DesktopIcon } from '@/features/desktop-icons/components/desktop-icon';
 import { useDesktopStore } from '@/features/desktop/stores/desktop.store';
 import { useWindowStore } from '@/features/window-manager/stores/window.store';
+import { useUIStore } from '@/stores/ui-store';
 import type { DesktopIconData } from '@/types';
 
 function createWindowFromIcon(data: DesktopIconData) {
@@ -30,9 +31,14 @@ export const DesktopGrid = memo(function DesktopGrid() {
   const icons = useDesktopStore((s) => s.icons);
   const refreshKey = useDesktopStore((s) => s.refreshKey);
   const selectedIconId = useDesktopStore((s) => s.selectedIconId);
+  const renamingIconId = useDesktopStore((s) => s.renamingIconId);
   const setSelectedIcon = useDesktopStore((s) => s.setSelectedIcon);
-  const openWindow = useWindowStore((s) => s.openWindow);
+  const setRenamingIcon = useDesktopStore((s) => s.setRenamingIcon);
+  const renameIcon = useDesktopStore((s) => s.renameIcon);
+  const removeIcon = useDesktopStore((s) => s.removeIcon);
   const moveIcon = useDesktopStore((s) => s.moveIcon);
+  const openWindow = useWindowStore((s) => s.openWindow);
+  const showContextMenu = useUIStore((s) => s.showContextMenu);
 
   const dragItemIndex = useRef<number | null>(null);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
@@ -44,6 +50,31 @@ export const DesktopGrid = memo(function DesktopGrid() {
       openWindow(win);
     },
     [openWindow],
+  );
+
+  const handleIconContextMenu = useCallback(
+    (e: React.MouseEvent, icon: DesktopIconData) => {
+      e.preventDefault();
+      e.stopPropagation();
+      showContextMenu({ x: e.clientX, y: e.clientY }, [
+        {
+          id: 'open',
+          label: 'Open',
+          action: () => {
+            const win = createWindowFromIcon(icon);
+            openWindow(win);
+          },
+        },
+        { id: 'rename', label: 'Rename', action: () => setRenamingIcon(icon.id) },
+        { id: 'sep1', label: '', action: () => {}, separator: true },
+        {
+          id: 'delete',
+          label: 'Delete',
+          action: () => removeIcon(icon.id),
+        },
+      ]);
+    },
+    [showContextMenu, openWindow, setRenamingIcon, removeIcon],
   );
 
   const handleDragStart = useCallback((e: React.DragEvent, index: number) => {
@@ -85,10 +116,38 @@ export const DesktopGrid = memo(function DesktopGrid() {
     setDragOverIndex(null);
   }, []);
 
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (icons.length === 0) return;
+
+      const currentIdx = icons.findIndex((icon) => icon.id === selectedIconId);
+      const safeIdx = currentIdx === -1 ? 0 : currentIdx;
+
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        const direction = e.shiftKey ? -1 : 1;
+        const nextIdx = (safeIdx + direction + icons.length) % icons.length;
+        const nextIcon = icons[nextIdx];
+        if (nextIcon) setSelectedIcon(nextIcon.id);
+        return;
+      }
+
+      if (e.key === 'Enter') {
+        const selected = icons.find((icon) => icon.id === selectedIconId);
+        if (selected) {
+          handleDoubleClick(selected);
+        }
+      }
+    },
+    [icons, selectedIconId, setSelectedIcon, handleDoubleClick],
+  );
+
   return (
     <div
       key={refreshKey}
-      className="flex flex-wrap content-start gap-2 p-4 pt-6"
+      tabIndex={0}
+      onKeyDown={handleKeyDown}
+      className="flex flex-wrap content-start gap-2 p-4 pt-6 outline-none"
       style={{ maxWidth: 96 * 4 + 32 }}
     >
       {icons.map((icon, index) => {
@@ -97,6 +156,7 @@ export const DesktopGrid = memo(function DesktopGrid() {
           <div
             key={icon.id}
             draggable
+            onContextMenu={(e) => handleIconContextMenu(e, icon)}
             onDragStart={(e) => handleDragStart(e, index)}
             onDragOver={(e) => handleDragOver(e, index)}
             onDrop={(e) => handleDrop(e, index)}
@@ -108,8 +168,11 @@ export const DesktopGrid = memo(function DesktopGrid() {
             <DesktopIcon
               data={icon}
               isSelected={selectedIconId === icon.id}
+              isRenaming={renamingIconId === icon.id}
               onSelect={setSelectedIcon}
               onDoubleClick={handleDoubleClick}
+              onRename={renameIcon}
+              onRenameCancel={() => setRenamingIcon(null)}
             />
           </div>
         );

@@ -16,12 +16,7 @@ export interface Rectangle {
 }
 
 export type WindowState =
-  | "active"
-  | "inactive"
-  | "dragging"
-  | "resizing"
-  | "minimized"
-  | "maximized";
+  'active' | 'inactive' | 'dragging' | 'resizing' | 'minimized' | 'maximized';
 
 export interface WindowData {
   id: string;
@@ -32,6 +27,7 @@ export interface WindowData {
   zIndex: number;
   state: WindowState;
   appId: string;
+  appData?: Record<string, unknown>;
 }
 
 export interface DesktopIconData {

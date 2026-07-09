@@ -1,10 +1,16 @@
-import { create } from "zustand";
-import type { WindowData, WindowState, Position, Size } from "@/types";
+import { create } from 'zustand';
+import type { WindowData, WindowState, Position, Size } from '@/types';
+
+interface SavedState {
+  position: Position;
+  size: Size;
+}
 
 interface WindowStore {
   windows: Record<string, WindowData>;
   focusedWindowId: string | null;
   nextZIndex: number;
+  savedStates: Record<string, SavedState>;
 
   openWindow: (win: WindowData) => void;
   closeWindow: (id: string) => void;
@@ -21,6 +27,7 @@ export const useWindowStore = create<WindowStore>((set) => ({
   windows: {},
   focusedWindowId: null,
   nextZIndex: 1,
+  savedStates: {},
 
   openWindow: (win) =>
     set((s) => ({
@@ -34,21 +41,24 @@ export const useWindowStore = create<WindowStore>((set) => ({
       const nextFocused = s.focusedWindowId === id ? null : s.focusedWindowId;
       const windows = { ...s.windows };
       delete windows[id];
+      const savedStates = { ...s.savedStates };
+      delete savedStates[id];
       return {
         windows,
         focusedWindowId: nextFocused,
         nextZIndex: Object.keys(windows).length === 0 ? 1 : s.nextZIndex,
+        savedStates,
       };
     }),
 
   focusWindow: (id) =>
     set((s) => {
       const target = s.windows[id];
-      if (!target || target.state === "minimized") return s;
+      if (!target || target.state === 'minimized') return s;
       return {
         windows: {
           ...s.windows,
-          [id]: { ...target, state: "active" as WindowState, zIndex: s.nextZIndex },
+          [id]: { ...target, state: 'active' as WindowState, zIndex: s.nextZIndex },
         },
         focusedWindowId: id,
         nextZIndex: s.nextZIndex + 1,
@@ -60,7 +70,7 @@ export const useWindowStore = create<WindowStore>((set) => ({
       const target = s.windows[id];
       if (!target) return s;
       return {
-        windows: { ...s.windows, [id]: { ...target, state: "minimized" as WindowState } },
+        windows: { ...s.windows, [id]: { ...target, state: 'minimized' as WindowState } },
         focusedWindowId: s.focusedWindowId === id ? null : s.focusedWindowId,
       };
     }),
@@ -69,8 +79,48 @@ export const useWindowStore = create<WindowStore>((set) => ({
     set((s) => {
       const target = s.windows[id];
       if (!target) return s;
+
+      if (target.state === 'maximized') {
+        const saved = s.savedStates[id];
+        if (!saved) return s;
+        const savedStates = { ...s.savedStates };
+        delete savedStates[id];
+        return {
+          windows: {
+            ...s.windows,
+            [id]: {
+              ...target,
+              state: 'active' as WindowState,
+              position: saved.position,
+              size: saved.size,
+              zIndex: s.nextZIndex,
+            },
+          },
+          focusedWindowId: id,
+          nextZIndex: s.nextZIndex + 1,
+          savedStates,
+        };
+      }
+
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
       return {
-        windows: { ...s.windows, [id]: { ...target, state: "maximized" as WindowState } },
+        windows: {
+          ...s.windows,
+          [id]: {
+            ...target,
+            state: 'maximized' as WindowState,
+            position: { x: 0, y: 0 },
+            size: { width: vw, height: vh },
+            zIndex: s.nextZIndex,
+          },
+        },
+        focusedWindowId: id,
+        nextZIndex: s.nextZIndex + 1,
+        savedStates: {
+          ...s.savedStates,
+          [id]: { position: target.position, size: target.size },
+        },
       };
     }),
 
@@ -78,19 +128,45 @@ export const useWindowStore = create<WindowStore>((set) => ({
     set((s) => {
       const target = s.windows[id];
       if (!target) return s;
-      const isMinimized = target.state === "minimized";
-      return {
-        windows: {
-          ...s.windows,
-          [id]: {
-            ...target,
-            state: "active" as WindowState,
-            zIndex: isMinimized ? s.nextZIndex : target.zIndex,
+
+      if (target.state === 'maximized') {
+        const saved = s.savedStates[id];
+        if (!saved) return s;
+        const savedStates = { ...s.savedStates };
+        delete savedStates[id];
+        return {
+          windows: {
+            ...s.windows,
+            [id]: {
+              ...target,
+              state: 'active' as WindowState,
+              position: saved.position,
+              size: saved.size,
+              zIndex: s.nextZIndex,
+            },
           },
-        },
-        focusedWindowId: isMinimized ? id : s.focusedWindowId,
-        nextZIndex: isMinimized ? s.nextZIndex + 1 : s.nextZIndex,
-      };
+          focusedWindowId: id,
+          nextZIndex: s.nextZIndex + 1,
+          savedStates,
+        };
+      }
+
+      if (target.state === 'minimized') {
+        return {
+          windows: {
+            ...s.windows,
+            [id]: {
+              ...target,
+              state: 'active' as WindowState,
+              zIndex: s.nextZIndex,
+            },
+          },
+          focusedWindowId: id,
+          nextZIndex: s.nextZIndex + 1,
+        };
+      }
+
+      return s;
     }),
 
   moveWindow: (id, position) =>
