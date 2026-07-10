@@ -6,6 +6,7 @@ import { useAuthStore } from '@/stores/auth.store';
 import { useService } from '@/providers/service-provider';
 import type { ThemeService, SettingsService, WallpaperConfig } from '@arunaos/services';
 import type { ShortcutService } from '@/services/shortcut/shortcut-service';
+import { OSTour } from './os-tour';
 import {
   Sun,
   Moon,
@@ -18,6 +19,7 @@ import {
   Upload,
   Image,
   Palette,
+  Compass,
 } from 'lucide-react';
 
 type SettingsTab = 'general' | 'appearance' | 'keyboard' | 'security' | 'about';
@@ -31,22 +33,66 @@ const tabs: { id: SettingsTab; label: string; icon: React.ElementType }[] = [
 ];
 
 function GeneralPanel() {
+  const [platformLabel, setPlatformLabel] = useState('macOS');
+
+  useEffect(() => {
+    const nav = navigator as Navigator & {
+      userAgentData?: {
+        getHighEntropyValues: (
+          hints: string[],
+        ) => Promise<{ platform?: string; architecture?: string }>;
+      };
+    };
+    if (nav.userAgentData) {
+      nav.userAgentData
+        .getHighEntropyValues(['platform', 'architecture'])
+        .then((v) => {
+          const parts: string[] = [];
+          if (v.platform === 'macOS') parts.push('macOS');
+          if (v.architecture === 'arm') parts.push('Apple Silicon');
+          else if (v.architecture === 'x86') parts.push('Intel');
+          if (parts.length) setPlatformLabel(parts.join(' '));
+        })
+        .catch(() => {});
+    }
+  }, []);
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <div>
-        <h3 className="text-foreground mb-3 text-sm font-semibold">About ArunaOS</h3>
+        <h3 className="text-foreground mb-3 text-sm font-semibold">System</h3>
         <div className="bg-muted/30 border-border/20 space-y-2 rounded-xl border p-4">
           <div className="flex justify-between text-sm">
             <span className="text-foreground/50">Version</span>
-            <span className="text-foreground">0.2.0</span>
+            <span className="text-foreground">0.3.0</span>
           </div>
           <div className="flex justify-between text-sm">
-            <span className="text-foreground/50">Build</span>
-            <span className="text-foreground">Phase 2</span>
+            <span className="text-foreground/50">Build Phase</span>
+            <span className="text-foreground">Phase 4 — Application Runtime & Module System</span>
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-foreground/50">Engine</span>
-            <span className="text-foreground">Next.js 15 + Zustand</span>
+            <span className="text-foreground">Next.js 15 + React 19 + Zustand + Motion</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-foreground/50">Runtime</span>
+            <span className="text-foreground">
+              Module Runtime v1 (Registry, IPC, Sandbox, Lifecycle)
+            </span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-foreground/50">Architecture</span>
+            <span className="text-foreground">Monorepo (Turborepo + pnpm)</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-foreground/50">Platform</span>
+            <span className="text-foreground">{platformLabel}</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-foreground/50">User Agent</span>
+            <span className="text-foreground/60 max-w-[200px] truncate text-xs">
+              {navigator.userAgent}
+            </span>
           </div>
         </div>
       </div>
@@ -560,25 +606,65 @@ function SecurityPanel() {
 }
 
 function AboutPanel() {
+  const [showTour, setShowTour] = useState(false);
+
   return (
-    <div className="space-y-4">
-      <div>
-        <h3 className="text-foreground mb-3 text-sm font-semibold">About ArunaOS</h3>
-        <div className="bg-muted/30 border-border/20 flex flex-col items-center gap-3 rounded-xl border p-6">
-          <div className="from-primary/30 to-primary/10 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br">
-            <Monitor size={32} className="text-primary/70" />
+    <>
+      <div className="space-y-5">
+        <div>
+          <h3 className="text-foreground mb-3 text-sm font-semibold">About ArunaOS</h3>
+          <div className="bg-muted/30 border-border/20 flex flex-col items-center gap-5 rounded-xl border p-8">
+            {/* Logo */}
+            <div className="relative">
+              <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-violet-500/20 via-fuchsia-500/10 to-transparent opacity-60 blur-xl" />
+              <div className="relative flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl ring-1 ring-white/5">
+                <img src="/logo.png" alt="ArunaOS Logo" className="h-full w-full object-contain" />
+              </div>
+            </div>
+
+            {/* Info */}
+            <div className="text-center">
+              <div className="text-foreground text-xl font-semibold tracking-tight">ArunaOS</div>
+              <div className="text-foreground/40 mt-0.5 text-xs">Version 0.3.0 — Phase 4</div>
+            </div>
+
+            {/* Description */}
+            <p className="text-foreground/50 max-w-sm text-center text-xs leading-relaxed">
+              A web-based operating environment that puts AI at the center of your workspace. Built
+              with Next.js, React, and Zustand. Designed to feel like a real OS in the browser —
+              with windows, apps, and an extensible module system.
+            </p>
+
+            {/* Divider */}
+            <div className="h-px w-16 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+
+            {/* Credits */}
+            <div className="space-y-1 text-center">
+              <p className="text-foreground/30 text-xs">Created by</p>
+              <a
+                href="https://github.com/initHD3v"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-foreground/60 hover:text-foreground/80 text-xs transition-colors"
+              >
+                INITHD3V
+              </a>
+            </div>
+
+            {/* OS Tour button */}
+            <button
+              onClick={() => setShowTour(true)}
+              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-5 py-2.5 text-sm font-medium text-white shadow-lg shadow-violet-500/20 transition-all hover:from-violet-500 hover:to-fuchsia-500 hover:shadow-violet-500/30"
+            >
+              <Compass size={16} />
+              Take the OS Tour
+            </button>
           </div>
-          <div className="text-center">
-            <div className="text-foreground text-lg font-semibold">ArunaOS</div>
-            <div className="text-foreground/40 text-xs">Version 0.2.0 — Phase 2</div>
-          </div>
-          <p className="text-foreground/40 max-w-xs text-center text-xs">
-            A web-based desktop environment built with Next.js, React, and Zustand. Designed to feel
-            like a real operating system in the browser.
-          </p>
         </div>
       </div>
-    </div>
+
+      {showTour && <OSTour onClose={() => setShowTour(false)} />}
+    </>
   );
 }
 

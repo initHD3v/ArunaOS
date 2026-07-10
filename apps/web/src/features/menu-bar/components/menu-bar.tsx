@@ -2,12 +2,14 @@
 
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Sun, Moon, Monitor, Lock, Moon as MoonIcon, Power, RotateCcw } from 'lucide-react';
+import { Sun, Moon, Lock, Moon as MoonIcon, Power, RotateCcw, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth.store';
 import { useService, useEventBus } from '@/providers/service-provider';
 import type { ThemeService, ThemeMode } from '@arunaos/services';
 import type { LifecycleService } from '@/services/lifecycle/lifecycle-service';
+import { AboutOverlay } from './about-overlay';
+import { CalendarPopup } from './calendar-popup';
 
 function useTime() {
   const [time, setTime] = useState(new Date());
@@ -192,11 +194,13 @@ function RestartOverlay() {
 
 function AppleMenu({
   onClose,
+  onAbout,
   onSleep,
   onRestart,
   onShutdown,
 }: {
   onClose: () => void;
+  onAbout: () => void;
   onSleep: () => void;
   onRestart: () => void;
   onShutdown: () => void;
@@ -213,6 +217,11 @@ function AppleMenu({
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
   }, [onClose]);
+
+  const handleAbout = useCallback(() => {
+    onClose();
+    onAbout();
+  }, [onClose, onAbout]);
 
   const handleLock = useCallback(() => {
     onClose();
@@ -243,7 +252,7 @@ function AppleMenu({
     separator?: boolean;
   };
   const items: AppleMenuItem[] = [
-    { id: 'about', label: 'About ArunaOS', icon: Monitor, disabled: true },
+    { id: 'about', label: 'About ArunaOS', icon: Info, action: handleAbout },
     { id: 'sep1', label: '', separator: true },
     { id: 'lock', label: 'Lock Screen', icon: Lock, action: handleLock },
     { id: 'sleep', label: 'Sleep', icon: MoonIcon, action: handleSleep },
@@ -287,13 +296,26 @@ export function MenuBar() {
   const time = useTime();
   const [mounted, setMounted] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
+  const [calendarOpen, setCalendarOpen] = useState(false);
   const [sleepActive, setSleepActive] = useState(false);
   const [shutdownActive, setShutdownActive] = useState(false);
   const [restartActive, setRestartActive] = useState(false);
   const lifecycle = useService<LifecycleService>('lifecycle');
+  const calendarRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (calendarRef.current && !calendarRef.current.contains(e.target as Node)) {
+        setCalendarOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
   useEffect(() => {
@@ -318,18 +340,25 @@ export function MenuBar() {
         )}
       >
         <div className="flex items-center gap-2">
+          {/* Aruna logo */}
           <div className="relative">
             <button
-              onClick={() => setMenuOpen((p) => !p)}
+              onClick={() => {
+                setMenuOpen((p) => !p);
+                setCalendarOpen(false);
+              }}
               className={cn(
-                'flex items-center gap-1.5 rounded-md px-1.5 py-0.5 transition-colors',
+                'flex items-center gap-1.5 rounded-md px-1.5 py-0.5 transition-all',
                 'text-sm font-semibold tracking-tight',
                 menuOpen
-                  ? 'bg-muted text-foreground'
+                  ? 'bg-muted text-foreground shadow-sm'
                   : 'text-foreground/80 hover:text-foreground hover:bg-muted/50',
               )}
             >
-              <img src="/logo.png" alt="ArunaOS" className="h-4 w-4" />
+              <div className="relative">
+                <div className="absolute inset-0 rounded-full bg-violet-500/10 blur-sm" />
+                <img src="/logo.png" alt="ArunaOS" className="relative h-5 w-5" />
+              </div>
             </button>
 
             <AnimatePresence>
@@ -342,11 +371,15 @@ export function MenuBar() {
                 >
                   <AppleMenu
                     onClose={() => setMenuOpen(false)}
+                    onAbout={() => setAboutOpen(true)}
                     onSleep={() => {
                       lifecycle.sleep();
                       setSleepActive(true);
                     }}
-                    onRestart={() => setRestartActive(true)}
+                    onRestart={() => {
+                      lifecycle.shutdown();
+                      setRestartActive(true);
+                    }}
                     onShutdown={() => {
                       lifecycle.shutdown();
                       setShutdownActive(true);
@@ -358,14 +391,38 @@ export function MenuBar() {
           </div>
         </div>
 
+        {/* Clock & Calendar */}
         <div className="flex items-center gap-3">
-          {mounted && <span className="text-muted-foreground text-xs">{formatDate(time)}</span>}
-          <span className="text-foreground/70 text-xs font-medium tabular-nums">
-            {formatTime(time)}
-          </span>
+          {mounted && (
+            <div className="relative" ref={calendarRef}>
+              <button
+                onClick={() => {
+                  setCalendarOpen((p) => !p);
+                  setMenuOpen(false);
+                }}
+                className={cn(
+                  'flex items-center gap-1.5 rounded-md px-2 py-0.5 transition-colors',
+                  calendarOpen
+                    ? 'bg-muted text-foreground'
+                    : 'text-foreground/80 hover:text-foreground hover:bg-muted/50',
+                )}
+              >
+                <span className="text-muted-foreground text-xs">{formatDate(time)}</span>
+                <span className="text-foreground/70 text-xs font-medium tabular-nums">
+                  {formatTime(time)}
+                </span>
+              </button>
+
+              <AnimatePresence>{calendarOpen && <CalendarPopup date={time} />}</AnimatePresence>
+            </div>
+          )}
           <ThemeToggle />
         </div>
       </header>
+
+      <AnimatePresence>
+        {aboutOpen && <AboutOverlay onClose={() => setAboutOpen(false)} />}
+      </AnimatePresence>
 
       <AnimatePresence>
         {sleepActive && <SleepOverlay onWake={() => setSleepActive(false)} />}
