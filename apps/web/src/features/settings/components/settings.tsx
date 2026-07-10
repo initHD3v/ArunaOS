@@ -3,7 +3,7 @@
 import { memo, useState, useCallback, useRef, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth.store';
-import { useService } from '@/providers/service-provider';
+import { useService, useEventBus } from '@/providers/service-provider';
 import type { ThemeService, SettingsService, WallpaperConfig } from '@arunaos/services';
 import type { ShortcutService } from '@/services/shortcut/shortcut-service';
 import { OSTour } from './os-tour';
@@ -20,6 +20,8 @@ import {
   Image,
   Palette,
   Compass,
+  Timer,
+  Play,
 } from 'lucide-react';
 
 type SettingsTab = 'general' | 'appearance' | 'keyboard' | 'security' | 'about';
@@ -124,6 +126,7 @@ const DARK_GRADIENTS = [
 function AppearancePanel() {
   const themeService = useService<ThemeService>('theme');
   const settingsService = useService<SettingsService>('settings');
+  const bus = useEventBus();
   const [currentTheme, setCurrentTheme] = useState(themeService.getMode());
   const [wallpaperCfg, setWallpaperCfg] = useState<WallpaperConfig>(() =>
     settingsService.get('wallpaper'),
@@ -313,6 +316,57 @@ function AppearancePanel() {
               </p>
             </div>
           )}
+        </div>
+      </div>
+
+      {/* Power Management */}
+      <div>
+        <h3 className="text-foreground mb-3 text-sm font-semibold">Power Management</h3>
+        <div className="bg-muted/30 border-border/20 space-y-4 rounded-xl border p-4">
+          {[
+            { key: 'screensaver', label: 'Screen Saver' },
+            { key: 'lock', label: 'Auto-Lock' },
+            { key: 'sleep', label: 'Sleep' },
+          ].map(({ key, label }) => {
+            const power = settingsService.get('power');
+            const value = power?.[key as keyof typeof power] ?? 0;
+            return (
+              <div key={key} className="flex items-center justify-between">
+                <span className="text-foreground flex items-center gap-2 text-sm">
+                  <Timer size={14} className="text-foreground/40" />
+                  {label}
+                </span>
+                <select
+                  value={value}
+                  onChange={async (e) => {
+                    const v = Number(e.target.value);
+                    const current = settingsService.get('power');
+                    await settingsService.set('power', { ...current, [key]: v });
+                  }}
+                  className="bg-muted border-border/40 focus:border-primary/50 rounded-lg border px-3 py-1.5 text-xs outline-none transition-colors"
+                >
+                  <option value={0}>Never</option>
+                  <option value={60000}>1 minute</option>
+                  <option value={300000}>5 minutes</option>
+                  <option value={900000}>15 minutes</option>
+                  <option value={1800000}>30 minutes</option>
+                  <option value={3600000}>1 hour</option>
+                  <option value={7200000}>2 hours</option>
+                </select>
+              </div>
+            );
+          })}
+          <p className="text-foreground/30 text-[11px] leading-relaxed">
+            ArunaOS will show a screen saver, lock, or sleep after the specified period of
+            inactivity.
+          </p>
+          <button
+            onClick={() => bus.emit('screensaver:trigger', {})}
+            className="bg-muted text-foreground/60 hover:text-foreground hover:bg-muted/60 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs transition-colors"
+          >
+            <Play size={12} />
+            Test Screen Saver
+          </button>
         </div>
       </div>
     </div>

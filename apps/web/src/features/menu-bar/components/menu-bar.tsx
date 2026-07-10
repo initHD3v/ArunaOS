@@ -10,14 +10,18 @@ import type { ThemeService, ThemeMode } from '@arunaos/services';
 import type { LifecycleService } from '@/services/lifecycle/lifecycle-service';
 import { AboutOverlay } from './about-overlay';
 import { CalendarPopup } from './calendar-popup';
+import { usePerformanceStore } from '@/stores/performance.store';
 
 function useTime() {
   const [time, setTime] = useState(new Date());
+  const perfMode = usePerformanceStore((s) => s.mode);
 
   useEffect(() => {
-    const id = setInterval(() => setTime(new Date()), 1000);
+    const interval = perfMode === 'normal' ? 1000 : 30000;
+    setTime(new Date());
+    const id = setInterval(() => setTime(new Date()), interval);
     return () => clearInterval(id);
-  }, []);
+  }, [perfMode]);
 
   return time;
 }
@@ -72,32 +76,33 @@ function ThemeToggle() {
 }
 
 function SleepOverlay({ onWake }: { onWake: () => void }) {
-  const time = useTime();
+  const [time, setTime] = useState(() => new Date());
+
+  useEffect(() => {
+    setTime(new Date());
+    const id = setInterval(() => setTime(new Date()), 30000);
+    return () => clearInterval(id);
+  }, []);
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.6 }}
-      className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-black/85 backdrop-blur-sm"
+    <div
+      className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-black/85 backdrop-blur-[2px]"
       onClick={onWake}
+      style={{ willChange: 'opacity' }}
     >
-      <motion.div
-        initial={{ y: 20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ delay: 0.2 }}
+      <div
         className="pointer-events-none flex flex-col items-center gap-1"
+        style={{ transition: 'opacity 0.6s ease' }}
       >
         <span className="text-6xl font-light tabular-nums tracking-wider text-white/70">
           {formatTime(time)}
         </span>
         <span className="text-sm text-white/30">{formatDate(time)}</span>
-      </motion.div>
-      <p className="pointer-events-none absolute bottom-12 text-xs text-white/20">
+      </div>
+      <p className="pointer-events-none absolute bottom-12 text-xs text-white/15">
         Click anywhere to wake
       </p>
-    </motion.div>
+    </div>
   );
 }
 
@@ -425,7 +430,13 @@ export function MenuBar() {
       </AnimatePresence>
 
       <AnimatePresence>
-        {sleepActive && <SleepOverlay onWake={() => setSleepActive(false)} />}
+        {sleepActive && (
+          <SleepOverlay
+            onWake={() => {
+              lifecycle.resume();
+            }}
+          />
+        )}
       </AnimatePresence>
 
       <AnimatePresence>{restartActive && <RestartOverlay />}</AnimatePresence>

@@ -25,6 +25,11 @@ export interface SettingsSchema {
   dev: {
     debugMode: boolean;
   };
+  power: {
+    screensaver: number;
+    lock: number;
+    sleep: number;
+  };
 }
 
 export const DEFAULT_SETTINGS: SettingsSchema = {
@@ -41,6 +46,11 @@ export const DEFAULT_SETTINGS: SettingsSchema = {
   },
   dev: {
     debugMode: false,
+  },
+  power: {
+    screensaver: 0,
+    lock: 0,
+    sleep: 0,
   },
 };
 

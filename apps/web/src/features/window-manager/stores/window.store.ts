@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import type { WindowData, WindowState, Position, Size } from '@/types';
 
 interface SavedState {
@@ -23,170 +24,183 @@ interface WindowStore {
   setWindowState: (id: string, state: WindowState) => void;
 }
 
-export const useWindowStore = create<WindowStore>((set) => ({
-  windows: {},
-  focusedWindowId: null,
-  nextZIndex: 1,
-  savedStates: {},
+export const useWindowStore = create<WindowStore>()(
+  persist(
+    (set) => ({
+      windows: {},
+      focusedWindowId: null,
+      nextZIndex: 1,
+      savedStates: {},
 
-  openWindow: (win) =>
-    set((s) => ({
-      windows: { ...s.windows, [win.id]: { ...win, zIndex: s.nextZIndex } },
-      focusedWindowId: win.id,
-      nextZIndex: s.nextZIndex + 1,
-    })),
-
-  closeWindow: (id) =>
-    set((s) => {
-      const nextFocused = s.focusedWindowId === id ? null : s.focusedWindowId;
-      const windows = { ...s.windows };
-      delete windows[id];
-      const savedStates = { ...s.savedStates };
-      delete savedStates[id];
-      return {
-        windows,
-        focusedWindowId: nextFocused,
-        nextZIndex: Object.keys(windows).length === 0 ? 1 : s.nextZIndex,
-        savedStates,
-      };
-    }),
-
-  focusWindow: (id) =>
-    set((s) => {
-      const target = s.windows[id];
-      if (!target || target.state === 'minimized') return s;
-      return {
-        windows: {
-          ...s.windows,
-          [id]: { ...target, state: 'active' as WindowState, zIndex: s.nextZIndex },
-        },
-        focusedWindowId: id,
-        nextZIndex: s.nextZIndex + 1,
-      };
-    }),
-
-  minimizeWindow: (id) =>
-    set((s) => {
-      const target = s.windows[id];
-      if (!target) return s;
-      return {
-        windows: { ...s.windows, [id]: { ...target, state: 'minimized' as WindowState } },
-        focusedWindowId: s.focusedWindowId === id ? null : s.focusedWindowId,
-      };
-    }),
-
-  maximizeWindow: (id) =>
-    set((s) => {
-      const target = s.windows[id];
-      if (!target) return s;
-
-      if (target.state === 'maximized') {
-        const saved = s.savedStates[id];
-        if (!saved) return s;
-        const savedStates = { ...s.savedStates };
-        delete savedStates[id];
-        return {
-          windows: {
-            ...s.windows,
-            [id]: {
-              ...target,
-              state: 'active' as WindowState,
-              position: saved.position,
-              size: saved.size,
-              zIndex: s.nextZIndex,
-            },
-          },
-          focusedWindowId: id,
+      openWindow: (win) =>
+        set((s) => ({
+          windows: { ...s.windows, [win.id]: { ...win, zIndex: s.nextZIndex } },
+          focusedWindowId: win.id,
           nextZIndex: s.nextZIndex + 1,
-          savedStates,
-        };
-      }
+        })),
 
-      const vw = window.innerWidth;
-      const vh = window.innerHeight;
-      return {
-        windows: {
-          ...s.windows,
-          [id]: {
-            ...target,
-            state: 'maximized' as WindowState,
-            position: { x: 0, y: 0 },
-            size: { width: vw, height: vh },
-            zIndex: s.nextZIndex,
-          },
-        },
-        focusedWindowId: id,
-        nextZIndex: s.nextZIndex + 1,
-        savedStates: {
-          ...s.savedStates,
-          [id]: { position: target.position, size: target.size },
-        },
-      };
-    }),
+      closeWindow: (id) =>
+        set((s) => {
+          const nextFocused = s.focusedWindowId === id ? null : s.focusedWindowId;
+          const windows = { ...s.windows };
+          delete windows[id];
+          const savedStates = { ...s.savedStates };
+          delete savedStates[id];
+          return {
+            windows,
+            focusedWindowId: nextFocused,
+            nextZIndex: Object.keys(windows).length === 0 ? 1 : s.nextZIndex,
+            savedStates,
+          };
+        }),
 
-  restoreWindow: (id) =>
-    set((s) => {
-      const target = s.windows[id];
-      if (!target) return s;
-
-      if (target.state === 'maximized') {
-        const saved = s.savedStates[id];
-        if (!saved) return s;
-        const savedStates = { ...s.savedStates };
-        delete savedStates[id];
-        return {
-          windows: {
-            ...s.windows,
-            [id]: {
-              ...target,
-              state: 'active' as WindowState,
-              position: saved.position,
-              size: saved.size,
-              zIndex: s.nextZIndex,
+      focusWindow: (id) =>
+        set((s) => {
+          const target = s.windows[id];
+          if (!target || target.state === 'minimized') return s;
+          return {
+            windows: {
+              ...s.windows,
+              [id]: { ...target, state: 'active' as WindowState, zIndex: s.nextZIndex },
             },
-          },
-          focusedWindowId: id,
-          nextZIndex: s.nextZIndex + 1,
-          savedStates,
-        };
-      }
+            focusedWindowId: id,
+            nextZIndex: s.nextZIndex + 1,
+          };
+        }),
 
-      if (target.state === 'minimized') {
-        return {
-          windows: {
-            ...s.windows,
-            [id]: {
-              ...target,
-              state: 'active' as WindowState,
-              zIndex: s.nextZIndex,
+      minimizeWindow: (id) =>
+        set((s) => {
+          const target = s.windows[id];
+          if (!target) return s;
+          return {
+            windows: { ...s.windows, [id]: { ...target, state: 'minimized' as WindowState } },
+            focusedWindowId: s.focusedWindowId === id ? null : s.focusedWindowId,
+          };
+        }),
+
+      maximizeWindow: (id) =>
+        set((s) => {
+          const target = s.windows[id];
+          if (!target) return s;
+
+          if (target.state === 'maximized') {
+            const saved = s.savedStates[id];
+            if (!saved) return s;
+            const savedStates = { ...s.savedStates };
+            delete savedStates[id];
+            return {
+              windows: {
+                ...s.windows,
+                [id]: {
+                  ...target,
+                  state: 'active' as WindowState,
+                  position: saved.position,
+                  size: saved.size,
+                  zIndex: s.nextZIndex,
+                },
+              },
+              focusedWindowId: id,
+              nextZIndex: s.nextZIndex + 1,
+              savedStates,
+            };
+          }
+
+          const vw = window.innerWidth;
+          const vh = window.innerHeight;
+          return {
+            windows: {
+              ...s.windows,
+              [id]: {
+                ...target,
+                state: 'maximized' as WindowState,
+                position: { x: 0, y: 0 },
+                size: { width: vw, height: vh },
+                zIndex: s.nextZIndex,
+              },
             },
-          },
-          focusedWindowId: id,
-          nextZIndex: s.nextZIndex + 1,
-        };
-      }
+            focusedWindowId: id,
+            nextZIndex: s.nextZIndex + 1,
+            savedStates: {
+              ...s.savedStates,
+              [id]: { position: target.position, size: target.size },
+            },
+          };
+        }),
 
-      return s;
-    }),
+      restoreWindow: (id) =>
+        set((s) => {
+          const target = s.windows[id];
+          if (!target) return s;
 
-  moveWindow: (id, position) =>
-    set((s) => {
-      const target = s.windows[id];
-      if (!target) return s;
-      return { windows: { ...s.windows, [id]: { ...target, position } } };
-    }),
+          if (target.state === 'maximized') {
+            const saved = s.savedStates[id];
+            if (!saved) return s;
+            const savedStates = { ...s.savedStates };
+            delete savedStates[id];
+            return {
+              windows: {
+                ...s.windows,
+                [id]: {
+                  ...target,
+                  state: 'active' as WindowState,
+                  position: saved.position,
+                  size: saved.size,
+                  zIndex: s.nextZIndex,
+                },
+              },
+              focusedWindowId: id,
+              nextZIndex: s.nextZIndex + 1,
+              savedStates,
+            };
+          }
 
-  resizeWindow: (id, size) =>
-    set((s) => {
-      const target = s.windows[id];
-      if (!target) return s;
-      return { windows: { ...s.windows, [id]: { ...target, size } } };
-    }),
+          if (target.state === 'minimized') {
+            return {
+              windows: {
+                ...s.windows,
+                [id]: {
+                  ...target,
+                  state: 'active' as WindowState,
+                  zIndex: s.nextZIndex,
+                },
+              },
+              focusedWindowId: id,
+              nextZIndex: s.nextZIndex + 1,
+            };
+          }
 
-  setWindowState: (id, state) =>
-    set((s) => {
-      const target = s.windows[id];
-      if (!target) return s;
-      return { windows: { ...s.windows, [id]: { ...target, state } } };
+          return s;
+        }),
+
+      moveWindow: (id, position) =>
+        set((s) => {
+          const target = s.windows[id];
+          if (!target) return s;
+          return { windows: { ...s.windows, [id]: { ...target, position } } };
+        }),
+
+      resizeWindow: (id, size) =>
+        set((s) => {
+          const target = s.windows[id];
+          if (!target) return s;
+          return { windows: { ...s.windows, [id]: { ...target, size } } };
+        }),
+
+      setWindowState: (id, state) =>
+        set((s) => {
+          const target = s.windows[id];
+          if (!target) return s;
+          return { windows: { ...s.windows, [id]: { ...target, state } } };
+        }),
     }),
-}));
+    {
+      name: 'arunaos-windows',
+      partialize: (state) => ({
+        windows: state.windows,
+        focusedWindowId: state.focusedWindowId,
+        nextZIndex: state.nextZIndex,
+        savedStates: state.savedStates,
+      }),
+    },
+  ),
+);

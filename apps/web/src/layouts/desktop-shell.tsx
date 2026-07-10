@@ -9,13 +9,24 @@ import { ContextMenu } from '@/features/context-menu/components/context-menu';
 import { Overlay } from '@/features/overlay/components/overlay';
 import { AuthGate } from '@/features/auth/components/auth-gate';
 import { useShortcutManager } from '@/hooks/use-shortcut-manager';
+import { useIdleTimer } from '@/hooks/use-idle-timer';
+import { ScreensaverOverlay } from '@/features/menu-bar/components/screensaver-overlay';
 import { ToastContainer } from '@/services/notification/components/notification-ui';
 import { ModalRenderer } from '@/services/modal/modal-service';
 import { CommandPaletteProvider } from '@/features/command-palette/command-palette-provider';
 import { DebugPanel } from '@/components/debug-panel';
-
+import { useAuthStore } from '@/stores/auth.store';
+import { useService } from '@/providers/service-provider';
+import type { LifecycleService } from '@/services/lifecycle/lifecycle-service';
 export function DesktopShell({ children }: { children: ReactNode }) {
   useShortcutManager();
+
+  const lifecycle = useService<LifecycleService>('lifecycle');
+
+  const { showingScreensaver } = useIdleTimer(
+    () => useAuthStore.getState().lock(),
+    () => lifecycle.sleep(),
+  );
 
   return (
     <AuthGate>
@@ -28,6 +39,7 @@ export function DesktopShell({ children }: { children: ReactNode }) {
         <div id="portal-root" />
         <ContextMenu />
         <Overlay />
+        {showingScreensaver && <ScreensaverOverlay />}
         <ToastContainer />
         <ModalRenderer />
         <CommandPaletteProvider />
