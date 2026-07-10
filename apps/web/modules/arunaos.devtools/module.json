@@ -1,0 +1,23 @@
+{
+  "id": "arunaos.devtools",
+  "name": "DevTools",
+  "version": "1.0.0",
+  "description": "Module Developer Tools",
+  "icon": "terminal",
+  "entry": "./index.tsx",
+  "type": "system",
+  "permissions": ["notification"],
+  "window": {
+    "defaultWidth": 800,
+    "defaultHeight": 600,
+    "minWidth": 480,
+    "minHeight": 360,
+    "resizable": true,
+    "titleBar": true
+  },
+  "dependencies": [],
+  "api": {
+    "expose": [],
+    "require": []
+  }
+}

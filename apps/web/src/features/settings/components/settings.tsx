@@ -131,7 +131,14 @@ function AppearancePanel() {
   const [wallpaperCfg, setWallpaperCfg] = useState<WallpaperConfig>(() =>
     settingsService.get('wallpaper'),
   );
+  const [powerCfg, setPowerCfg] = useState(() => settingsService.get('power'));
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    return bus.on('settings:updated', () => {
+      setPowerCfg({ ...settingsService.get('power') });
+    });
+  }, [bus]);
 
   const setTheme = useCallback(
     async (mode: 'light' | 'dark' | 'system' | 'amoled' | 'high-contrast') => {
@@ -328,8 +335,7 @@ function AppearancePanel() {
             { key: 'lock', label: 'Auto-Lock' },
             { key: 'sleep', label: 'Sleep' },
           ].map(({ key, label }) => {
-            const power = settingsService.get('power');
-            const value = power?.[key as keyof typeof power] ?? 0;
+            const value = powerCfg?.[key as keyof typeof powerCfg] ?? 0;
             return (
               <div key={key} className="flex items-center justify-between">
                 <span className="text-foreground flex items-center gap-2 text-sm">
@@ -342,6 +348,7 @@ function AppearancePanel() {
                     const v = Number(e.target.value);
                     const current = settingsService.get('power');
                     await settingsService.set('power', { ...current, [key]: v });
+                    setPowerCfg((prev) => ({ ...prev, [key]: v }));
                   }}
                   className="bg-muted border-border/40 focus:border-primary/50 rounded-lg border px-3 py-1.5 text-xs outline-none transition-colors"
                 >

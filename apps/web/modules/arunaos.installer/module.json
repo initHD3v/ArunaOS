@@ -1,0 +1,23 @@
+{
+  "id": "arunaos.installer",
+  "name": "Module Installer",
+  "version": "1.0.0",
+  "description": "Install and manage modules",
+  "icon": "package",
+  "entry": "./index.tsx",
+  "type": "builtin",
+  "permissions": ["notification"],
+  "window": {
+    "defaultWidth": 640,
+    "defaultHeight": 480,
+    "minWidth": 400,
+    "minHeight": 320,
+    "resizable": true,
+    "titleBar": true
+  },
+  "dependencies": [],
+  "api": {
+    "expose": [],
+    "require": ["notification"]
+  }
+}

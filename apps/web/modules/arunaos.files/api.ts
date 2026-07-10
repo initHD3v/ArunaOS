@@ -1,5 +1,5 @@
-import { useFilesStore } from '@/features/files/stores/files.store';
-import type { FileItem } from '@/features/files/stores/files.store';
+import { useFilesStore } from './stores/files.store';
+import type { FileItem } from './stores/files.store';
 
 export interface FilesAPI {
   listFiles(parentId?: string): FileItem[];

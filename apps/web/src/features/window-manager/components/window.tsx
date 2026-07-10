@@ -3,11 +3,11 @@
 import { memo, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useWindowStore } from '@/features/window-manager/stores/window.store';
-import { Finder } from '@/features/files/components/finder';
+import { Finder } from '@modules/arunaos.files/components/finder';
 import { Settings } from '@/features/settings/components/settings';
 import { ViewerWindow } from '@/features/viewer/components/viewer-window';
-import { AStat } from '@/features/astat/components/astat';
-import { CameraApp } from '@/features/camera/components/camera';
+import { AStat } from '@modules/arunaos.astat/components/astat';
+import { CameraApp } from '@modules/arunaos.camera/components/camera';
 import { ModuleRenderer } from '@/features/modules/components/module-renderer';
 import { ModuleDevtools } from '@/features/module-devtools/module-devtools';
 import { ModuleInstaller } from '@/features/module-installer/module-installer';

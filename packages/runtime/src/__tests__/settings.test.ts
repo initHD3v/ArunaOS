@@ -1,16 +1,19 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ModuleSettings } from '../settings';
 
-interface EventHandler {
-  (payload: unknown): void;
+interface EventHandler<T = unknown> {
+  (payload: T): void;
 }
 
 class MockEventBus {
   private handlers = new Map<string, Set<EventHandler>>();
-  on(event: string, handler: EventHandler): () => void {
+  on<T>(event: string, handler: EventHandler<T>): () => void {
     if (!this.handlers.has(event)) this.handlers.set(event, new Set());
-    this.handlers.get(event)!.add(handler);
-    return () => this.handlers.get(event)?.delete(handler);
+    this.handlers.get(event)!.add(handler as EventHandler);
+    return () => this.handlers.get(event)?.delete(handler as EventHandler);
+  }
+  off<T>(event: string, handler: EventHandler<T>): void {
+    this.handlers.get(event)?.delete(handler as EventHandler);
   }
   emit(event: string, payload: unknown): void {
     this.handlers.get(event)?.forEach((h) => h(payload));

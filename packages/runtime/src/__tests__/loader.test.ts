@@ -6,20 +6,23 @@ import { ModuleLoader } from '../loader';
 import { ModulePermissions } from '../permissions';
 import { ModuleIPC } from '../ipc';
 import type { ModuleManifest, SystemAPI } from '../types';
-
 class MockEventBus {
   private handlers = new Map<string, Set<(payload: unknown) => void>>();
-  on(event: string, handler: (payload: unknown) => void): () => void {
+
+  on<T>(event: string, handler: (payload: T) => void): () => void {
     if (!this.handlers.has(event)) this.handlers.set(event, new Set());
-    this.handlers.get(event)!.add(handler);
-    return () => this.handlers.get(event)?.delete(handler);
+    this.handlers.get(event)!.add(handler as (payload: unknown) => void);
+    return () => this.handlers.get(event)?.delete(handler as (payload: unknown) => void);
   }
-  off(event: string, handler: (payload: unknown) => void): void {
-    this.handlers.get(event)?.delete(handler);
+
+  off<T>(event: string, handler: (payload: T) => void): void {
+    this.handlers.get(event)?.delete(handler as (payload: unknown) => void);
   }
+
   emit(event: string, payload: unknown): void {
     this.handlers.get(event)?.forEach((h) => h(payload));
   }
+
   clear(): void {
     this.handlers.clear();
   }

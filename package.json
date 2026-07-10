@@ -12,6 +12,7 @@
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "typecheck": "turbo typecheck",
     "test": "turbo test",
+    "circular": "npx madge --circular --extensions ts,tsx --no-color apps/web/src/ packages/runtime/src/ && npx madge --circular --extensions ts,tsx --no-color apps/web/modules/",
     "clean": "turbo clean",
     "prepare": "husky"
   },

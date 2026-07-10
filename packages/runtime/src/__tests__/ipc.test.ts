@@ -2,21 +2,21 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ModuleIPC } from '../ipc';
 import type { IPCMessage } from '../types';
 
-interface EventHandler {
-  (payload: unknown): void;
+interface EventHandler<T = unknown> {
+  (payload: T): void;
 }
 
 class MockEventBus {
   private handlers = new Map<string, Set<EventHandler>>();
 
-  on(event: string, handler: EventHandler): () => void {
+  on<T>(event: string, handler: EventHandler<T>): () => void {
     if (!this.handlers.has(event)) this.handlers.set(event, new Set());
-    this.handlers.get(event)!.add(handler);
-    return () => this.handlers.get(event)?.delete(handler);
+    this.handlers.get(event)!.add(handler as EventHandler);
+    return () => this.handlers.get(event)?.delete(handler as EventHandler);
   }
 
-  off(event: string, handler: EventHandler): void {
-    this.handlers.get(event)?.delete(handler);
+  off<T>(event: string, handler: EventHandler<T>): void {
+    this.handlers.get(event)?.delete(handler as EventHandler);
   }
 
   emit(event: string, payload: unknown): void {

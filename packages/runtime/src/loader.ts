@@ -11,6 +11,7 @@ export class ModuleLoader {
   private registry: ModuleRegistry;
   private lifecycle: ModuleLifecycleManager;
   private sandbox: ModuleSandbox;
+  private ipc: ModuleIPC;
   private permissions: ModulePermissions;
   private factories = new Map<string, ModuleFactory>();
   private systemAPI: SystemAPI | null = null;
@@ -20,13 +21,43 @@ export class ModuleLoader {
     registry: ModuleRegistry,
     lifecycle: ModuleLifecycleManager,
     sandbox: ModuleSandbox,
-    _ipc: ModuleIPC,
+    ipc: ModuleIPC,
     permissions: ModulePermissions,
   ) {
     this.registry = registry;
     this.lifecycle = lifecycle;
     this.sandbox = sandbox;
+    this.ipc = ipc;
     this.permissions = permissions;
+    this.setupIPCRouter();
+  }
+
+  private setupIPCRouter(): void {
+    this.ipc.setRequestHandler(async (msg) => {
+      const target = msg.target;
+      if (!target || !this.loaded.has(target)) {
+        this.ipc.respond(msg, null, `Module '${target}' is not loaded`);
+        return;
+      }
+      const entry = this.registry.get(target);
+      const instance = entry?.instance as Record<string, unknown> | null;
+      if (!instance || !msg.method) {
+        this.ipc.respond(msg, null, `No instance for module '${target}'`);
+        return;
+      }
+      const api = (instance.api ?? instance) as Record<string, unknown>;
+      const fn = api[msg.method];
+      if (typeof fn !== 'function') {
+        this.ipc.respond(msg, null, `Method '${msg.method}' not found on module '${target}'`);
+        return;
+      }
+      try {
+        const result = await fn(msg.payload);
+        this.ipc.respond(msg, result ?? null);
+      } catch (err) {
+        this.ipc.respond(msg, null, err instanceof Error ? err.message : String(err));
+      }
+    });
   }
 
   setSystemAPI(api: SystemAPI): void {

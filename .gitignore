@@ -41,6 +41,10 @@ coverage/
 eslintcache
 .tsbuildinfo
 
+# Docs
+Docs/
+docs/
+
 # Database
 *.db
 *.sqlite

@@ -197,6 +197,23 @@ export function ServiceProvider({ children }: { children: ReactNode }) {
               resizable: true,
             },
           },
+          {
+            id: 'arunaos.installer',
+            name: 'Module Installer',
+            version: '1.0.0',
+            description: 'Install and manage modules',
+            icon: 'package',
+            entry: '',
+            type: 'builtin' as const,
+            permissions: ['notification'] as const,
+            window: {
+              defaultWidth: 640,
+              defaultHeight: 480,
+              minWidth: 400,
+              minHeight: 320,
+              resizable: true,
+            },
+          },
         ];
 
         for (const manifest of builtinManifests) {
@@ -251,7 +268,7 @@ export function ServiceProvider({ children }: { children: ReactNode }) {
 
         // Register module factories (lazy-loaded)
         moduleLoader.registerFactory('arunaos.files', async () => {
-          const { createFilesAPI } = await import('@/services/module-api/files');
+          const { createFilesAPI } = await import('@modules/arunaos.files/api');
           return { api: createFilesAPI() };
         });
         moduleLoader.registerFactory('arunaos.settings', async () => {
@@ -267,6 +284,9 @@ export function ServiceProvider({ children }: { children: ReactNode }) {
           return { api: {} };
         });
         moduleLoader.registerFactory('arunaos.devtools', async () => {
+          return { api: {} };
+        });
+        moduleLoader.registerFactory('arunaos.installer', async () => {
           return { api: {} };
         });
 
@@ -325,6 +345,16 @@ export function ServiceProvider({ children }: { children: ReactNode }) {
             keywords: ['developer', 'debug', 'modules', 'inspect'],
             action: () => {
               moduleWindowService.openModule('arunaos.devtools').catch(() => {});
+            },
+          },
+          {
+            id: 'installer',
+            label: 'Module Installer',
+            description: 'Install and manage modules',
+            category: 'Module',
+            keywords: ['modules', 'install', 'addon', 'extension'],
+            action: () => {
+              moduleWindowService.openModule('arunaos.installer').catch(() => {});
             },
           },
         ]);

@@ -4,20 +4,55 @@ import dynamic from 'next/dynamic';
 import { useService } from '@/providers/service-provider';
 import type { ModuleLoader } from '@arunaos/runtime';
 
+const loading = () => (
+  <div className="flex h-full items-center justify-center text-sm text-white/40">
+    Loading module...
+  </div>
+);
+
 const Finder = dynamic(
-  () => import('@/features/files/components/finder').then((m) => ({ default: m.Finder })),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="flex h-full items-center justify-center text-sm text-white/40">
-        Loading module...
-      </div>
-    ),
-  },
+  () => import('@modules/arunaos.files/components/finder').then((m) => ({ default: m.Finder })),
+  { ssr: false, loading },
+);
+const Settings = dynamic(
+  () => import('@/features/settings/components/settings').then((m) => ({ default: m.Settings })),
+  { ssr: false, loading },
+);
+const AStat = dynamic(
+  () => import('@modules/arunaos.astat/components/astat').then((m) => ({ default: m.AStat })),
+  { ssr: false, loading },
+);
+const CameraApp = dynamic(
+  () => import('@modules/arunaos.camera/components/camera').then((m) => ({ default: m.CameraApp })),
+  { ssr: false, loading },
+);
+const AIChat = dynamic(
+  () => import('@modules/arunaos.ai/components/ai-chat').then((m) => ({ default: m.AIChat })),
+  { ssr: false, loading },
+);
+const ModuleDevtools = dynamic(
+  () =>
+    import('@/features/module-devtools/module-devtools').then((m) => ({
+      default: m.ModuleDevtools,
+    })),
+  { ssr: false, loading },
+);
+const ModuleInstaller = dynamic(
+  () =>
+    import('@/features/module-installer/module-installer').then((m) => ({
+      default: m.ModuleInstaller,
+    })),
+  { ssr: false, loading },
 );
 
 const MODULE_COMPONENTS: Record<string, React.ComponentType> = {
   'arunaos.files': Finder,
+  'arunaos.settings': Settings,
+  'arunaos.astat': AStat,
+  'arunaos.camera': CameraApp,
+  'arunaos.ai': AIChat,
+  'arunaos.devtools': ModuleDevtools,
+  'arunaos.installer': ModuleInstaller,
 };
 
 interface ModuleRendererProps {

@@ -22,11 +22,16 @@ export class ModuleIPC {
       timeout: ReturnType<typeof setTimeout>;
     }
   >();
+  private requestHandler: ((msg: IPCMessage) => Promise<void>) | null = null;
 
   constructor(bus: EventBus) {
     this.bus = bus;
     this.boundHandleMessage = this.handleMessage.bind(this);
     this.bus.on('module:ipc', this.boundHandleMessage);
+  }
+
+  setRequestHandler(handler: ((msg: IPCMessage) => Promise<void>) | null): void {
+    this.requestHandler = handler;
   }
 
   private nextId(): string {
@@ -45,6 +50,12 @@ export class ModuleIPC {
       } else {
         pending.resolve(msg.payload);
       }
+      return;
+    }
+    if (msg.type === 'request' && this.requestHandler) {
+      this.requestHandler(msg).catch((err) => {
+        this.respond(msg, null, err instanceof Error ? err.message : String(err));
+      });
     }
   }
 
