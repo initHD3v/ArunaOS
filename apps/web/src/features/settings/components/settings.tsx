@@ -1,10 +1,11 @@
 'use client';
 
-import { memo, useState, useCallback, useRef } from 'react';
+import { memo, useState, useCallback, useRef, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth.store';
 import { useService } from '@/providers/service-provider';
 import type { ThemeService, SettingsService, WallpaperConfig } from '@arunaos/services';
+import type { ShortcutService } from '@/services/shortcut/shortcut-service';
 import {
   Sun,
   Moon,
@@ -273,16 +274,47 @@ function AppearancePanel() {
 }
 
 function KeyboardPanel() {
-  const shortcuts = [
-    { keys: 'Ctrl + Tab', action: 'Cycle windows' },
-    { keys: 'Ctrl + Shift + Tab', action: 'Cycle windows backward' },
-    { keys: 'Ctrl + W', action: 'Close focused window' },
-    { keys: 'Ctrl + Q', action: 'Close all windows' },
-    { keys: 'Tab', action: 'Navigate desktop icons' },
-    { keys: 'Enter', action: 'Open selected icon' },
-    { keys: 'Escape', action: 'Close menu / Restore window' },
-    { keys: 'Right-click', action: 'Context menu' },
-  ];
+  const shortcut = useService<ShortcutService>('shortcut');
+  const [shortcuts, setShortcuts] = useState<Array<{ keys: string; action: string; id: string }>>(
+    [],
+  );
+
+  const formatKey = (s: string): string => {
+    const parts = s.split('+').map((p) => p.trim().toLowerCase());
+    return parts
+      .map((p) => {
+        switch (p) {
+          case 'meta':
+            return '⌘';
+          case 'ctrl':
+            return '^';
+          case 'alt':
+            return '⌥';
+          case 'shift':
+            return '⇧';
+          case 'escape':
+            return 'Esc';
+          case 'tab':
+            return 'Tab';
+          case 'enter':
+            return 'Enter';
+          default:
+            return p.charAt(0).toUpperCase() + p.slice(1);
+        }
+      })
+      .join('');
+  };
+
+  useEffect(() => {
+    const registry = shortcut.getRegistry();
+    setShortcuts(
+      registry.map((entry) => ({
+        id: entry.id,
+        keys: formatKey(entry.shortcut),
+        action: entry.description || entry.id,
+      })),
+    );
+  }, [shortcut]);
 
   return (
     <div className="space-y-4">
@@ -290,8 +322,11 @@ function KeyboardPanel() {
         <h3 className="text-foreground mb-3 text-sm font-semibold">Keyboard Shortcuts</h3>
         <div className="bg-muted/30 border-border/20 rounded-xl border p-4">
           <div className="space-y-1.5">
+            {shortcuts.length === 0 && (
+              <p className="text-foreground/30 text-xs">No shortcuts registered.</p>
+            )}
             {shortcuts.map((s) => (
-              <div key={s.keys} className="flex items-center justify-between py-1">
+              <div key={s.id} className="flex items-center justify-between py-1">
                 <span className="text-foreground/50 text-xs">{s.action}</span>
                 <kbd className="bg-muted text-foreground/70 border-border/30 rounded-md border px-2 py-0.5 font-mono text-[11px]">
                   {s.keys}

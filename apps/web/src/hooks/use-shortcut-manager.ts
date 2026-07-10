@@ -36,7 +36,7 @@ export function useShortcutManager() {
 
     shortcut.register(
       'cmd-tab',
-      'meta+tab',
+      'ctrl+]',
       () => {
         const ws = useWindowStore.getState();
         const ids = Object.keys(ws.windows);
@@ -47,7 +47,23 @@ export function useShortcutManager() {
           if (nextId) ws.focusWindow(nextId);
         }
       },
-      { context: 'global', description: 'Switch windows' },
+      { context: 'global', description: 'Switch windows forward' },
+    );
+
+    shortcut.register(
+      'cmd-shift-tab',
+      'ctrl+[',
+      () => {
+        const ws = useWindowStore.getState();
+        const ids = Object.keys(ws.windows);
+        if (ids.length > 1) {
+          const currentIdx = ws.focusedWindowId ? ids.indexOf(ws.focusedWindowId) : -1;
+          const prevIdx = currentIdx <= 0 ? ids.length - 1 : currentIdx - 1;
+          const prevId = ids[prevIdx];
+          if (prevId) ws.focusWindow(prevId);
+        }
+      },
+      { context: 'global', description: 'Switch windows backward' },
     );
 
     shortcut.register(
@@ -83,6 +99,7 @@ export function useShortcutManager() {
       shortcut.unregister('cmd-k');
       shortcut.unregister('cmd-w');
       shortcut.unregister('cmd-tab');
+      shortcut.unregister('cmd-shift-tab');
       shortcut.unregister('escape-global');
       unsubModalOpen();
       unsubModalClose();

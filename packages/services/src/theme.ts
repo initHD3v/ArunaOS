@@ -61,7 +61,11 @@ export class ThemeService {
       case 'system':
       default:
         this.applyColorScheme(
-          window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light',
+          typeof window !== 'undefined' && window.matchMedia
+            ? window.matchMedia('(prefers-color-scheme: dark)').matches
+              ? 'dark'
+              : 'light'
+            : 'light',
         );
         break;
     }

@@ -1,0 +1,23 @@
+{
+  "id": "arunaos.ai",
+  "name": "AI",
+  "version": "1.0.0",
+  "description": "AI Chat Assistant",
+  "icon": "sparkles",
+  "entry": "./index.tsx",
+  "type": "builtin",
+  "permissions": ["notification", "clipboard:read", "clipboard:write", "network"],
+  "window": {
+    "defaultWidth": 640,
+    "defaultHeight": 480,
+    "minWidth": 400,
+    "minHeight": 320,
+    "resizable": true,
+    "titleBar": true
+  },
+  "dependencies": [],
+  "api": {
+    "expose": [],
+    "require": ["notification"]
+  }
+}

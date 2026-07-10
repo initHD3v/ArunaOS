@@ -32,6 +32,8 @@
       "@arunaos/icons/*": ["../../packages/icons/src/*"],
       "@arunaos/constants/*": ["../../packages/constants/src/*"],
       "@arunaos/services/*": ["../../packages/services/src/*"],
+      "@arunaos/runtime": ["../../packages/runtime/src/index.ts"],
+      "@arunaos/runtime/*": ["../../packages/runtime/src/*"],
       "@arunaos/shared/*": ["../../packages/shared/src/*"],
       "@arunaos/animations/*": ["../../packages/animations/src/*"],
       "@arunaos/design-tokens/*": ["../../packages/design-tokens/src/*"]

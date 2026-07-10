@@ -3,6 +3,21 @@ import { ThemeService } from '../theme';
 import { SettingsService } from '../settings';
 import type { EventBus, StorageService } from '../index';
 
+// Polyfill window.matchMedia for jsdom
+Object.defineProperty(window, 'matchMedia', {
+  writable: true,
+  value: vi.fn().mockImplementation((query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  })),
+});
+
 function createMockStorage(): StorageService {
   const store = new Map<string, unknown>();
   return {
@@ -59,9 +74,29 @@ describe('ThemeService', () => {
     expect(theme.getMode()).toBe('dark');
   });
 
+  it('should ignore duplicate setMode call', async () => {
+    await theme.setMode('dark');
+    const themeChangedCalls = (bus.emit as ReturnType<typeof vi.fn>).mock.calls.filter(
+      (c: unknown[]) => c[0] === 'theme:changed',
+    );
+    expect(themeChangedCalls).toHaveLength(1);
+    await theme.setMode('dark');
+    const themeChangedCalls2 = (bus.emit as ReturnType<typeof vi.fn>).mock.calls.filter(
+      (c: unknown[]) => c[0] === 'theme:changed',
+    );
+    // Should NOT emit theme:changed again because mode hasn't changed
+    expect(themeChangedCalls2).toHaveLength(1);
+  });
+
   it('should emit theme:changed on setMode', async () => {
     await theme.setMode('dark');
     expect(bus.emit).toHaveBeenCalledWith('theme:changed', { mode: 'dark' });
+  });
+
+  it('should persist mode to settings', async () => {
+    const spy = vi.spyOn(settings, 'set');
+    await theme.setMode('dark');
+    expect(spy).toHaveBeenCalledWith('theme', 'dark');
   });
 
   it('should toggle through modes', async () => {
@@ -77,9 +112,62 @@ describe('ThemeService', () => {
     expect(bus.on).toHaveBeenCalledWith('settings:updated', expect.any(Function));
   });
 
-  it('should persist mode to settings', async () => {
-    const spy = vi.spyOn(settings, 'set');
+  it('should re-apply theme when settings:updated with theme key', async () => {
+    theme.init();
+    // Simulate settings:updated event for theme
+    const handler = (bus.on as ReturnType<typeof vi.fn>).mock.calls.find(
+      (call: unknown[]) => call[0] === 'settings:updated',
+    )?.[1];
+    expect(handler).toBeDefined();
+
+    // Change stored settings value
+    await settings.set('theme', 'amoled');
+    // Call handler to simulate the event
+    handler({ key: 'theme' });
+
+    expect(theme.getMode()).toBe('amoled');
+  });
+
+  it('should not change mode when init called without stored theme', () => {
+    settings = new SettingsService(storage, bus);
+    // Don't call init on settings, so theme stays as 'system' default
+    const t = new ThemeService(settings, bus);
+    t.init();
+    expect(t.getMode()).toBe('system');
+  });
+
+  it('should apply dark class to document on dark mode', async () => {
     await theme.setMode('dark');
-    expect(spy).toHaveBeenCalledWith('theme', 'dark');
+    expect(document.documentElement.classList.contains('dark')).toBe(true);
+    expect(document.documentElement.classList.contains('light')).toBe(false);
+    expect(document.documentElement.style.colorScheme).toBe('dark');
+  });
+
+  it('should apply light class on light mode', async () => {
+    await theme.setMode('dark');
+    await theme.setMode('light');
+    expect(document.documentElement.classList.contains('light')).toBe(true);
+    expect(document.documentElement.classList.contains('dark')).toBe(false);
+    expect(document.documentElement.style.colorScheme).toBe('light');
+  });
+
+  it('should add theme-amoled class for amoled mode', async () => {
+    await theme.setMode('amoled');
+    expect(document.documentElement.classList.contains('theme-amoled')).toBe(true);
+    expect(document.documentElement.classList.contains('dark')).toBe(true);
+  });
+
+  it('should add theme-high-contrast class for high-contrast mode', async () => {
+    await theme.setMode('high-contrast');
+    expect(document.documentElement.classList.contains('theme-high-contrast')).toBe(true);
+    expect(document.documentElement.classList.contains('light')).toBe(true);
+  });
+
+  it('should remove theme classes when switching modes', async () => {
+    await theme.setMode('amoled');
+    expect(document.documentElement.classList.contains('theme-amoled')).toBe(true);
+    await theme.setMode('light');
+    expect(document.documentElement.classList.contains('theme-amoled')).toBe(false);
+    expect(document.documentElement.classList.contains('theme-high-contrast')).toBe(false);
   });
 });

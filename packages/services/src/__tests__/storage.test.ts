@@ -1,6 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import 'fake-indexeddb/auto';
 import {
   LocalStorageAdapter,
+  IndexedDBAdapter,
   StorageService,
   type StorageAdapter,
   type StorageMigration,
@@ -62,6 +64,13 @@ describe('LocalStorageAdapter', () => {
     expect(result).toBeNull();
   });
 
+  it('should return null for corrupt JSON', async () => {
+    localStorage.setItem('corrupt', '{bad json}');
+    const adapter = new LocalStorageAdapter();
+    const result = await adapter.get('corrupt');
+    expect(result).toBeNull();
+  });
+
   it('should delete a key', async () => {
     const adapter = new LocalStorageAdapter();
     await adapter.set('key1', 'value');
@@ -83,6 +92,56 @@ describe('LocalStorageAdapter', () => {
     await adapter.set('b', 2);
     const keys = await adapter.keys();
     expect(keys.sort()).toEqual(['a', 'b']);
+  });
+});
+
+describe('IndexedDBAdapter', () => {
+  let adapter: IndexedDBAdapter;
+
+  beforeEach(async () => {
+    adapter = new IndexedDBAdapter('test-db', 'test-store');
+  });
+
+  afterEach(async () => {
+    await adapter.destroy();
+  });
+
+  it('should set and get a value', async () => {
+    await adapter.set('key1', { hello: 'world' });
+    const result = await adapter.get<{ hello: string }>('key1');
+    expect(result).toEqual({ hello: 'world' });
+  });
+
+  it('should return null for missing key', async () => {
+    const result = await adapter.get('nonexistent');
+    expect(result).toBeNull();
+  });
+
+  it('should delete a key', async () => {
+    await adapter.set('key1', 'value');
+    await adapter.delete('key1');
+    expect(await adapter.get('key1')).toBeNull();
+  });
+
+  it('should clear all keys', async () => {
+    await adapter.set('a', 1);
+    await adapter.set('b', 2);
+    await adapter.clear();
+    expect(await adapter.keys()).toEqual([]);
+  });
+
+  it('should return all keys', async () => {
+    await adapter.set('a', 1);
+    await adapter.set('b', 2);
+    const keys = await adapter.keys();
+    expect(keys.sort()).toEqual(['a', 'b']);
+  });
+
+  it('should handle concurrent operations', async () => {
+    await Promise.all([adapter.set('a', 1), adapter.set('b', 2), adapter.set('c', 3)]);
+    expect(await adapter.get('a')).toBe(1);
+    expect(await adapter.get('b')).toBe(2);
+    expect(await adapter.get('c')).toBe(3);
   });
 });
 
@@ -175,5 +234,39 @@ describe('StorageService with mock adapter', () => {
 
     const meta = await adapter.get<{ version: number }>('__arunaos_storage_meta');
     expect(meta?.version).toBe(1);
+  });
+
+  it('should not persist if currentVersion already met', async () => {
+    await adapter.set('__arunaos_storage_meta', { version: 3, migratedAt: Date.now() });
+    const migrate = vi.fn((d: Record<string, unknown>) => d);
+    const storage = new StorageService(adapter, 3, [{ version: 2, migrate }]);
+    await storage.init();
+    expect(migrate).not.toHaveBeenCalled();
+  });
+});
+
+describe('StorageService with IndexedDB adapter', () => {
+  let adapter: IndexedDBAdapter;
+
+  beforeEach(() => {
+    adapter = new IndexedDBAdapter('test-service-db', 'test-store');
+  });
+
+  afterEach(async () => {
+    await adapter.destroy();
+  });
+
+  it('should store and retrieve values', async () => {
+    const storage = new StorageService(adapter);
+    await storage.set('theme', 'dark');
+    expect(await storage.get('theme')).toBe('dark');
+  });
+
+  it('should clear all values', async () => {
+    const storage = new StorageService(adapter);
+    await storage.set('a', 1);
+    await storage.set('b', 2);
+    await storage.clear();
+    expect(await storage.keys()).toEqual([]);
   });
 });

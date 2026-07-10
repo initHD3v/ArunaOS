@@ -1,0 +1,23 @@
+{
+  "id": "arunaos.settings",
+  "name": "Settings",
+  "version": "1.0.0",
+  "description": "System preferences",
+  "icon": "settings",
+  "entry": "./index.tsx",
+  "type": "builtin",
+  "permissions": ["storage:read", "storage:write", "notification"],
+  "window": {
+    "defaultWidth": 720,
+    "defaultHeight": 520,
+    "minWidth": 480,
+    "minHeight": 360,
+    "resizable": true,
+    "titleBar": true
+  },
+  "dependencies": [],
+  "api": {
+    "expose": [],
+    "require": ["notification"]
+  }
+}

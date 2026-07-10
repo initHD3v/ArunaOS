@@ -8,6 +8,9 @@ import { Settings } from '@/features/settings/components/settings';
 import { ViewerWindow } from '@/features/viewer/components/viewer-window';
 import { AStat } from '@/features/astat/components/astat';
 import { CameraApp } from '@/features/camera/components/camera';
+import { ModuleRenderer } from '@/features/modules/components/module-renderer';
+import { ModuleDevtools } from '@/features/module-devtools/module-devtools';
+import { ModuleInstaller } from '@/features/module-installer/module-installer';
 import { cn } from '@/lib/utils';
 import type { WindowData } from '@/types';
 
@@ -280,15 +283,25 @@ export const Window = memo(function Window({ data }: WindowProps) {
             {data.appId === 'viewer' && <ViewerWindow data={data} />}
             {data.appId === 'astat' && <AStat />}
             {data.appId === 'camera' && <CameraApp />}
+            {data.appId === 'devtools' && <ModuleDevtools />}
+            {data.appId === 'module-installer' && <ModuleInstaller />}
             {data.appId !== 'files' &&
               data.appId !== 'settings' &&
               data.appId !== 'viewer' &&
               data.appId !== 'astat' &&
-              data.appId !== 'camera' && (
+              data.appId !== 'camera' &&
+              data.appId !== 'devtools' &&
+              data.appId !== 'module-installer' &&
+              (data.appId?.startsWith('module-') ? (
+                <ModuleRenderer
+                  moduleId={data.appId.replace('module-', '')}
+                  appData={data.appData}
+                />
+              ) : (
                 <div className="text-foreground/50 flex h-full items-center justify-center text-sm">
                   <p>{data.title} — belum ada konten</p>
                 </div>
-              )}
+              ))}
           </div>
 
           {!isMaximized && (

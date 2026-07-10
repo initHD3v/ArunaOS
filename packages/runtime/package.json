@@ -1,5 +1,5 @@
 {
-  "name": "@arunaos/services",
+  "name": "@arunaos/runtime",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -12,9 +12,6 @@
   "devDependencies": {
     "@arunaos/types": "workspace:*",
     "@vitest/coverage-v8": "^4.1.10",
-    "css-mediaquery": "^0.1.2",
-    "fake-indexeddb": "^6.2.5",
-    "jsdom": "^29.1.1",
     "typescript": "^5.8.0",
     "vitest": "^4.1.10"
   }

@@ -1,0 +1,23 @@
+{
+  "id": "arunaos.astat",
+  "name": "Activity Monitor",
+  "version": "1.0.0",
+  "description": "System monitor",
+  "icon": "activity",
+  "entry": "./index.tsx",
+  "type": "builtin",
+  "permissions": ["notification"],
+  "window": {
+    "defaultWidth": 800,
+    "defaultHeight": 500,
+    "minWidth": 480,
+    "minHeight": 320,
+    "resizable": true,
+    "titleBar": true
+  },
+  "dependencies": [],
+  "api": {
+    "expose": [],
+    "require": []
+  }
+}

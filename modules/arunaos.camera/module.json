@@ -1,0 +1,23 @@
+{
+  "id": "arunaos.camera",
+  "name": "Camera",
+  "version": "1.0.0",
+  "description": "Photo and video capture",
+  "icon": "camera",
+  "entry": "./index.tsx",
+  "type": "builtin",
+  "permissions": ["camera", "notification"],
+  "window": {
+    "defaultWidth": 800,
+    "defaultHeight": 600,
+    "minWidth": 480,
+    "minHeight": 360,
+    "resizable": true,
+    "titleBar": true
+  },
+  "dependencies": [],
+  "api": {
+    "expose": [],
+    "require": []
+  }
+}

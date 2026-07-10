@@ -30,7 +30,7 @@ function matchEvent(e: KeyboardEvent, parsed: ParsedShortcut): boolean {
   if (!e.key) return false;
   const key = e.key.toLowerCase();
   if (key !== parsed.key && key !== parsed.key.toLowerCase()) return false;
-  const hasMeta = e.metaKey || e.ctrlKey;
+  const hasMeta = e.metaKey;
   const hasCtrl = e.ctrlKey;
   const hasAlt = e.altKey;
   const hasShift = e.shiftKey;
