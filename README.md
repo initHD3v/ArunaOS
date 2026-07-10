@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="apps/web/public/logo.png" alt="ArunaOS" width="120" />
+  <img src="assets/logo.png" alt="ArunaOS" width="120" />
 
 # ArunaOS
 
