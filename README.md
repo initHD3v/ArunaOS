@@ -16,14 +16,23 @@
 
   <br />
 
-> An operating environment that runs in the browser — not a macOS replacement, but a layer above that orchestrates applications, windows, and AI into a unified workspace. Tell it what you want done; the system handles the rest.
+  <p><em>Lingkungan operasi berbasis browser yang bukan pengganti OS, melainkan lapisan di atasnya yang mengorkestrasi aplikasi, jendela, dan AI dalam satu workspace terpadu.</em></p>
+  <p><em>A browser-based operating environment — not a replacement for your OS, but a layer above that orchestrates applications, windows, and AI into a unified workspace.</em></p>
 
   <br />
 </div>
 
 ---
 
-## Overview
+## Ikhtisar / Overview
+
+**Bahasa Indonesia**
+
+ArunaOS adalah lingkungan operasi berbasis browser yang dibangun dengan Next.js. Sistem ini memiliki window manager fungsional, application runtime dengan IPC, modul system, theme engine, power management, dan arsitektur yang dapat dikembangkan — semuanya berjalan di sisi klien tanpa ketergantungan backend.
+
+Phase 4 memperkenalkan **Application Runtime & Module System**, yang mengubah ArunaOS dari lingkungan desktop statis menjadi platform yang dapat memuat, menjalankan, dan mengomunikasikan antar aplikasi.
+
+**English**
 
 ArunaOS is a browser-based operating environment built with Next.js. It features a fully functional window manager, application runtime with IPC, module system, theming engine, power management, and an extensible architecture — all running client-side with zero backend dependencies.
 
@@ -31,7 +40,7 @@ Phase 4 introduces the **Application Runtime & Module System**, transforming Aru
 
 ---
 
-## Architecture
+## Arsitektur / Architecture
 
 ```
 ┌─────────────────────────────────────────────┐
@@ -54,75 +63,89 @@ Phase 4 introduces the **Application Runtime & Module System**, transforming Aru
 └─────────────────────────────────────────────┘
 ```
 
-### Module System
+### Module Runtime
 
-The runtime (`packages/runtime`) provides eight services that enable module lifecycle management:
+Runtime (`packages/runtime`) menyediakan delapan service yang memungkinkan siklus hidup modul berjalan.
+_The runtime provides eight services that enable module lifecycle management._
 
-| Service                    | Responsibility                                         |
-| -------------------------- | ------------------------------------------------------ |
-| **ModuleRegistry**         | Register, query, and track module status               |
-| **ModuleLoader**           | Lazy-load modules via factory + dynamic import         |
-| **ModuleIPC**              | Request/response, event, and broadcast between modules |
-| **ModuleLifecycleManager** | onMount, onUnmount, onSleep, onResume hooks            |
-| **ModuleSandbox**          | Proxy-based scope isolation per module                 |
-| **ModulePermissions**      | Access control for storage, camera, network, etc.      |
-| **ModuleSettings**         | Per-module preferences backed by IndexedDB             |
-| **ModuleStore**            | Module-level state management via Zustand              |
+| Service                    | Tanggung Jawab / Responsibility                                                                                        |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| **ModuleRegistry**         | Daftar, cari, dan lacak status modul / Register, query, and track module status                                        |
+| **ModuleLoader**           | Muat modul secara lazy via factory + dynamic import / Lazy-load modules via factory + dynamic import                   |
+| **ModuleIPC**              | Komunikasi request/response, event, dan broadcast antar modul / Request/response, event, and broadcast between modules |
+| **ModuleLifecycleManager** | Hook onMount, onUnmount, onSleep, onResume / Lifecycle hook management                                                 |
+| **ModuleSandbox**          | Isolasi scope berbasis Proxy per modul / Proxy-based scope isolation per module                                        |
+| **ModulePermissions**      | Kontrol akses untuk storage, camera, network, dll. / Access control for storage, camera, network, etc.                 |
+| **ModuleSettings**         | Preferensi per modul yang disimpan di IndexedDB / Per-module preferences backed by IndexedDB                           |
+| **ModuleStore**            | Manajemen state tingkat modul via Zustand / Module-level state management via Zustand                                  |
 
-Cross-module communication uses a message bus with `request/response`, `event`, and `broadcast` patterns — all routed through the ModuleIPC layer with automatic timeout handling.
+Komunikasi antar modul menggunakan message bus dengan pola `request/response`, `event`, dan `broadcast` — semuanya dirutekan melalui ModuleIPC dengan penanganan timeout otomatis.
+_Cross-module communication uses a message bus with request/response, event, and broadcast patterns — all routed through the ModuleIPC layer with automatic timeout handling._
 
 ---
 
-## Features
+## Fitur / Features
 
 ### Desktop & Window Manager
 
-- Multi-window desktop with drag, resize, minimize, maximize, snap, and z-order
-- Window state persists across sessions via localStorage (Zustand middleware)
-- Dock with running app indicators and context menu actions
+- Desktop multi-jendela dengan drag, resize, minimize, maximize, snap, dan z-order
+- _Multi-window desktop with drag, resize, minimize, maximize, snap, and z-order_
+- State jendela bertahan antar sesi via localStorage (Zustand persist middleware)
+- _Window state persists across sessions via localStorage (Zustand middleware)_
+- Dock dengan indikator aplikasi berjalan dan menu konteks
+- _Dock with running app indicators and context menu actions_
 
 ### Module Runtime
 
-- 7 built-in modules with manifests, factories, and UI components
-- All modules openable as managed windows via ModuleWindowService
-- Module DevTools panel (`Cmd+Shift+M`) for inspection and lifecycle control
-- Module Installer for managing installed modules
+- 7 modul built-in dengan manifest, factory, dan komponen UI
+- _7 built-in modules with manifests, factories, and UI components_
+- Semua modul dapat dibuka sebagai window via ModuleWindowService
+- _All modules openable as managed windows via ModuleWindowService_
+- Panel DevTools (`Cmd+Shift+M`) untuk inspeksi dan kontrol lifecycle
+- _DevTools panel for inspection and lifecycle control_
+- Module Installer untuk mengelola modul terinstall
+- _Module Installer for managing installed modules_
 
 ### Power Management
 
-- Screensaver with pure CSS animation (zero JavaScript runtime cost)
-- Auto-lock and sleep with configurable timeouts (Never — 2 hours)
-- Idle detection chain: screensaver → lock → sleep
-- Instant wake restoration via EventBus `app:resume`
-- Test button in Settings for immediate screensaver preview
+- Screensaver dengan animasi CSS murni (zero biaya JavaScript runtime)
+- _Screensaver with pure CSS animation (zero JavaScript runtime cost)_
+- Auto-lock dan sleep dengan timeout yang dapat dikonfigurasi (Never — 2 jam)
+- _Auto-lock and sleep with configurable timeouts (Never — 2 hours)_
+- Rantai deteksi idle: screensaver → lock → sleep
+- _Idle detection chain: screensaver → lock → sleep_
+- Pemulihan instan via EventBus `app:resume`
+- _Instant wake restoration via EventBus `app:resume`_
 
 ### UI & Experience
 
-- OS Tour — 9-slide bilingual (ID/EN) onboarding with animated split layout
-- Calendar popup with complete 2026 Indonesian holidays (SKB 3 Menteri)
-- Activity Monitor (AStat) — 5-tab real-time system monitor (CPU, Memory, Processes, System, Network)
-- Camera app with photo/video capture, timer, and gallery
-- Finder file manager with native drag, context menu, clipboard, and blob storage
-- Calendar popup with month navigation and clickable event details
-- System-wide search via Command Palette
-- Auth gate with lock screen and PIN-based security
-- Live wallpaper system with gradient presets and custom image upload
+- **OS Tour** — 9 slide bilingual (ID/EN), layout split animasi
+- **Calendar Popup** — Lengkap dengan hari libur nasional Indonesia 2026 (SKB 3 Menteri)
+- **Activity Monitor (AStat)** — 5 tab monitor sistem real-time (CPU, Memory, Processes, System, Network)
+- **Camera App** — Tangkap foto/video dengan timer dan galeri
+- **Finder** — File manager dengan drag, menu konteks, clipboard, penyimpanan blob
+- **Command Palette** — Pencarian sistem-wide untuk semua modul dan aksi
+- **Auth Gate** — Layar kunci dengan keamanan PIN
+- **Live Wallpaper** — Gradient preset dan unggah gambar kustom
 
-### Theming
+### Tema / Theming
 
-- 5 themes: light, dark, system, AMOLED, high-contrast
-- Full Tailwind CSS dark mode integration
-- Consistent design tokens across all components
+- 5 tema: light, dark, system, AMOLED, high-contrast
+- _5 themes: light, dark, system, AMOLED, high-contrast_
+- Integrasi penuh Tailwind CSS dark mode
+- _Full Tailwind CSS dark mode integration_
+- Design token konsisten di semua komponen
+- _Consistent design tokens across all components_
 
 ---
 
-## Project Structure
+## Struktur Proyek / Project Structure
 
 ```
 arunaos/
 ├── apps/
-│   └── web/                          # Main Next.js application
-│       ├── modules/                   # Built-in module manifests & entry points
+│   └── web/                          # Aplikasi utama Next.js
+│       ├── modules/                   # Manifest & entry points modul built-in
 │       │   ├── arunaos.files/
 │       │   ├── arunaos.settings/
 │       │   ├── arunaos.astat/
@@ -131,80 +154,80 @@ arunaos/
 │       │   ├── arunaos.devtools/
 │       │   └── arunaos.installer/
 │       └── src/
-│           ├── features/             # Feature modules
-│           ├── hooks/                # Shared React hooks
-│           ├── layouts/              # Shell layouts
+│           ├── features/             # Modul fitur
+│           ├── hooks/                # React hooks bersama
+│           ├── layouts/              # Tata letak shell
 │           ├── providers/            # Service container & context
-│           ├── services/             # Core services
-│           └── stores/               # Global state
+│           ├── services/             # Service inti
+│           └── stores/               # State global
 ├── packages/
-│   ├── runtime/                      # Module Runtime (8 services, 115 tests)
-│   ├── services/                     # Core services (EventBus, Storage, etc.)
-│   ├── ui/                           # Shared UI components
-│   ├── ai/                           # AI adapter layer
-│   ├── auth/                         # Authentication utilities
-│   ├── database/                     # Database layer
-│   ├── types/                        # Shared TypeScript types
-│   └── config/                       # Shared configurations
-└── Docs/                             # Documentation & ADR
+│   ├── runtime/                      # Module Runtime (8 service, 115 tests)
+│   ├── services/                     # Service inti (EventBus, Storage, dll.)
+│   ├── ui/                           # Komponen UI bersama
+│   ├── ai/                           # Lapisan adapter AI
+│   ├── auth/                         # Utilitas autentikasi
+│   ├── database/                     # Lapisan database
+│   ├── types/                        # Tipe TypeScript bersama
+│   └── config/                       # Konfigurasi bersama
 ```
 
 ---
 
-## Tech Stack
+## Teknologi / Tech Stack
 
-| Category         | Technology                                                        |
-| ---------------- | ----------------------------------------------------------------- |
-| Language         | TypeScript (strict mode)                                          |
-| Framework        | Next.js 15 (App Router)                                           |
-| Styling          | Tailwind CSS v4, shadcn/ui, Motion                                |
-| State Management | Zustand with persist middleware                                   |
-| Module Runtime   | Custom (8 services, Proxy-based sandbox, EventBus IPC)            |
-| Storage          | IndexedDB (settings, files, blobs), localStorage (window persist) |
-| Monorepo         | Turborepo + pnpm workspaces                                       |
-| Quality          | ESLint, Prettier, Husky, lint-staged, Madge (circular deps)       |
+| Kategori / Category | Teknologi / Technology                                            |
+| ------------------- | ----------------------------------------------------------------- |
+| Bahasa / Language   | TypeScript (strict mode)                                          |
+| Framework           | Next.js 15 (App Router)                                           |
+| Styling             | Tailwind CSS v4, shadcn/ui, Motion                                |
+| State Management    | Zustand dengan persist middleware                                 |
+| Module Runtime      | Kustom (8 service, Proxy-based sandbox, EventBus IPC)             |
+| Storage             | IndexedDB (settings, files, blobs), localStorage (window persist) |
+| Monorepo            | Turborepo + pnpm workspaces                                       |
+| Quality             | ESLint, Prettier, Husky, lint-staged, Madge (circular deps)       |
 
 ---
 
-## Getting Started
+## Memulai / Getting Started
 
 ```bash
-# Prerequisites: Node.js >= 22, pnpm >= 10
+# Prasyarat / Prerequisites: Node.js >= 22, pnpm >= 10
 
 pnpm install
 pnpm dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+Buka [http://localhost:3000](http://localhost:3000) di peramban Anda.
+_Open [http://localhost:3000](http://localhost:3000) in your browser._
 
 ---
 
-## Quality Assurance
+## Jaminan Kualitas / Quality Assurance
 
-| Metric                | Status                               |
-| --------------------- | ------------------------------------ |
-| TypeScript            | 0 errors across 16 packages          |
-| Runtime Tests         | 115 tests, 8 test files, all passing |
-| Circular Dependencies | 0 (verified via madge)               |
-| ESLint                | Clean                                |
-| Production Build      | ~55 KB first-load JS                 |
-
----
-
-## Development Phases
-
-| Phase | Focus                                                                                                                            | Status      |
-| ----- | -------------------------------------------------------------------------------------------------------------------------------- | ----------- |
-| **0** | Product definition, tech stack, standards, UI direction                                                                          | ✅ Complete |
-| **1** | Project bootstrap, desktop shell (wallpaper, dock, menu bar)                                                                     | ✅ Complete |
-| **2** | Window manager, icon system, file manager, desktop interactions                                                                  | ✅ Complete |
-| **3** | Core services (EventBus, Storage, Settings, Theme, Notification, Modal, Search, Shortcut, Command Palette, Workspace, Lifecycle) | ✅ Complete |
-| **4** | Application Runtime & Module System (7 built-in modules, IPC, sandbox, lifecycle, permissions, devtools, installer)              | ✅ Complete |
-| **5** | External module loader, iframe sandbox V2, hot module reload, marketplace                                                        | 📝 Planned  |
+| Metrik / Metric       | Status                             |
+| --------------------- | ---------------------------------- |
+| TypeScript            | 0 error di 16 packages             |
+| Runtime Tests         | 115 test, 8 file test, semua lolos |
+| Circular Dependencies | 0 (terverifikasi via madge)        |
+| ESLint                | Bersih / Clean                     |
+| Production Build      | ~55 KB first-load JS               |
 
 ---
 
-## Built With
+## Tahap Pengembangan / Development Phases
+
+| Phase | Fokus / Focus                                                                                                                                     | Status                      |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- |
+| **0** | Definisi produk, tech stack, standar, arah UI / _Product definition, tech stack, standards, UI direction_                                         | ✅ Selesai / _Complete_     |
+| **1** | Bootstrap proyek, desktop shell (wallpaper, dock, menu bar) / _Project bootstrap, desktop shell_                                                  | ✅ Selesai / _Complete_     |
+| **2** | Window manager, icon system, file manager, interaksi desktop / _Window manager, icon system, file manager, desktop interactions_                  | ✅ Selesai / _Complete_     |
+| **3** | Service inti (EventBus, Storage, Settings, Theme, Notification, Modal, Search, Shortcut, Command Palette, Workspace, Lifecycle) / _Core services_ | ✅ Selesai / _Complete_     |
+| **4** | Application Runtime & Module System (7 modul built-in, IPC, sandbox, lifecycle, permissions, devtools, installer)                                 | ✅ Selesai / _Complete_     |
+| **5** | External module loader, iframe sandbox V2, hot module reload, marketplace                                                                         | 📝 Direncanakan / _Planned_ |
+
+---
+
+## Teknologi yang Digunakan / Built With
 
 <p align="center">
   <img src="https://img.shields.io/badge/Next.js-000000?style=for-the-badge&logo=next.js" alt="Next.js" />
@@ -217,5 +240,5 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 ---
 
 <p align="center">
-  Created by <a href="https://github.com/initHD3v">INITHD3V</a> — 2026
+  Dibuat oleh / Created by <a href="https://github.com/initHD3v">INITHD3V</a> — 2026
 </p>
