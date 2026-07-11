@@ -1,6 +1,12 @@
 import { ModuleRegistry } from './registry';
 import { ModulePermissions } from './permissions';
-import type { ExternalModuleManifest, ExternalModuleEntry, UpdateInfo, Permission, ModuleWindowConfig } from './types';
+import type {
+  ExternalModuleManifest,
+  ExternalModuleEntry,
+  UpdateInfo,
+  Permission,
+  ModuleWindowConfig,
+} from './types';
 
 const VALID_ID_PATTERN = /^[a-z][a-z0-9._-]{2,64}$/;
 const VALID_SEMVER_PATTERN = /^\d+\.\d+\.\d+$/;
@@ -26,10 +32,7 @@ export class ExternalModuleLoader {
   private entries = new Map<string, ExternalModuleEntry>();
   private codeCache = new Map<string, string>();
 
-  private fetchWithRetry = async (
-    url: string,
-    retries = 2,
-  ): Promise<Response> => {
+  private fetchWithRetry = async (url: string, retries = 2): Promise<Response> => {
     let lastError: Error | null = null;
     for (let attempt = 0; attempt <= retries; attempt++) {
       try {
@@ -103,8 +106,15 @@ export class ExternalModuleLoader {
       : [];
 
     const allowedPermissions = [
-      'storage:read', 'storage:write', 'camera', 'microphone',
-      'notification', 'clipboard:read', 'clipboard:write', 'network', 'geolocation',
+      'storage:read',
+      'storage:write',
+      'camera',
+      'microphone',
+      'notification',
+      'clipboard:read',
+      'clipboard:write',
+      'network',
+      'geolocation',
     ];
     for (const p of permissions) {
       if (!allowedPermissions.includes(p)) {
@@ -127,20 +137,12 @@ export class ExternalModuleLoader {
       signature: m.signature ? String(m.signature) : undefined,
       homepage: m.homepage ? String(m.homepage) : undefined,
       author: m.author ? String(m.author) : undefined,
-      categories: Array.isArray(m.categories)
-        ? m.categories.map(String)
-        : undefined,
-      screenshots: Array.isArray(m.screenshots)
-        ? m.screenshots.map(String)
-        : undefined,
+      categories: Array.isArray(m.categories) ? m.categories.map(String) : undefined,
+      screenshots: Array.isArray(m.screenshots) ? m.screenshots.map(String) : undefined,
       permissions: permissions as Permission[],
       window: m.window as ModuleWindowConfig | undefined,
-      shortcuts: Array.isArray(m.shortcuts)
-        ? m.shortcuts.map(String)
-        : undefined,
-      dependencies: Array.isArray(m.dependencies)
-        ? m.dependencies.map(String)
-        : undefined,
+      shortcuts: Array.isArray(m.shortcuts) ? m.shortcuts.map(String) : undefined,
+      dependencies: Array.isArray(m.dependencies) ? m.dependencies.map(String) : undefined,
       api: m.api as Record<string, unknown> | undefined,
     };
   }
@@ -175,6 +177,48 @@ export class ExternalModuleLoader {
 
     this.permissions.autoGrant(manifest.id);
 
+    this.registry.register(manifest);
+
+    const now = Date.now();
+    const entry: ExternalModuleEntry = {
+      id: manifest.id,
+      manifest,
+      installedAt: now,
+      updatedAt: now,
+      source: options?.source ?? 'url',
+      bundleUrl: manifest.entry,
+      bundleSize: new TextEncoder().encode(code).length,
+    };
+
+    this.entries.set(manifest.id, entry);
+    this.codeCache.set(manifest.id, code);
+
+    return { entry, code };
+  }
+
+  async installFromCode(
+    manifest: ExternalModuleManifest,
+    code: string,
+    options?: { source?: 'url' | 'registry'; registry?: string },
+  ): Promise<ExternalModuleResult> {
+    if (this.entries.has(manifest.id)) {
+      throw new Error(`External module '${manifest.id}' is already installed`);
+    }
+
+    if (this.registry.get(manifest.id)) {
+      throw new Error(
+        `Module '${manifest.id}' already exists in registry (type: ${this.registry.get(manifest.id)!.manifest.type})`,
+      );
+    }
+
+    const actualHash = await sha256(code);
+    if (actualHash !== manifest.checksum) {
+      throw new Error(
+        `Integrity check failed for '${manifest.id}': expected ${manifest.checksum}, got ${actualHash}`,
+      );
+    }
+
+    this.permissions.autoGrant(manifest.id);
     this.registry.register(manifest);
 
     const now = Date.now();
@@ -265,9 +309,7 @@ export class ExternalModuleLoader {
     return this.entries.get(id) ?? null;
   }
 
-  async verifyAllIntegrity(): Promise<
-    Array<{ id: string; valid: boolean; error?: string }>
-  > {
+  async verifyAllIntegrity(): Promise<Array<{ id: string; valid: boolean; error?: string }>> {
     const results: Array<{ id: string; valid: boolean; error?: string }> = [];
     for (const [id, code] of this.codeCache) {
       const entry = this.entries.get(id);

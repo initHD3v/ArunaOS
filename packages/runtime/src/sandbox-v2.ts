@@ -26,7 +26,10 @@ export class SandboxV2 {
   private config: SandboxV2Config;
   private limits: Required<ResourceLimits>;
   private iframe: HTMLIFrameElement | null = null;
-  private pending = new Map<string, { resolve: (v: unknown) => void; reject: (e: Error) => void }>();
+  private pending = new Map<
+    string,
+    { resolve: (v: unknown) => void; reject: (e: Error) => void }
+  >();
   private messageId = 0;
   private messageCount = 0;
   private _destroyed = false;
@@ -44,11 +47,10 @@ export class SandboxV2 {
     if (this.iframe) throw new Error('SandboxV2 already mounted');
 
     const iframe = document.createElement('iframe');
-    iframe.setAttribute('sandbox', [
-      'allow-scripts',
-      'allow-same-origin',
-      'allow-popups',
-    ].join(' '));
+    iframe.setAttribute(
+      'sandbox',
+      ['allow-scripts', 'allow-same-origin', 'allow-popups'].join(' '),
+    );
     iframe.style.cssText = 'border:none;width:100%;height:100%;display:block';
     iframe.srcdoc = this.buildSandboxHTML();
 
@@ -132,7 +134,7 @@ window.addEventListener('message', (event) => {
 });
 
 window.__BRIDGE__ = bridge;
-<\/script>
+</script>
 </body>
 </html>`;
   }
@@ -217,8 +219,7 @@ window.__BRIDGE__ = bridge;
 
     const bridge: Record<string, unknown> = {};
 
-    bridge.openWindow = (config: Parameters<SystemAPI['openWindow']>[0]) =>
-      api.openWindow(config);
+    bridge.openWindow = (config: Parameters<SystemAPI['openWindow']>[0]) => api.openWindow(config);
     bridge.closeWindow = (windowId: string) => api.closeWindow(windowId);
     bridge.notify = (
       type: Parameters<SystemAPI['notify']>[0],
@@ -232,13 +233,19 @@ window.__BRIDGE__ = bridge;
       bridge.storage = {
         get: check('storage:read')
           ? (key: string) => api.storage.get(key)
-          : () => { throw new Error('Permission denied: storage:read'); },
+          : () => {
+              throw new Error('Permission denied: storage:read');
+            },
         set: check('storage:write')
           ? (key: string, value: unknown) => api.storage.set(key, value)
-          : () => { throw new Error('Permission denied: storage:write'); },
+          : () => {
+              throw new Error('Permission denied: storage:write');
+            },
         delete: check('storage:write')
           ? (key: string) => api.storage.delete(key)
-          : () => { throw new Error('Permission denied: storage:write'); },
+          : () => {
+              throw new Error('Permission denied: storage:write');
+            },
       };
     }
 

@@ -31,7 +31,9 @@
       "@arunaos/runtime/*": ["../../packages/runtime/src/*"],
       "@arunaos/shared/*": ["../../packages/shared/src/*"],
       "@arunaos/animations/*": ["../../packages/animations/src/*"],
-      "@arunaos/design-tokens/*": ["../../packages/design-tokens/src/*"]
+      "@arunaos/design-tokens/*": ["../../packages/design-tokens/src/*"],
+      "@arunaos/registry-api": ["../../packages/registry-api/src/index.ts"],
+      "@arunaos/registry-api/*": ["../../packages/registry-api/src/*"]
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],

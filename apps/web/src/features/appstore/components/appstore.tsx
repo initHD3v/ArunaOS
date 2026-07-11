@@ -72,7 +72,7 @@ export function AppStore() {
     try {
       steps[0]!.status = 'running';
       steps[0]!.detail = manifestUrl;
-      setInstallProgress((p) => p ? { ...p, steps: [...steps] } : p);
+      setInstallProgress((p) => (p ? { ...p, steps: [...steps] } : p));
       await sleep(300);
 
       const res = await fetch(manifestUrl);
@@ -83,11 +83,11 @@ export function AppStore() {
       steps[0]!.detail = 'Manifest fetched successfully';
       steps[1]!.status = 'running';
       steps[1]!.detail = `Validating module: ${raw.id ?? 'unknown'}`;
-      setInstallProgress((p) => p ? { ...p, steps: [...steps] } : p);
+      setInstallProgress((p) => (p ? { ...p, steps: [...steps] } : p));
       await sleep(400);
 
       const validated: ExternalModuleManifest = externalLoader.validateManifest(raw);
-      const score: SecurityScore = securityRating.analyze(validated, {
+      const score: SecurityScore = await securityRating.analyze(validated, {
         checksumVerified: false,
         source: 'url',
       });
@@ -96,19 +96,19 @@ export function AppStore() {
       steps[1]!.detail = `${validated.id} v${validated.version} — ${score.level}`;
       steps[2]!.status = 'running';
       steps[2]!.detail = validated.entry;
-      setInstallProgress((p) => p ? { ...p, steps: [...steps] } : p);
+      setInstallProgress((p) => (p ? { ...p, steps: [...steps] } : p));
       await sleep(300);
 
       for (let progress = 0; progress <= 100; progress += 10) {
         steps[2]!.progress = progress;
-        setInstallProgress((p) => p ? { ...p, steps: [...steps] } : p);
+        setInstallProgress((p) => (p ? { ...p, steps: [...steps] } : p));
         await sleep(80);
       }
       steps[2]!.status = 'done';
       steps[2]!.detail = 'Bundle downloaded';
       steps[3]!.status = 'running';
       steps[3]!.detail = `SHA-256: ${validated.checksum.slice(0, 16)}...`;
-      setInstallProgress((p) => p ? { ...p, steps: [...steps] } : p);
+      setInstallProgress((p) => (p ? { ...p, steps: [...steps] } : p));
       await sleep(500);
 
       const result = await externalLoader.installFromUrl(manifestUrl);
@@ -116,17 +116,17 @@ export function AppStore() {
       steps[3]!.detail = 'Checksum verified';
       steps[4]!.status = 'running';
       steps[4]!.detail = `Module ID: ${result.entry.id}`;
-      setInstallProgress((p) => p ? { ...p, steps: [...steps] } : p);
+      setInstallProgress((p) => (p ? { ...p, steps: [...steps] } : p));
       await sleep(300);
 
       steps[4]!.status = 'done';
       steps[5]!.status = 'running';
       steps[5]!.detail = `Bundle size: ${(result.entry.bundleSize / 1024).toFixed(1)} KB`;
-      setInstallProgress((p) => p ? { ...p, steps: [...steps] } : p);
+      setInstallProgress((p) => (p ? { ...p, steps: [...steps] } : p));
       await sleep(400);
 
       steps[5]!.status = 'done';
-      setInstallProgress((p) => p ? { ...p, steps: [...steps] } : p);
+      setInstallProgress((p) => (p ? { ...p, steps: [...steps] } : p));
       refreshInstalled();
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);
@@ -135,7 +135,7 @@ export function AppStore() {
       if (runningIdx >= 0) {
         current[runningIdx] = { ...current[runningIdx]!, status: 'error', detail: errorMsg };
       }
-      setInstallProgress((p) => p ? { ...p, steps: current } : p);
+      setInstallProgress((p) => (p ? { ...p, steps: current } : p));
     }
   };
 
@@ -157,7 +157,7 @@ export function AppStore() {
     try {
       steps[0]!.status = 'running';
       steps[0]!.detail = `Module: ${entry.id}`;
-      setInstallProgress((p) => p ? { ...p, steps: [...steps] } : p);
+      setInstallProgress((p) => (p ? { ...p, steps: [...steps] } : p));
       await sleep(400);
 
       await externalLoader.uninstall(entry.id);
@@ -166,17 +166,17 @@ export function AppStore() {
       steps[0]!.detail = `${entry.id} unregistered`;
       steps[1]!.status = 'running';
       steps[1]!.detail = 'Removing cached data...';
-      setInstallProgress((p) => p ? { ...p, steps: [...steps] } : p);
+      setInstallProgress((p) => (p ? { ...p, steps: [...steps] } : p));
       await sleep(300);
 
       steps[1]!.status = 'done';
       steps[2]!.status = 'running';
       steps[2]!.detail = 'Bundle removed from cache';
-      setInstallProgress((p) => p ? { ...p, steps: [...steps] } : p);
+      setInstallProgress((p) => (p ? { ...p, steps: [...steps] } : p));
       await sleep(300);
 
       steps[2]!.status = 'done';
-      setInstallProgress((p) => p ? { ...p, steps: [...steps] } : p);
+      setInstallProgress((p) => (p ? { ...p, steps: [...steps] } : p));
       refreshInstalled();
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);
@@ -185,7 +185,7 @@ export function AppStore() {
       if (runningIdx >= 0) {
         current[runningIdx] = { ...current[runningIdx]!, status: 'error', detail: errorMsg };
       }
-      setInstallProgress((p) => p ? { ...p, steps: current } : p);
+      setInstallProgress((p) => (p ? { ...p, steps: current } : p));
     }
   };
 
@@ -196,10 +196,17 @@ export function AppStore() {
 
       try {
         const content = await file.text();
-        const manifest: ExternalModuleManifest = externalLoader.validateManifest(JSON.parse(content));
+        const manifest: ExternalModuleManifest = externalLoader.validateManifest(
+          JSON.parse(content),
+        );
 
         const steps: InstallStep[] = [
-          { id: 'verify', label: 'Verifying offline manifest', status: 'running', detail: file.name },
+          {
+            id: 'verify',
+            label: 'Verifying offline manifest',
+            status: 'running',
+            detail: file.name,
+          },
         ];
 
         setInstallProgress({
@@ -227,7 +234,7 @@ export function AppStore() {
           { id: 'register', label: 'Registering module', status: 'pending' },
           { id: 'finalize', label: 'Finalizing', status: 'pending' },
         );
-        setInstallProgress((p) => p ? { ...p, steps: [...steps] } : p);
+        setInstallProgress((p) => (p ? { ...p, steps: [...steps] } : p));
         await sleep(300);
 
         const actualHash = await sha256(bundleCode);
@@ -238,21 +245,21 @@ export function AppStore() {
         steps[1]!.status = 'done';
         steps[2]!.status = 'running';
         steps[2]!.detail = manifest.id;
-        setInstallProgress((p) => p ? { ...p, steps: [...steps] } : p);
+        setInstallProgress((p) => (p ? { ...p, steps: [...steps] } : p));
         await sleep(300);
 
         if (externalLoader.getInstalledModule(manifest.id)) {
           await externalLoader.uninstall(manifest.id);
         }
 
-        externalLoader.installFromUrl(manifest.manifestUrl);
+        await externalLoader.installFromCode(manifest, bundleCode, { source: 'url' });
         steps[2]!.status = 'done';
         steps[3]!.status = 'running';
-        setInstallProgress((p) => p ? { ...p, steps: [...steps] } : p);
+        setInstallProgress((p) => (p ? { ...p, steps: [...steps] } : p));
         await sleep(300);
 
         steps[3]!.status = 'done';
-        setInstallProgress((p) => p ? { ...p, steps: [...steps] } : p);
+        setInstallProgress((p) => (p ? { ...p, steps: [...steps] } : p));
         refreshInstalled();
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : String(err);
@@ -261,33 +268,33 @@ export function AppStore() {
         if (runningIdx >= 0) {
           current[runningIdx] = { ...current[runningIdx]!, status: 'error', detail: errorMsg };
         }
-        setInstallProgress((p) => p ? { ...p, steps: current } : p);
+        setInstallProgress((p) => (p ? { ...p, steps: current } : p));
       }
     }
   };
 
   return (
-    <div className="flex h-full flex-col bg-background text-foreground">
-      <div className="flex items-center justify-between border-b border-border/30 px-5 py-3">
+    <div className="bg-background text-foreground flex h-full flex-col">
+      <div className="border-border/30 flex items-center justify-between border-b px-5 py-3">
         <div className="flex items-center gap-3">
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/15 text-blue-400">
             <Grid3X3 size={16} />
           </span>
           <div>
-            <h2 className="text-base font-semibold text-foreground">AppStore</h2>
-            <p className="text-[11px] text-foreground/40">Discover, install, and manage modules</p>
+            <h2 className="text-foreground text-base font-semibold">AppStore</h2>
+            <p className="text-foreground/40 text-[11px]">Discover, install, and manage modules</p>
           </div>
         </div>
         <button
           onClick={refreshInstalled}
-          className="flex items-center gap-1.5 rounded-lg border border-border/30 bg-foreground/5 px-3 py-1.5 text-[11px] text-foreground/60 transition-colors hover:bg-foreground/10 hover:text-foreground/80"
+          className="border-border/30 bg-foreground/5 text-foreground/60 hover:bg-foreground/10 hover:text-foreground/80 flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[11px] transition-colors"
         >
           <RefreshCw size={12} />
           Refresh
         </button>
       </div>
 
-      <div className="flex gap-0.5 border-b border-border/30 bg-foreground/[0.02] px-4 pt-2">
+      <div className="border-border/30 bg-foreground/[0.02] flex gap-0.5 border-b px-4 pt-2">
         {TABS.map((tab) => {
           const Icon = tab.icon;
           return (
@@ -314,9 +321,7 @@ export function AppStore() {
       </div>
 
       <div className="flex-1 overflow-auto">
-        {activeTab === 'browse' && (
-          <BrowseTab onInstall={(url) => installModule(url)} />
-        )}
+        {activeTab === 'browse' && <BrowseTab onInstall={(url) => installModule(url)} />}
 
         {activeTab === 'installed' && (
           <InstalledTab
@@ -326,9 +331,7 @@ export function AppStore() {
           />
         )}
 
-        {activeTab === 'offline' && (
-          <OfflineTab onInstall={offlineInstall} />
-        )}
+        {activeTab === 'offline' && <OfflineTab onInstall={offlineInstall} />}
       </div>
 
       {installProgress?.visible && (
@@ -358,7 +361,7 @@ function InstalledTab({
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center">
-        <Loader2 size={18} className="animate-spin text-foreground/30" />
+        <Loader2 size={18} className="text-foreground/30 animate-spin" />
       </div>
     );
   }
@@ -367,8 +370,8 @@ function InstalledTab({
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3">
         <Package size={36} className="text-foreground/20" />
-        <p className="text-sm text-foreground/40">No modules installed</p>
-        <p className="text-xs text-foreground/30">Browse the AppStore to find modules</p>
+        <p className="text-foreground/40 text-sm">No modules installed</p>
+        <p className="text-foreground/30 text-xs">Browse the AppStore to find modules</p>
       </div>
     );
   }
@@ -376,12 +379,14 @@ function InstalledTab({
   return (
     <div className="space-y-1 p-4">
       <div className="mb-3 flex items-center justify-between">
-        <p className="text-xs text-foreground/40">{entries.length} module{entries.length > 1 ? 's' : ''} installed</p>
+        <p className="text-foreground/40 text-xs">
+          {entries.length} module{entries.length > 1 ? 's' : ''} installed
+        </p>
       </div>
       {entries.map((entry) => (
         <div
           key={entry.id}
-          className="flex items-center gap-3 rounded-xl border border-border/20 bg-foreground/[0.02] px-4 py-3 transition-colors hover:border-border/40 hover:bg-foreground/[0.04]"
+          className="border-border/20 bg-foreground/[0.02] hover:border-border/40 hover:bg-foreground/[0.04] flex items-center gap-3 rounded-xl border px-4 py-3 transition-colors"
         >
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-500/10 text-blue-400">
             <Package size={18} />
@@ -389,14 +394,16 @@ function InstalledTab({
 
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-foreground">{entry.manifest.name}</span>
-              <span className="text-[11px] text-foreground/40">v{entry.manifest.version}</span>
-              <span className="rounded bg-foreground/5 px-1.5 py-0.5 text-[9px] text-foreground/40">
+              <span className="text-foreground text-sm font-medium">{entry.manifest.name}</span>
+              <span className="text-foreground/40 text-[11px]">v{entry.manifest.version}</span>
+              <span className="bg-foreground/5 text-foreground/40 rounded px-1.5 py-0.5 text-[9px]">
                 {entry.source}
               </span>
             </div>
-            <p className="mt-0.5 truncate text-xs text-foreground/40">{entry.manifest.description}</p>
-            <div className="mt-1 flex items-center gap-2 text-[10px] text-foreground/30">
+            <p className="text-foreground/40 mt-0.5 truncate text-xs">
+              {entry.manifest.description}
+            </p>
+            <div className="text-foreground/30 mt-1 flex items-center gap-2 text-[10px]">
               <span>ID: {entry.id}</span>
               <span>{(entry.bundleSize / 1024).toFixed(1)} KB</span>
               <span>Installed: {new Date(entry.installedAt).toLocaleDateString()}</span>
@@ -418,7 +425,7 @@ function InstalledTab({
                 </button>
                 <button
                   onClick={() => setConfirmId(null)}
-                  className="rounded-lg px-2.5 py-1.5 text-[11px] text-foreground/40 transition-colors hover:bg-foreground/5"
+                  className="text-foreground/40 hover:bg-foreground/5 rounded-lg px-2.5 py-1.5 text-[11px] transition-colors"
                 >
                   Cancel
                 </button>
@@ -426,7 +433,7 @@ function InstalledTab({
             ) : (
               <button
                 onClick={() => setConfirmId(entry.id)}
-                className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] text-foreground/40 transition-colors hover:bg-red-500/10 hover:text-red-400"
+                className="text-foreground/40 flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] transition-colors hover:bg-red-500/10 hover:text-red-400"
               >
                 <Trash2 size={12} />
                 Uninstall
@@ -439,11 +446,7 @@ function InstalledTab({
   );
 }
 
-function OfflineTab({
-  onInstall,
-}: {
-  onInstall: (files: FileList) => void;
-}) {
+function OfflineTab({ onInstall }: { onInstall: (files: FileList) => void }) {
   const [dragOver, setDragOver] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
 
@@ -464,29 +467,30 @@ function OfflineTab({
   return (
     <div className="flex flex-col gap-4 p-4">
       <div
-        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragOver(true);
+        }}
         onDragLeave={() => setDragOver(false)}
         onDrop={handleDrop}
         className={cn(
           'flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed px-6 py-12 transition-colors',
-          dragOver
-            ? 'border-blue-400 bg-blue-500/5'
-            : 'border-border/30 hover:border-border/50',
+          dragOver ? 'border-blue-400 bg-blue-500/5' : 'border-border/30 hover:border-border/50',
         )}
       >
-        <Upload size={32} className={cn(
-          'transition-colors',
-          dragOver ? 'text-blue-400' : 'text-foreground/20',
-        )} />
+        <Upload
+          size={32}
+          className={cn('transition-colors', dragOver ? 'text-blue-400' : 'text-foreground/20')}
+        />
         <div className="text-center">
-          <p className="text-sm font-medium text-foreground/60">
+          <p className="text-foreground/60 text-sm font-medium">
             {dragOver ? 'Drop files here' : 'Drag & drop module files'}
           </p>
-          <p className="mt-1 text-xs text-foreground/40">
+          <p className="text-foreground/40 mt-1 text-xs">
             or click to browse — select module.json and bundle files
           </p>
         </div>
-        <label className="cursor-pointer rounded-lg bg-foreground/10 px-4 py-2 text-xs font-medium text-foreground/60 transition-colors hover:bg-foreground/15">
+        <label className="bg-foreground/10 text-foreground/60 hover:bg-foreground/15 cursor-pointer rounded-lg px-4 py-2 text-xs font-medium transition-colors">
           <input
             type="file"
             multiple
@@ -499,16 +503,19 @@ function OfflineTab({
       </div>
 
       {files.length > 0 && (
-        <div className="rounded-xl border border-border/20 bg-foreground/[0.02] p-4">
-          <p className="mb-2 text-xs font-medium text-foreground/60">Selected Files</p>
+        <div className="border-border/20 bg-foreground/[0.02] rounded-xl border p-4">
+          <p className="text-foreground/60 mb-2 text-xs font-medium">Selected Files</p>
           <div className="space-y-1.5">
             {files.map((f, i) => (
-              <div key={i} className="flex items-center justify-between rounded-lg bg-foreground/[0.02] px-3 py-2">
+              <div
+                key={i}
+                className="bg-foreground/[0.02] flex items-center justify-between rounded-lg px-3 py-2"
+              >
                 <div className="flex items-center gap-2">
                   <FileCode size={14} className="text-foreground/30" />
-                  <span className="text-xs text-foreground/60">{f.name}</span>
+                  <span className="text-foreground/60 text-xs">{f.name}</span>
                 </div>
-                <span className="text-[10px] text-foreground/30">
+                <span className="text-foreground/30 text-[10px]">
                   {(f.size / 1024).toFixed(1)} KB
                 </span>
               </div>
@@ -529,12 +536,12 @@ function OfflineTab({
         </div>
       )}
 
-      <div className="rounded-xl border border-border/20 bg-amber-500/5 px-4 py-3">
+      <div className="border-border/20 rounded-xl border bg-amber-500/5 px-4 py-3">
         <div className="flex items-start gap-2">
           <AlertTriangle size={14} className="mt-0.5 shrink-0 text-amber-400" />
-          <p className="text-xs leading-relaxed text-foreground/50">
-            Offline installation bypasses registry security checks. Only install modules
-            from trusted sources. Verify the module's integrity before installing.
+          <p className="text-foreground/50 text-xs leading-relaxed">
+            Offline installation bypasses registry security checks. Only install modules from
+            trusted sources. Verify the module's integrity before installing.
           </p>
         </div>
       </div>

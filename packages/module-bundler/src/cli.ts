@@ -38,20 +38,23 @@ async function main() {
       break;
     }
 
-    case 'validate': {
-      const bundleDir = args[1] || process.cwd();
-      const result = await validateBuild({ bundleDir });
-      if (result.valid) {
-        console.log(`✓ ${result.manifest?.id} v${result.manifest?.version} — valid`);
-        process.exit(0);
-      } else {
-        console.error(`✗ Validation failed:`);
-        for (const err of result.errors) {
-          console.error(`  - ${err}`);
+    case 'validate':
+      {
+        const bundleDir = args[1] || process.cwd();
+        const result = await validateBuild({ bundleDir });
+        if (result.valid) {
+          console.log(`✓ ${result.manifest?.id} v${result.manifest?.version} — valid`);
+          process.exit(0);
+        } else {
+          console.error(`✗ Validation failed:`);
+          for (const err of result.errors) {
+            console.error(`  - ${err}`);
+          }
+          process.exit(1);
         }
-        process.exit(1);
       }
-    }
+
+      break;
 
     default:
       console.log('Usage:');

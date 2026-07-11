@@ -1,8 +1,10 @@
 {
-  "name": "@arunaos/ai",
+  "name": "@arunaos/hot-reload",
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./src/index.ts",
@@ -12,15 +14,13 @@
   },
   "scripts": {
     "build": "tsc",
-    "lint": "eslint . --ext .ts,.tsx",
+    "lint": "eslint . --ext .ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest",
     "clean": "rm -rf node_modules dist"
   },
   "devDependencies": {
     "typescript": "^5.8.0",
-    "vitest": "^4.1.10",
-    "@arunaos/types": "workspace:*"
+    "vitest": "^4.1.10"
   }
 }

@@ -1,5 +1,5 @@
 {
-  "name": "@arunaos/ai",
+  "name": "@arunaos/registry-api",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -12,15 +12,19 @@
   },
   "scripts": {
     "build": "tsc",
-    "lint": "eslint . --ext .ts,.tsx",
+    "lint": "eslint . --ext .ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "clean": "rm -rf node_modules dist"
   },
+  "dependencies": {
+    "drizzle-orm": "^0.43.0",
+    "postgres": "^3.4.0"
+  },
   "devDependencies": {
     "typescript": "^5.8.0",
     "vitest": "^4.1.10",
-    "@arunaos/types": "workspace:*"
+    "@arunaos/database": "workspace:*"
   }
 }

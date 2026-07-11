@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 import { existsSync, readFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { join } from 'node:path';
 import { buildModule, validateBuild } from '@arunaos/module-bundler';
 import { createModule } from './create';
 import { devServer } from './dev';
 import { migrateModule } from './migrate';
+import { publishModule } from './publish';
 
 async function main() {
   const args = process.argv.slice(2);
@@ -79,6 +80,7 @@ async function main() {
         }
         process.exit(1);
       }
+      break;
     }
 
     case 'migrate': {
@@ -98,6 +100,34 @@ async function main() {
         }
         process.exit(1);
       }
+      break;
+    }
+
+    case 'publish': {
+      const publishDir = args[1] || process.cwd();
+      const registry =
+        args.find((a) => a.startsWith('--registry='))?.slice(11) ||
+        process.env.ARUNAOS_REGISTRY ||
+        'http://localhost:3000';
+      const apiKey =
+        args.find((a) => a.startsWith('--api-key='))?.slice(10) || process.env.ARUNAOS_API_KEY;
+      const dryRunPublish = args.includes('--dry-run');
+
+      const result = await publishModule({
+        dir: publishDir,
+        registry,
+        apiKey,
+        dryRun: dryRunPublish,
+      });
+      if (result.success) {
+        console.log(`Published ${result.moduleId} v${result.version}`);
+        if (result.url) console.log(`  URL: ${result.url}`);
+        process.exit(0);
+      } else {
+        console.error(`Publish failed: ${result.error}`);
+        process.exit(1);
+      }
+      break;
     }
 
     default: {
@@ -109,13 +139,16 @@ async function main() {
       console.log('  arunaos dev [dir]            Start dev server with HMR via SSE');
       console.log('  arunaos validate [dir]       Validate built module');
       console.log('  arunaos migrate [dir]        Migrate Phase 4 module to Phase 5');
+      console.log('  arunaos publish [dir]        Publish module to registry');
       console.log('');
       console.log('Options:');
       console.log('  --no-minify                  Disable minification');
       console.log('  --sourcemap                  Generate source map');
       console.log('  --port=<port>                Dev server port (default: 4321)');
       console.log('  --perm=<permission>          Permission for create command');
-      console.log('  --dry-run                    Preview migration without writing files');
+      console.log('  --dry-run                    Preview migration or publish without writing');
+      console.log('  --registry=<url>             Registry URL (default: http://localhost:3000)');
+      console.log('  --api-key=<key>              API key for registry');
     }
   }
 }

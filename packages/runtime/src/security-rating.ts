@@ -29,10 +29,13 @@ const PERMISSION_WEIGHTS: Record<string, number> = {
 };
 
 export class SecurityRatingSystem {
-  analyze(manifest: ExternalModuleManifest, options?: {
-    checksumVerified?: boolean;
-    source?: 'registry' | 'url';
-  }): SecurityScore {
+  async analyze(
+    manifest: ExternalModuleManifest,
+    options?: {
+      checksumVerified?: boolean;
+      source?: 'registry' | 'url';
+    },
+  ): Promise<SecurityScore> {
     const breakdown: ScoreBreakdown[] = [];
     const warnings: string[] = [];
     let totalScore = 0;
@@ -96,15 +99,32 @@ export class SecurityRatingSystem {
     breakdown.push(versionScore);
     totalScore += versionScore.score;
 
-    // 6. Signature presence (max 10 points)
-    if (manifest.signature) {
+    // 6. Cryptographic signature verification (max 10 points)
+    const sigVerified = await this.verifySignature(manifest);
+    if (sigVerified === true) {
       breakdown.push({
         category: 'Signature',
         score: 10,
         maxScore: 10,
-        detail: 'Cryptographic signature present',
+        detail: 'Ed25519 signature cryptographically verified',
       });
       totalScore += 10;
+    } else if (sigVerified === false) {
+      breakdown.push({
+        category: 'Signature',
+        score: 0,
+        maxScore: 10,
+        detail: 'Signature present but verification failed — possible tampering',
+      });
+      warnings.push('Cryptographic signature verification failed — module may be tampered');
+    } else if (manifest.signature) {
+      breakdown.push({
+        category: 'Signature',
+        score: 5,
+        maxScore: 10,
+        detail: 'Signature present but not verified (browser context)',
+      });
+      totalScore += 5;
     } else {
       breakdown.push({
         category: 'Signature',
@@ -122,14 +142,21 @@ export class SecurityRatingSystem {
     return { score: totalScore, level, breakdown, warnings };
   }
 
-  private analyzePermissions(manifest: ExternalModuleManifest): ScoreBreakdown & { warning?: string } {
+  private analyzePermissions(
+    manifest: ExternalModuleManifest,
+  ): ScoreBreakdown & { warning?: string } {
     const perms = manifest.permissions ?? [];
     let score = 30;
     let warning: string | undefined;
 
     if (perms.length === 0) {
       // No permissions = safest
-      return { category: 'Permissions', score: 30, maxScore: 30, detail: 'No permissions requested' };
+      return {
+        category: 'Permissions',
+        score: 30,
+        maxScore: 30,
+        detail: 'No permissions requested',
+      };
     }
 
     // Deduct for each permission based on its weight
@@ -157,9 +184,10 @@ export class SecurityRatingSystem {
       category: 'Permissions',
       score: Math.max(0, score),
       maxScore: 30,
-      detail: perms.length === 1
-        ? `Requests 1 permission: ${perms[0]}`
-        : `Requests ${perms.length} permissions: ${perms.join(', ')}`,
+      detail:
+        perms.length === 1
+          ? `Requests 1 permission: ${perms[0]}`
+          : `Requests ${perms.length} permissions: ${perms.join(', ')}`,
       warning,
     };
   }
@@ -185,7 +213,9 @@ export class SecurityRatingSystem {
 
     if (manifest.categories && manifest.categories.length > 0) {
       score += 5;
-      details.push(`${manifest.categories.length} categor${manifest.categories.length === 1 ? 'y' : 'ies'}`);
+      details.push(
+        `${manifest.categories.length} categor${manifest.categories.length === 1 ? 'y' : 'ies'}`,
+      );
     } else {
       details.push('No categories');
     }
@@ -195,7 +225,8 @@ export class SecurityRatingSystem {
       score,
       maxScore,
       detail: details.join(' | ') || 'No metadata',
-      warning: score < 10 ? 'Incomplete metadata — author, homepage, or categories missing' : undefined,
+      warning:
+        score < 10 ? 'Incomplete metadata — author, homepage, or categories missing' : undefined,
     };
   }
 
@@ -227,6 +258,33 @@ export class SecurityRatingSystem {
     }
 
     return { category: 'Version', score: 5, maxScore: 10, detail: `Version ${version}` };
+  }
+
+  private async verifySignature(manifest: ExternalModuleManifest): Promise<boolean | null> {
+    if (!manifest.signature) return null;
+    if (typeof window !== 'undefined') return null;
+    if (
+      !('signaturePublicKey' in manifest) ||
+      !(manifest as ExternalModuleManifest & { signaturePublicKey?: string }).signaturePublicKey
+    )
+      return null;
+
+    try {
+      const { createHash, verify } = (await import('crypto')) as typeof import('crypto');
+      const data = JSON.stringify({
+        id: manifest.id,
+        version: manifest.version,
+        checksum: manifest.checksum,
+        manifest,
+      });
+      const hash = createHash('sha256').update(data).digest();
+      const publicKeyPem = (manifest as ExternalModuleManifest & { signaturePublicKey?: string })
+        .signaturePublicKey!;
+      const sigBuf = Buffer.from(manifest.signature, 'base64');
+      return verify(null, hash, publicKeyPem, new Uint8Array(sigBuf));
+    } catch {
+      return false;
+    }
   }
 
   private scoreToLevel(score: number): TrustLevel {

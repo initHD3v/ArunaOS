@@ -28,6 +28,8 @@ export interface RegistryModuleInfo {
   rating: number;
   verified: boolean;
   updatedAt: string;
+  bundleSize?: number;
+  manifestUrl?: string;
 }
 
 export interface RegistryManifestResponse {
@@ -71,7 +73,10 @@ export class RegistryClient {
     return res.json();
   }
 
-  async installModule(id: string, version?: string): Promise<{ entry: ExternalModuleEntry; code: string }> {
+  async installModule(
+    id: string,
+    version?: string,
+  ): Promise<{ entry: ExternalModuleEntry; code: string }> {
     const { manifest, bundleUrl } = await this.getModuleManifest(id, version);
 
     const bundleRes = await fetch(bundleUrl);

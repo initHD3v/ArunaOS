@@ -10,3 +10,18 @@ export interface DevServerOptions {
   port?: number;
   host?: string;
 }
+
+export interface PublishOptions {
+  dir?: string;
+  registry?: string;
+  apiKey?: string;
+  dryRun?: boolean;
+}
+
+export interface PublishResult {
+  success: boolean;
+  moduleId: string;
+  version: string;
+  url?: string;
+  error?: string;
+}
