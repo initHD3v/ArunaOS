@@ -526,6 +526,8 @@ export class MemoryStore implements IRegistryStore {
       rating: 0,
       verified: true,
       updatedAt: now,
+      bundleSize: params.bundleSize,
+      manifestUrl: params.manifestUrl ?? `/api/modules/${params.id}/manifest`,
     };
 
     if (existing) {

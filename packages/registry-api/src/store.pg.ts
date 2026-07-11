@@ -221,6 +221,7 @@ export class PostgresStore implements IRegistryStore {
         homepage: params.homepage,
         categories: params.categories ?? [],
         screenshots: params.screenshots,
+        bundleSize: params.bundleSize ?? null,
         downloads: 0,
         rating: 0,
         verified: true,
@@ -240,6 +241,7 @@ export class PostgresStore implements IRegistryStore {
           homepage: params.homepage,
           categories: params.categories ?? [],
           screenshots: params.screenshots,
+          bundleSize: params.bundleSize ?? null,
           signature: signatures.signature,
           updatedAt: new Date(),
         },
@@ -272,6 +274,8 @@ export class PostgresStore implements IRegistryStore {
       verified: row.verified ?? false,
       updatedAt:
         row.updatedAt instanceof Date ? row.updatedAt.toISOString() : String(row.updatedAt ?? ''),
+      bundleSize: row.bundleSize ?? undefined,
+      manifestUrl: row.manifestUrl ?? undefined,
     };
   }
 }
