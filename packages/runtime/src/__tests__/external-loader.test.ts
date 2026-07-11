@@ -2,11 +2,13 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { ExternalModuleLoader } from '../external-loader';
 import { ModuleRegistry } from '../registry';
 import { ModulePermissions } from '../permissions';
-import type { ExternalModuleManifest } from '../types';
+import type { ExternalModuleManifest, Permission } from '../types';
 
 const FAKE_CHECKSUM = 'abc123def456abc123def456abc123def456abc123def456abc123def456abc1';
 
-const makeValidManifest = (overrides: Partial<ExternalModuleManifest> = {}): Record<string, unknown> => ({
+const makeValidManifest = (
+  overrides: Partial<ExternalModuleManifest> = {},
+): Record<string, unknown> => ({
   id: 'my.external.mod',
   name: 'My External Module',
   version: '1.0.0',
@@ -79,9 +81,15 @@ describe('ExternalModuleLoader', () => {
     });
 
     it('should reject invalid id', () => {
-      expect(() => loader.validateManifest(makeValidManifest({ id: 'AB' }))).toThrow('Invalid module id');
-      expect(() => loader.validateManifest(makeValidManifest({ id: '' }))).toThrow('Invalid module id');
-      expect(() => loader.validateManifest(makeValidManifest({ id: 'a b' }))).toThrow('Invalid module id');
+      expect(() => loader.validateManifest(makeValidManifest({ id: 'AB' }))).toThrow(
+        'Invalid module id',
+      );
+      expect(() => loader.validateManifest(makeValidManifest({ id: '' }))).toThrow(
+        'Invalid module id',
+      );
+      expect(() => loader.validateManifest(makeValidManifest({ id: 'a b' }))).toThrow(
+        'Invalid module id',
+      );
     });
 
     it('should reject short name', () => {
@@ -106,9 +114,9 @@ describe('ExternalModuleLoader', () => {
     });
 
     it('should reject invalid checksum', () => {
-      expect(() =>
-        loader.validateManifest(makeValidManifest({ checksum: 'not-hex' })),
-      ).toThrow('Checksum must be a 64-character lowercase hex string');
+      expect(() => loader.validateManifest(makeValidManifest({ checksum: 'not-hex' }))).toThrow(
+        'Checksum must be a 64-character lowercase hex string',
+      );
     });
 
     it('should reject entry not starting with ./', () => {
@@ -125,7 +133,7 @@ describe('ExternalModuleLoader', () => {
 
     it('should reject unknown permission', () => {
       expect(() =>
-        loader.validateManifest(makeValidManifest({ permissions: ['unknown:perm'] })),
+        loader.validateManifest(makeValidManifest({ permissions: ['unknown:perm' as Permission] })),
       ).toThrow("Unknown permission 'unknown:perm'");
     });
 
@@ -230,8 +238,7 @@ describe('ExternalModuleLoader', () => {
 
     it('should retry on network failure', async () => {
       const manifest = makeValidManifest();
-      const code = makeBundleCode();
-      const hash = manifest.checksum!;
+      const hash = manifest.checksum as string;
 
       // Must use mockImplementation to handle multiple calls
       mockFetch.mockReset();
@@ -277,9 +284,7 @@ describe('ExternalModuleLoader', () => {
     });
 
     it('should throw if not cached', async () => {
-      await expect(loader.loadFromCache('unknown')).rejects.toThrow(
-        'not cached',
-      );
+      await expect(loader.loadFromCache('unknown')).rejects.toThrow('not cached');
     });
   });
 
@@ -323,10 +328,7 @@ describe('ExternalModuleLoader', () => {
 
     it('should return UpdateInfo when newer version exists', async () => {
       await installSampleModule();
-      mockFetchOnce(
-        'https://example.com/module.json',
-        makeValidManifest({ version: '2.0.0' }),
-      );
+      mockFetchOnce('https://example.com/module.json', makeValidManifest({ version: '2.0.0' }));
       const info = await loader.checkForUpdates('my.external.mod');
       expect(info).not.toBeNull();
       expect(info!.currentVersion).toBe('1.0.0');
@@ -401,11 +403,8 @@ describe('ExternalModuleLoader', () => {
 
     it('should return invalid for tampered code', async () => {
       await installSampleModule();
-      const entry = loader.getInstalledModule('my.external.mod')!;
       // Return different hash to simulate tampered code
-      mockDigest.mockResolvedValue(
-        new Uint8Array(Array(32).fill(0xff)).buffer as ArrayBuffer,
-      );
+      mockDigest.mockResolvedValue(new Uint8Array(Array(32).fill(0xff)).buffer as ArrayBuffer);
 
       const results = await loader.verifyAllIntegrity();
       expect(results).toHaveLength(1);

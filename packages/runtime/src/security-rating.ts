@@ -277,11 +277,11 @@ export class SecurityRatingSystem {
         checksum: manifest.checksum,
         manifest,
       });
-      const hash = createHash('sha256').update(data).digest();
+      const hash = new Uint8Array(createHash('sha256').update(data).digest());
       const publicKeyPem = (manifest as ExternalModuleManifest & { signaturePublicKey?: string })
         .signaturePublicKey!;
-      const sigBuf = Buffer.from(manifest.signature, 'base64');
-      return verify(null, hash, publicKeyPem, new Uint8Array(sigBuf));
+      const sigBuf = new Uint8Array(Buffer.from(manifest.signature, 'base64'));
+      return verify(null, hash, publicKeyPem, sigBuf);
     } catch {
       return false;
     }

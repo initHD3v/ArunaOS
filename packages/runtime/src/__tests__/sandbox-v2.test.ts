@@ -132,14 +132,8 @@ describe('SandboxV2', () => {
 
     sandbox.mount(container);
 
-    // Simulate message from different source
-    const spy = vi.spyOn(sandbox as unknown as { handleMessage: (e: MessageEvent) => void }, 'handleMessage' as never);
-
     // Post from a different window should be ignored
-    window.postMessage(
-      { type: 'request', method: 'openWindow', payload: { title: 'Test' } },
-      '*',
-    );
+    window.postMessage({ type: 'request', method: 'openWindow', payload: { title: 'Test' } }, '*');
 
     // Since the source check filters it, no response expected
     // We test that system API was NOT called
