@@ -45,6 +45,7 @@ export class ModuleWindowService {
       'arunaos.astat': 'astat',
       'arunaos.camera': 'camera',
       'arunaos.devtools': 'devtools',
+      'arunaos.appstore': 'appstore',
     };
     const appId = appIdMap[moduleId] ?? `module-${moduleId}`;
 

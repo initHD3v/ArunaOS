@@ -11,6 +11,7 @@ import { CameraApp } from '@modules/arunaos.camera/components/camera';
 import { ModuleRenderer } from '@/features/modules/components/module-renderer';
 import { ModuleDevtools } from '@/features/module-devtools/module-devtools';
 import { ModuleInstaller } from '@/features/module-installer/module-installer';
+import { AppStore } from '@/features/appstore/components/appstore';
 import { cn } from '@/lib/utils';
 import type { WindowData } from '@/types';
 
@@ -285,6 +286,7 @@ export const Window = memo(function Window({ data }: WindowProps) {
             {data.appId === 'camera' && <CameraApp />}
             {data.appId === 'devtools' && <ModuleDevtools />}
             {data.appId === 'module-installer' && <ModuleInstaller />}
+            {data.appId === 'appstore' && <AppStore />}
             {data.appId !== 'files' &&
               data.appId !== 'settings' &&
               data.appId !== 'viewer' &&
@@ -292,6 +294,7 @@ export const Window = memo(function Window({ data }: WindowProps) {
               data.appId !== 'camera' &&
               data.appId !== 'devtools' &&
               data.appId !== 'module-installer' &&
+              data.appId !== 'appstore' &&
               (data.appId?.startsWith('module-') ? (
                 <ModuleRenderer
                   moduleId={data.appId.replace('module-', '')}

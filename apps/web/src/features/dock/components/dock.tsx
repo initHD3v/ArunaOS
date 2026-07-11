@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Monitor, Sparkles, FolderOpen, Settings, Activity, Camera } from 'lucide-react';
+import { Monitor, Sparkles, FolderOpen, Settings, Activity, Camera, Grid } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useWindowStore } from '@/features/window-manager/stores/window.store';
 
@@ -12,6 +12,7 @@ const dockItems = [
   { id: 'files', icon: FolderOpen, label: 'Files', appId: 'files' },
   { id: 'camera', icon: Camera, label: 'Camera', appId: 'camera' },
   { id: 'astat', icon: Activity, label: 'AStat', appId: 'astat' },
+  { id: 'appstore', icon: Grid, label: 'AppStore', appId: 'appstore' },
   { id: 'settings', icon: Settings, label: 'Settings', appId: 'settings' },
 ] as const;
 
@@ -79,6 +80,7 @@ export function Dock() {
         astat: { title: 'Activity Monitor', icon: 'activity', size: { width: 800, height: 500 } },
         ai: { title: 'AI', icon: 'sparkles', size: { width: 640, height: 480 } },
         finder: { title: 'Finder', icon: 'folder', size: { width: 960, height: 640 } },
+        appstore: { title: 'AppStore', icon: 'grid', size: { width: 900, height: 640 } },
       };
 
       const cfg = defaults[appId] ?? {

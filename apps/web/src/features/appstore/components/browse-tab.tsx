@@ -1,0 +1,144 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { cn } from '@/lib/utils';
+import { RegistryClient } from '@arunaos/runtime';
+import type { RegistryModuleInfo } from '@arunaos/runtime';
+import {
+  Search,
+  Download,
+  Shield,
+  X,
+  Loader2,
+  Star,
+} from 'lucide-react';
+
+interface BrowseTabProps {
+  onInstall: (manifestUrl: string) => void;
+}
+
+export function BrowseTab({ onInstall }: BrowseTabProps) {
+  const [registry] = useState(() => new RegistryClient());
+  const [query, setQuery] = useState('');
+  const [modules, setModules] = useState<RegistryModuleInfo[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [installing, setInstalling] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLoading(true);
+    setError(null);
+    registry
+      .search({ query: query || undefined })
+      .then((res) => setModules(res.modules ?? []))
+      .catch((err) => setError(err instanceof Error ? err.message : String(err)))
+      .finally(() => setLoading(false));
+  }, [query, registry]);
+
+  return (
+    <div className="flex flex-col">
+      <div className="relative px-4 pt-3 pb-1">
+        <Search size={14} className="absolute left-6 top-1/2 -translate-y-1/2 text-foreground/30" />
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search modules..."
+          className="w-full rounded-xl border border-border/20 bg-foreground/[0.03] py-2.5 pl-9 pr-9 text-xs text-foreground placeholder:text-foreground/30 focus:border-blue-500/40 focus:outline-none focus:ring-1 focus:ring-blue-500/20"
+        />
+        {query && (
+          <button
+            onClick={() => setQuery('')}
+            className="absolute right-5 top-1/2 -translate-y-1/2 text-foreground/30 hover:text-foreground/50"
+          >
+            <X size={14} />
+          </button>
+        )}
+      </div>
+
+      {loading && (
+        <div className="flex h-full items-center justify-center py-20">
+          <Loader2 size={18} className="animate-spin text-foreground/30" />
+        </div>
+      )}
+
+      {error && (
+        <div className="mx-4 mt-3 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3">
+          <p className="text-xs text-red-400">{error}</p>
+        </div>
+      )}
+
+      {!loading && modules.length === 0 && (
+        <div className="flex flex-col items-center justify-center gap-2 py-20">
+          <Search size={32} className="text-foreground/15" />
+          <p className="text-sm text-foreground/40">
+            {query ? `No modules found for "${query}"` : 'Browse the registry to discover modules'}
+          </p>
+        </div>
+      )}
+
+      {!loading && modules.length > 0 && (
+        <div className="space-y-1.5 p-4">
+          {modules.map((mod) => {
+            const isInstalling = installing === mod.id;
+            return (
+              <div
+                key={mod.id}
+                className="flex items-start gap-3 rounded-xl border border-border/20 bg-foreground/[0.02] px-4 py-3.5 transition-colors hover:border-border/40 hover:bg-foreground/[0.04]"
+              >
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500/15 to-purple-500/15 text-blue-400">
+                  <Star size={16} />
+                </span>
+
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-foreground">
+                      {mod.name}
+                    </span>
+                    <span className="text-[11px] text-foreground/40">v{mod.version}</span>
+                    {mod.verified && (
+                      <span className="flex items-center gap-0.5 rounded bg-emerald-500/15 px-1.5 py-0.5 text-[9px] font-medium text-emerald-400">
+                        <Shield size={9} />
+                        Verified
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-0.5 text-xs leading-relaxed text-foreground/40 line-clamp-2">
+                    {mod.description}
+                  </p>
+                  <div className="mt-1.5 flex items-center gap-2 text-[10px] text-foreground/30">
+                    {mod.author && <span>{mod.author}</span>}
+                    <span>{mod.downloads.toLocaleString()} downloads</span>
+                    {'bundleSize' in mod && mod.bundleSize && (
+                      <span>{(mod.bundleSize / 1024).toFixed(0)} KB</span>
+                    )}
+                  </div>
+                </div>
+
+                <button
+                  disabled={isInstalling}
+                  onClick={() => {
+                    setInstalling(mod.id);
+                    onInstall(mod.manifestUrl);
+                  }}
+                  className={cn(
+                    'flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-all',
+                    isInstalling
+                      ? 'bg-blue-500/10 text-blue-400/50'
+                      : 'bg-blue-500 text-white hover:bg-blue-600 shadow-sm hover:shadow-md',
+                  )}
+                >
+                  {isInstalling ? (
+                    <Loader2 size={12} className="animate-spin" />
+                  ) : (
+                    <Download size={12} />
+                  )}
+                  {isInstalling ? 'Installing...' : 'Install'}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}

@@ -121,3 +121,35 @@ export interface SystemAPI {
     error(module: string, message: string, data?: unknown): void;
   };
 }
+
+// ── Phase 5: External Module ──
+
+export interface ExternalModuleManifest extends ModuleManifest {
+  type: 'external';
+  checksum: string;
+  manifestUrl: string;
+  registry?: string;
+  updatedAt?: string;
+  signature?: string;
+  homepage?: string;
+  author?: string;
+  categories?: string[];
+  screenshots?: string[];
+}
+
+export interface UpdateInfo {
+  id: string;
+  currentVersion: string;
+  latestVersion: string;
+  manifestUrl: string;
+}
+
+export interface ExternalModuleEntry {
+  id: string;
+  manifest: ExternalModuleManifest;
+  installedAt: number;
+  updatedAt: number;
+  source: 'url' | 'registry';
+  bundleUrl: string;
+  bundleSize: number;
+}

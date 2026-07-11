@@ -19,6 +19,8 @@ import {
   ModulePermissions,
   ModuleSettings,
   ModuleStore,
+  ExternalModuleLoader,
+  SecurityRatingSystem,
 } from '@arunaos/runtime';
 import { NotificationService } from '@/services/notification/notification-service';
 import { ModalService } from '@/services/modal/modal-service';
@@ -92,6 +94,8 @@ export function ServiceProvider({ children }: { children: ReactNode }) {
         const moduleWindowService = new ModuleWindowService(moduleRegistry, moduleLoader);
         const moduleSettings = new ModuleSettings(bus, storage);
         const moduleStore = new ModuleStore(moduleRegistry, bus, (id) => moduleLoader.isLoaded(id));
+        const externalModuleLoader = new ExternalModuleLoader(moduleRegistry, modulePermissions);
+        const securityRating = new SecurityRatingSystem();
 
         // Register built-in module manifests
         const builtinManifests = [
@@ -214,6 +218,23 @@ export function ServiceProvider({ children }: { children: ReactNode }) {
               resizable: true,
             },
           },
+          {
+            id: 'arunaos.appstore',
+            name: 'AppStore',
+            version: '1.0.0',
+            description: 'Discover, install, and manage modules',
+            icon: 'grid',
+            entry: '',
+            type: 'builtin' as const,
+            permissions: ['network', 'notification'] as const,
+            window: {
+              defaultWidth: 900,
+              defaultHeight: 640,
+              minWidth: 480,
+              minHeight: 400,
+              resizable: true,
+            },
+          },
         ];
 
         for (const manifest of builtinManifests) {
@@ -289,6 +310,9 @@ export function ServiceProvider({ children }: { children: ReactNode }) {
         moduleLoader.registerFactory('arunaos.installer', async () => {
           return { api: {} };
         });
+        moduleLoader.registerFactory('arunaos.appstore', async () => {
+          return { api: {} };
+        });
 
         // Index search items for modules
         search.indexItems('modules', [
@@ -357,6 +381,16 @@ export function ServiceProvider({ children }: { children: ReactNode }) {
               moduleWindowService.openModule('arunaos.installer').catch(() => {});
             },
           },
+          {
+            id: 'appstore',
+            label: 'AppStore',
+            description: 'Discover and install modules from the registry',
+            category: 'Module',
+            keywords: ['modules', 'install', 'browse', 'addon', 'extension', 'registry'],
+            action: () => {
+              moduleWindowService.openModule('arunaos.appstore').catch(() => {});
+            },
+          },
         ]);
 
         search.indexItems('settings', [
@@ -414,6 +448,8 @@ export function ServiceProvider({ children }: { children: ReactNode }) {
         container.register('modulePermissions', () => modulePermissions);
         container.register('moduleSettings', () => moduleSettings);
         container.register('moduleStore', () => moduleStore);
+        container.register('externalModuleLoader', () => externalModuleLoader);
+        container.register('securityRating', () => securityRating);
         container.bootstrap();
 
         if (cancelled) return;

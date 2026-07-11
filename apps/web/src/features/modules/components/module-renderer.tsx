@@ -44,6 +44,13 @@ const ModuleInstaller = dynamic(
     })),
   { ssr: false, loading },
 );
+const AppStore = dynamic(
+  () =>
+    import('@/features/appstore/components/appstore').then((m) => ({
+      default: m.AppStore,
+    })),
+  { ssr: false, loading },
+);
 
 const MODULE_COMPONENTS: Record<string, React.ComponentType> = {
   'arunaos.files': Finder,
@@ -53,6 +60,7 @@ const MODULE_COMPONENTS: Record<string, React.ComponentType> = {
   'arunaos.ai': AIChat,
   'arunaos.devtools': ModuleDevtools,
   'arunaos.installer': ModuleInstaller,
+  'arunaos.appstore': AppStore,
 };
 
 interface ModuleRendererProps {
