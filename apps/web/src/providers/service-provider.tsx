@@ -31,6 +31,9 @@ import { WorkspaceService } from '@/services/workspace/workspace-service';
 import { LifecycleService } from '@/services/lifecycle/lifecycle-service';
 import { ModuleWindowService } from '@/services/module-window';
 import { setLogger, getLogger } from '@/lib/logger-client';
+import { useAuthStore } from '@/stores/auth.store';
+import { getArunaCore } from '@/features/aruna-assistant/engines/aruna-core';
+import { setCoreContainer } from '@/features/aruna-assistant/stores/aruna-assistant-store';
 
 interface ServiceContextValue {
   container: ServiceContainer;
@@ -468,6 +471,40 @@ export function ServiceProvider({ children }: { children: ReactNode }) {
               });
             },
           },
+          {
+            id: 'lock-screen',
+            label: 'Lock Screen',
+            description: 'Lock the screen immediately',
+            category: 'Action',
+            keywords: ['lock', 'secure', 'password'],
+            action: () => {
+              try {
+                useAuthStore.getState().lock();
+              } catch {
+                /* ignore */
+              }
+            },
+          },
+          {
+            id: 'open-apps',
+            label: 'Applications',
+            description: 'Browse all applications',
+            category: 'Action',
+            keywords: ['apps', 'programs', 'launcher'],
+            action: () => {
+              moduleWindowService.openModule('arunaos.applications').catch(() => {});
+            },
+          },
+          {
+            id: 'open-weather',
+            label: 'Weather',
+            description: 'Check the weather',
+            category: 'Action',
+            keywords: ['weather', 'forecast', 'climate'],
+            action: () => {
+              moduleWindowService.openModule('arunaos.weather').catch(() => {});
+            },
+          },
         ]);
 
         container.register('eventBus', () => bus);
@@ -491,6 +528,23 @@ export function ServiceProvider({ children }: { children: ReactNode }) {
         container.register('externalModuleLoader', () => externalModuleLoader);
         container.register('securityRating', () => securityRating);
         container.bootstrap();
+
+        // Bootstrap Aruna Core
+        try {
+          const containerGet = {
+            get: (name: string) => {
+              try {
+                return container.get(name);
+              } catch {
+                return undefined;
+              }
+            },
+          };
+          getArunaCore().init(containerGet);
+          setCoreContainer(containerGet);
+        } catch (e) {
+          logger.warn('ServiceProvider', 'Failed to init Aruna Core', e);
+        }
 
         if (cancelled) return;
         bus.emit('app:ready', { timestamp: Date.now() });

@@ -11,7 +11,7 @@ import type { LifecycleService } from '@/services/lifecycle/lifecycle-service';
 import { AboutOverlay } from './about-overlay';
 import { CalendarPopup } from './calendar-popup';
 import { usePerformanceStore } from '@/stores/performance.store';
-import { AIStatus } from '@/features/ai/ai-status';
+
 import { NotificationIndicator } from '@/features/desktop-widgets/components/notification-indicator';
 import { ControlCenterPopup } from '@/features/desktop-widgets/components/control-center';
 
@@ -405,10 +405,7 @@ export function MenuBar() {
           </div>
         </div>
 
-        {/* AI Status & Clock & Calendar */}
-        <div className="flex items-center gap-1.5">
-          <AIStatus />
-        </div>
+        {/* Clock & Calendar */}
         <div className="flex items-center gap-1">
           {/* Control Center */}
           <div className="relative" ref={ccRef}>

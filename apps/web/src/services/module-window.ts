@@ -1,6 +1,23 @@
 import { useWindowStore } from '@/features/window-manager/stores/window.store';
 import type { ModuleRegistry, ModuleLoader } from '@arunaos/runtime';
 
+// Map full module IDs to short appIds used by the window system
+export const MODULE_APP_ID_MAP: Record<string, string> = {
+  'arunaos.files': 'files',
+  'arunaos.settings': 'settings',
+  'arunaos.astat': 'astat',
+  'arunaos.camera': 'camera',
+  'arunaos.ai': 'ai',
+  'arunaos.devtools': 'devtools',
+  'arunaos.appstore': 'appstore',
+  'arunaos.applications': 'applications',
+  'arunaos.weather': 'weather',
+};
+
+export function getAppIdForModule(moduleId: string): string {
+  return MODULE_APP_ID_MAP[moduleId] ?? `module-${moduleId}`;
+}
+
 export class ModuleWindowService {
   private registry: ModuleRegistry;
   private loader: ModuleLoader;
@@ -38,19 +55,7 @@ export class ModuleWindowService {
 
     const windowId = `module-${moduleId}-${Date.now()}`;
 
-    // Built-in modules with dedicated components use their appId directly
-    const appIdMap: Record<string, string> = {
-      'arunaos.files': 'files',
-      'arunaos.settings': 'settings',
-      'arunaos.astat': 'astat',
-      'arunaos.camera': 'camera',
-      'arunaos.ai': 'ai',
-      'arunaos.devtools': 'devtools',
-      'arunaos.appstore': 'appstore',
-      'arunaos.applications': 'applications',
-      'arunaos.weather': 'weather',
-    };
-    const appId = appIdMap[moduleId] ?? `module-${moduleId}`;
+    const appId = getAppIdForModule(moduleId);
 
     const store = useWindowStore.getState();
     store.openWindow({

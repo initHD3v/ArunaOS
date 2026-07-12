@@ -1,9 +1,12 @@
 'use client';
 
-import { memo, useCallback, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useRef } from 'react';
 import { DesktopIcon } from '@/features/desktop-icons/components/desktop-icon';
 import { useDesktopStore } from '@/features/desktop/stores/desktop.store';
 import { useWindowStore } from '@/features/window-manager/stores/window.store';
+import { useService } from '@/providers/service-provider';
+import type { ModuleWindowService } from '@/services/module-window';
+import { getAppIdForModule } from '@/services/module-window';
 import { useUIStore } from '@/stores/ui-store';
 import type { DesktopIconData } from '@/types';
 
@@ -39,17 +42,28 @@ export const DesktopGrid = memo(function DesktopGrid() {
   const moveIcon = useDesktopStore((s) => s.moveIcon);
   const openWindow = useWindowStore((s) => s.openWindow);
   const showContextMenu = useUIStore((s) => s.showContextMenu);
+  const moduleWindowService = useService<ModuleWindowService>('moduleWindow');
+  const desktopIconsHidden = useDesktopStore((s) => s.desktopIconsHidden);
 
-  const dragItemIndex = useRef<number | null>(null);
-  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
-  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
-
-  const handleDoubleClick = useCallback(
-    (data: DesktopIconData) => {
+  const handleOpenIcon = useCallback(
+    async (data: DesktopIconData) => {
+      try {
+        await moduleWindowService.openModule(data.appId);
+        return;
+      } catch {
+        /* not a registered module, fall through */
+      }
       const win = createWindowFromIcon(data);
       openWindow(win);
     },
-    [openWindow],
+    [openWindow, moduleWindowService],
+  );
+
+  const handleDoubleClick = useCallback(
+    (data: DesktopIconData) => {
+      handleOpenIcon(data);
+    },
+    [handleOpenIcon],
   );
 
   const handleIconContextMenu = useCallback(
@@ -57,69 +71,87 @@ export const DesktopGrid = memo(function DesktopGrid() {
       e.preventDefault();
       e.stopPropagation();
       showContextMenu({ x: e.clientX, y: e.clientY }, [
-        {
-          id: 'open',
-          label: 'Open',
-          action: () => {
-            const win = createWindowFromIcon(icon);
-            openWindow(win);
-          },
-        },
+        { id: 'open', label: 'Open', action: () => handleOpenIcon(icon) },
         { id: 'rename', label: 'Rename', action: () => setRenamingIcon(icon.id) },
         { id: 'sep1', label: '', action: () => {}, separator: true },
-        {
-          id: 'delete',
-          label: 'Delete',
-          action: () => removeIcon(icon.id),
-        },
+        { id: 'delete', label: 'Delete', action: () => removeIcon(icon.id) },
       ]);
     },
-    [showContextMenu, openWindow, setRenamingIcon, removeIcon],
+    [showContextMenu, handleOpenIcon, setRenamingIcon, removeIcon],
   );
 
-  const handleDragStart = useCallback((e: React.DragEvent, index: number) => {
-    dragItemIndex.current = index;
-    setDraggedIndex(index);
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', String(index));
-    e.dataTransfer.setDragImage(new Image(), 0, 0);
+  const addIcon = useDesktopStore((s) => s.addIcon);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<number | null>(null);
+
+  // Native dragover listener — ensures preventDefault() is called every frame
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const handler = (e: DragEvent) => {
+      if (
+        e.dataTransfer?.types.includes('text/plain') ||
+        e.dataTransfer?.types.includes('application/arunaos-module')
+      ) {
+        e.preventDefault();
+      }
+    };
+    el.addEventListener('dragover', handler);
+    return () => el.removeEventListener('dragover', handler);
   }, []);
 
-  const handleDragOver = useCallback(
-    (e: React.DragEvent, index: number) => {
+  const handleContainerDrop = useCallback(
+    (e: React.DragEvent) => {
       e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
-      if (dragOverIndex !== index) {
-        setDragOverIndex(index);
+      const raw = e.dataTransfer.getData('application/arunaos-module');
+      if (raw) {
+        try {
+          const mod = JSON.parse(raw);
+          if (mod.id && mod.name) {
+            addIcon({
+              id: `desktop-${mod.id}-${Date.now()}`,
+              title: mod.name,
+              icon: mod.icon || 'grid',
+              appId: mod.appId || getAppIdForModule(mod.id),
+              position: 0,
+            });
+          }
+        } catch {
+          /* ignore */
+        }
+        return;
       }
-    },
-    [dragOverIndex],
-  );
-
-  const handleDrop = useCallback(
-    (e: React.DragEvent, toIndex: number) => {
-      e.preventDefault();
-      const fromIndex = dragItemIndex.current;
-      if (fromIndex !== null && fromIndex !== toIndex) {
-        moveIcon(fromIndex, toIndex);
+      const fromIdx = dragRef.current;
+      if (fromIdx === null) return;
+      const fromStr = e.dataTransfer.getData('text/plain');
+      if (!fromStr) return;
+      const parsed = parseInt(fromStr, 10);
+      if (isNaN(parsed)) return;
+      const containerEl = containerRef.current;
+      if (!containerEl) return;
+      const children = Array.from(containerEl.children) as HTMLElement[];
+      let toIdx = children.length - 1;
+      for (let i = 0; i < children.length; i++) {
+        const rect = children[i]!.getBoundingClientRect();
+        if (
+          e.clientX >= rect.left &&
+          e.clientX <= rect.right &&
+          e.clientY >= rect.top &&
+          e.clientY <= rect.bottom
+        ) {
+          toIdx = i;
+          break;
+        }
       }
-      dragItemIndex.current = null;
-      setDraggedIndex(null);
-      setDragOverIndex(null);
+      if (parsed !== toIdx) moveIcon(parsed, toIdx);
+      dragRef.current = null;
     },
-    [moveIcon],
+    [moveIcon, addIcon],
   );
-
-  const handleDragEnd = useCallback(() => {
-    dragItemIndex.current = null;
-    setDraggedIndex(null);
-    setDragOverIndex(null);
-  }, []);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       if (icons.length === 0) return;
-
       const currentIdx = icons.findIndex((icon) => icon.id === selectedIconId);
       const safeIdx = currentIdx === -1 ? 0 : currentIdx;
 
@@ -134,9 +166,7 @@ export const DesktopGrid = memo(function DesktopGrid() {
 
       if (e.key === 'Enter') {
         const selected = icons.find((icon) => icon.id === selectedIconId);
-        if (selected) {
-          handleDoubleClick(selected);
-        }
+        if (selected) handleDoubleClick(selected);
       }
     },
     [icons, selectedIconId, setSelectedIcon, handleDoubleClick],
@@ -144,26 +174,30 @@ export const DesktopGrid = memo(function DesktopGrid() {
 
   return (
     <div
+      ref={containerRef}
       key={refreshKey}
       tabIndex={0}
       onKeyDown={handleKeyDown}
+      onContextMenu={(e) => e.stopPropagation()}
+      onDrop={handleContainerDrop}
       className="flex flex-wrap content-start gap-2 p-4 pt-6 outline-none"
       style={{ maxWidth: 96 * 4 + 32 }}
     >
-      {icons.map((icon, index) => {
-        const isDragOver = dragOverIndex === index && draggedIndex !== index;
-        return (
+      {!desktopIconsHidden &&
+        icons.map((icon, index) => (
           <div
             key={icon.id}
+            data-desktop-icon
             draggable
             onContextMenu={(e) => handleIconContextMenu(e, icon)}
-            onDragStart={(e) => handleDragStart(e, index)}
-            onDragOver={(e) => handleDragOver(e, index)}
-            onDrop={(e) => handleDrop(e, index)}
-            onDragEnd={handleDragEnd}
-            className={`transition-all duration-150 ${
-              isDragOver ? 'scale-95 opacity-50' : ''
-            } ${draggedIndex === index ? 'opacity-60' : ''}`}
+            onDragStart={(e) => {
+              dragRef.current = index;
+              e.dataTransfer.effectAllowed = 'move';
+              e.dataTransfer.setData('text/plain', String(index));
+            }}
+            onDragEnd={() => {
+              dragRef.current = null;
+            }}
           >
             <DesktopIcon
               data={icon}
@@ -175,8 +209,7 @@ export const DesktopGrid = memo(function DesktopGrid() {
               onRenameCancel={() => setRenamingIcon(null)}
             />
           </div>
-        );
-      })}
+        ))}
     </div>
   );
 });

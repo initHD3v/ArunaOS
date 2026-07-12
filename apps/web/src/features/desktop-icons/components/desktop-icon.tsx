@@ -1,15 +1,8 @@
 'use client';
 
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
-import { motion } from 'motion/react';
-import { Sparkles, FolderOpen, Settings } from 'lucide-react';
 import type { DesktopIconData } from '@/types';
-
-const iconMap: Record<string, React.ElementType> = {
-  sparkles: Sparkles,
-  folder: FolderOpen,
-  settings: Settings,
-};
+import { getIcon } from '@/lib/icon-mapping';
 
 interface DesktopIconProps {
   data: DesktopIconData;
@@ -30,7 +23,7 @@ export const DesktopIcon = memo(function DesktopIcon({
   onRename,
   onRenameCancel,
 }: DesktopIconProps) {
-  const Icon = iconMap[data.icon] ?? FolderOpen;
+  const Icon = getIcon(data.icon);
   const [editTitle, setEditTitle] = useState(data.title);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -69,17 +62,15 @@ export const DesktopIcon = memo(function DesktopIcon({
   }, [finishRename]);
 
   return (
-    <motion.button
-      whileHover={{ scale: 1.05 }}
-      whileTap={{ scale: 0.97 }}
+    <div
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
-      className={`flex w-20 cursor-default flex-col items-center gap-1.5 rounded-xl p-2 transition-colors duration-100 ${
-        isSelected ? 'bg-primary/15 ring-primary/30 ring-1' : 'hover:bg-white/5'
+      className={`flex w-20 cursor-default flex-col items-center gap-1.5 rounded-xl p-2 transition-colors duration-100 hover:bg-white/5 ${
+        isSelected ? 'bg-primary/15 ring-primary/30 ring-1' : ''
       } `}
       aria-label={data.title}
     >
-      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/10 backdrop-blur-sm">
+      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/10 backdrop-blur-sm transition-transform duration-100 active:scale-95">
         <Icon size={24} className="text-foreground/80" strokeWidth={1.5} />
       </div>
       {isRenaming ? (
@@ -98,6 +89,6 @@ export const DesktopIcon = memo(function DesktopIcon({
           {data.title}
         </span>
       )}
-    </motion.button>
+    </div>
   );
 });

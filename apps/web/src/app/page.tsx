@@ -4,7 +4,7 @@ import { useCallback, useMemo } from 'react';
 import { DesktopShell } from '@/layouts/desktop-shell';
 import { DesktopGrid } from '@/features/desktop-icons/components/desktop-grid';
 import { Selection } from '@/features/selection/components/selection';
-import { DesktopWidgetPanel } from '@/features/desktop-widgets/desktop-widget-panel';
+import { ArunaAssistant } from '@/features/aruna-assistant/aruna-assistant';
 import { useUIStore } from '@/stores/ui-store';
 import { useDesktopStore } from '@/features/desktop/stores/desktop.store';
 import { useWindowStore } from '@/features/window-manager/stores/window.store';
@@ -16,6 +16,8 @@ export default function Home() {
   const showContextMenu = useUIStore((s) => s.showContextMenu);
   const addIcon = useDesktopStore((s) => s.addIcon);
   const triggerRefresh = useDesktopStore((s) => s.triggerRefresh);
+  const desktopIconsHidden = useDesktopStore((s) => s.desktopIconsHidden);
+  const toggleDesktopIcons = useDesktopStore((s) => s.toggleDesktopIcons);
   const openWindow = useWindowStore((s) => s.openWindow);
   const settingsService = useService<SettingsService>('settings');
 
@@ -52,10 +54,16 @@ export default function Home() {
         },
       },
       { id: 'sep1', label: '', action: () => {}, separator: true },
-      { id: 'refresh', label: 'Refresh', action: triggerRefresh },
+      {
+        id: 'view',
+        label: desktopIconsHidden ? 'Tampilkan Icons' : 'Sembunyikan Icons',
+        action: toggleDesktopIcons,
+      },
       { id: 'sep2', label: '', action: () => {}, separator: true },
-      { id: 'wallpaper', label: 'Change Wallpaper', action: cycleWallpaper },
+      { id: 'refresh', label: 'Refresh', action: triggerRefresh },
       { id: 'sep3', label: '', action: () => {}, separator: true },
+      { id: 'wallpaper', label: 'Change Wallpaper', action: cycleWallpaper },
+      { id: 'sep4', label: '', action: () => {}, separator: true },
       {
         id: 'settings',
         label: 'Settings',
@@ -73,7 +81,7 @@ export default function Home() {
         },
       },
     ],
-    [addIcon, triggerRefresh, cycleWallpaper, openWindow],
+    [addIcon, triggerRefresh, cycleWallpaper, openWindow, desktopIconsHidden, toggleDesktopIcons],
   );
 
   const handleContextMenu = useCallback(
@@ -89,7 +97,7 @@ export default function Home() {
       <div className="relative h-full w-full" onContextMenu={handleContextMenu}>
         <Selection />
         <DesktopGrid />
-        <DesktopWidgetPanel />
+        <ArunaAssistant />
       </div>
     </DesktopShell>
   );

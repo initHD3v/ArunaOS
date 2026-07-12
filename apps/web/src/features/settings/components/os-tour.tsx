@@ -365,7 +365,7 @@ export function OSTour({ onClose }: OSTourProps) {
         </div>
 
         {/* Main content area */}
-        <div className="flex flex-col-reverse sm:flex-row">
+        <div className="flex flex-col-reverse sm:min-h-[380px] sm:flex-row">
           {/* Left: decorative panel */}
           {/*
             Use a stable key derived from current so we can animate it independently.
@@ -413,7 +413,7 @@ export function OSTour({ onClose }: OSTourProps) {
 
           {/* Right: content */}
           <div className="flex min-h-0 flex-1 flex-col px-6 py-6 sm:px-8 sm:py-8">
-            <div className="flex-1">
+            <div className="flex-1 overflow-y-auto">
               <AnimatePresence mode="wait" custom={direction}>
                 <motion.div
                   key={`content-${current}-${lang}`}

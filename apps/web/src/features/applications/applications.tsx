@@ -6,29 +6,26 @@ import { cn } from '@/lib/utils';
 import { useService } from '@/providers/service-provider';
 import type { ModuleStore, ModuleStoreState } from '@arunaos/runtime';
 import type { ModuleWindowService } from '@/services/module-window';
+import { useUIStore } from '@/stores/ui-store';
+import { useDesktopStore } from '@/features/desktop/stores/desktop.store';
+import { useDockStore } from '@/features/dock/stores/dock.store';
+import { getAppIdForModule } from '@/services/module-window';
 import { ApplicationDetail } from './application-detail';
 import { Grid3X3, Search } from 'lucide-react';
+import { getIcon } from '@/lib/icon-mapping';
+import type { LucideIcon } from 'lucide-react';
 
-const ICON_MAP: Record<string, string> = {
-  folder: '📁',
-  settings: '⚙️',
-  activity: '📊',
-  camera: '📷',
-  sparkles: '✨',
-  grid: '🔲',
-  code: '💻',
-  monitor: '🖥️',
-  file: '📄',
-  appstore: '🏪',
-};
-
-function getIcon(icon: string): string {
-  return (ICON_MAP[icon] ?? icon.length <= 2) ? icon : '🧩';
+function AppIcon({ iconName, size = 20 }: { iconName: string; size?: number }) {
+  const Icon = getIcon(iconName) as LucideIcon;
+  return <Icon size={size} className="text-foreground/80" strokeWidth={1.5} />;
 }
 
 export function Applications() {
   const store = useService<ModuleStore>('moduleStore');
   const moduleWindowService = useService<ModuleWindowService>('moduleWindow');
+  const showContextMenu = useUIStore((s) => s.showContextMenu);
+  const addDesktopIcon = useDesktopStore((s) => s.addIcon);
+  const addToDock = useDockStore((s) => s.addToDock);
 
   const [state, setState] = useState<ModuleStoreState>(store.getSnapshot());
   const [filter, setFilter] = useState('');
@@ -63,6 +60,45 @@ export function Applications() {
       });
     },
     [moduleWindowService],
+  );
+
+  const handleContextMenu = useCallback(
+    (e: React.MouseEvent, entryId: string, entryName: string, entryIcon: string) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const mappedAppId = getAppIdForModule(entryId);
+      showContextMenu({ x: e.clientX, y: e.clientY }, [
+        { id: 'open', label: 'Open', action: () => handleOpen(entryId) },
+        { id: 'sep1', label: '', action: () => {}, separator: true },
+        {
+          id: 'add-dock',
+          label: 'Add to Dock',
+          action: () =>
+            addToDock({
+              id: entryId,
+              appId: mappedAppId,
+              label: entryName,
+              iconName: entryIcon,
+              hidden: false,
+            }),
+        },
+        {
+          id: 'add-desktop',
+          label: 'Add to Desktop',
+          action: () =>
+            addDesktopIcon({
+              id: `desktop-${entryId}-${Date.now()}`,
+              title: entryName,
+              icon: entryIcon,
+              appId: mappedAppId,
+              position: 0,
+            }),
+        },
+        { id: 'sep2', label: '', action: () => {}, separator: true },
+        { id: 'info', label: 'Info', action: () => setSelected(entryId) },
+      ]);
+    },
+    [showContextMenu, handleOpen, addToDock, addDesktopIcon],
   );
 
   const selectedEntry = selected ? state.getEntry(selected) : undefined;
@@ -106,17 +142,42 @@ export function Applications() {
               <motion.button
                 key={entry.manifest.id}
                 layout
+                draggable
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 onClick={() => setSelected(entry.manifest.id)}
+                onContextMenu={(e) =>
+                  handleContextMenu(e, entry.manifest.id, entry.manifest.name, entry.manifest.icon)
+                }
+                onDragStart={(e) => {
+                  const dt = (e as unknown as React.DragEvent).dataTransfer;
+                  if (dt) {
+                    const mappedAppId = getAppIdForModule(entry.manifest.id);
+                    dt.effectAllowed = 'copy';
+                    dt.setData(
+                      'application/arunaos-module',
+                      JSON.stringify({
+                        id: entry.manifest.id,
+                        name: entry.manifest.name,
+                        icon: entry.manifest.icon,
+                        appId: mappedAppId,
+                      }),
+                    );
+                    dt.setData('text/plain', entry.manifest.id);
+                    (e.currentTarget as HTMLElement).style.opacity = '0.6';
+                  }
+                }}
+                onDragEnd={(e) => {
+                  (e.currentTarget as HTMLElement).style.opacity = '';
+                }}
                 className={cn(
                   'flex flex-col items-center gap-1.5 rounded-xl p-3 transition-all',
                   'hover:bg-muted/50 hover:border-border/20 border border-transparent',
                   selected === entry.manifest.id && 'bg-muted/30 border-border/20',
                 )}
               >
-                <span className="bg-muted/50 flex h-10 w-10 items-center justify-center rounded-xl text-lg">
-                  {getIcon(entry.manifest.icon)}
+                <span className="bg-muted/50 flex h-10 w-10 items-center justify-center rounded-xl">
+                  <AppIcon iconName={entry.manifest.icon} size={20} />
                 </span>
                 <span className="text-foreground/70 line-clamp-2 text-center text-[10px] leading-tight">
                   {entry.manifest.name}
