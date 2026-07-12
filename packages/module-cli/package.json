@@ -1,15 +1,27 @@
 {
   "name": "@arunaos/module-cli",
   "version": "0.1.0",
-  "private": true,
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
     "arunaos": "./dist/cli.js"
   },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/initHD3v/ArunaOS.git",
+    "directory": "packages/module-cli"
+  },
+  "license": "MIT",
   "scripts": {
     "build": "tsc",
+    "postbuild": "node -e \"const fs=require('fs');const p='dist/cli.js';let c=fs.readFileSync(p,'utf8');if(!c.startsWith('#!/usr/bin/env node')){fs.writeFileSync(p,'#!/usr/bin/env node\\n'+c)}\"",
     "lint": "eslint . --ext .ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
@@ -17,7 +29,7 @@
     "clean": "rm -rf node_modules dist"
   },
   "dependencies": {
-    "@arunaos/module-bundler": "workspace:*"
+    "@arunaos/module-bundler": "^0.1.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

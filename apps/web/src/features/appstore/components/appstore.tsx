@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { cn } from '@/lib/utils';
 import { useService } from '@/providers/service-provider';
 import { ExternalModuleLoader, SecurityRatingSystem } from '@arunaos/runtime';
@@ -12,7 +12,6 @@ import type {
   ModuleEntry,
 } from '@arunaos/runtime';
 import {
-  Download,
   Package,
   Upload,
   HardDrive,
@@ -22,12 +21,15 @@ import {
   Trash2,
   FileCode,
   Grid3X3,
+  Globe,
+  Download,
 } from 'lucide-react';
 import { BrowseTab } from './browse-tab';
 import { InstallProgress, type InstallStep } from './install-progress';
 
 const TABS = [
   { id: 'browse', label: 'Browse', icon: Grid3X3 },
+  { id: 'install-url', label: 'From URL', icon: Globe },
   { id: 'installed', label: 'Installed', icon: Package },
   { id: 'offline', label: 'Offline Install', icon: HardDrive },
 ] as const;
@@ -45,6 +47,15 @@ export function AppStore() {
     steps: InstallStep[];
     type: 'install' | 'uninstall';
   } | null>(null);
+  const [offlineResetKey, setOfflineResetKey] = useState(0);
+  const [highlightedId, setHighlightedId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (highlightedId) {
+      const timer = setTimeout(() => setHighlightedId(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [highlightedId]);
 
   const externalLoader = useService<ExternalModuleLoader>('externalModuleLoader');
   const moduleRegistry = useService<ModuleRegistry>('moduleRegistry');
@@ -100,6 +111,9 @@ export function AppStore() {
       setInstallProgress((p) => (p ? { ...p, steps: [...steps] } : p));
       await sleep(400);
 
+      if (!raw.manifestUrl) {
+        raw.manifestUrl = manifestUrl;
+      }
       const validated: ExternalModuleManifest = externalLoader.validateManifest(raw);
       const score: SecurityScore = await securityRating.analyze(validated, {
         checksumVerified: false,
@@ -210,9 +224,11 @@ export function AppStore() {
 
       try {
         const content = await file.text();
-        const manifest: ExternalModuleManifest = externalLoader.validateManifest(
-          JSON.parse(content),
-        );
+        const parsed = JSON.parse(content);
+        if (!parsed.manifestUrl) {
+          parsed.manifestUrl = 'http://offline/module.json';
+        }
+        const manifest: ExternalModuleManifest = externalLoader.validateManifest(parsed);
 
         const steps: InstallStep[] = [
           {
@@ -275,6 +291,9 @@ export function AppStore() {
         steps[3]!.status = 'done';
         setInstallProgress((p) => (p ? { ...p, steps: [...steps] } : p));
         refreshInstalled();
+        setOfflineResetKey((k) => k + 1);
+        setHighlightedId(manifest.id);
+        setActiveTab('installed');
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : String(err);
         const current = [...(installProgress?.steps ?? [])];
@@ -282,7 +301,17 @@ export function AppStore() {
         if (runningIdx >= 0) {
           current[runningIdx] = { ...current[runningIdx]!, status: 'error', detail: errorMsg };
         }
-        setInstallProgress((p) => (p ? { ...p, steps: current } : p));
+        if (installProgress) {
+          setInstallProgress((p) => (p ? { ...p, steps: current } : p));
+        } else {
+          setInstallProgress({
+            visible: true,
+            title: 'Installation Failed',
+            subtitle: errorMsg,
+            steps: [{ id: 'error', label: errorMsg, status: 'error', detail: '' }],
+            type: 'install',
+          });
+        }
       }
     }
   };
@@ -337,16 +366,19 @@ export function AppStore() {
       <div className="flex-1 overflow-auto">
         {activeTab === 'browse' && <BrowseTab onInstall={(url) => installModule(url)} />}
 
+        {activeTab === 'install-url' && <UrlInstallTab onInstall={(url) => installModule(url)} />}
+
         {activeTab === 'installed' && (
           <InstalledTab
             entries={installed}
             builtinEntries={builtinEntries}
             loading={loadingInstalled}
             onUninstall={uninstallModule}
+            highlightId={highlightedId}
           />
         )}
 
-        {activeTab === 'offline' && <OfflineTab onInstall={offlineInstall} />}
+        {activeTab === 'offline' && <OfflineTab key={offlineResetKey} onInstall={offlineInstall} />}
       </div>
 
       {installProgress?.visible && (
@@ -383,14 +415,24 @@ function InstalledTab({
   builtinEntries,
   loading,
   onUninstall,
+  highlightId,
 }: {
   entries: ExternalModuleEntry[];
   builtinEntries: ModuleEntry[];
   loading: boolean;
   onUninstall: (entry: ExternalModuleEntry) => void;
+  highlightId: string | null;
 }) {
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [filter, setFilter] = useState('');
+  const listRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (highlightId && listRef.current) {
+      const el = listRef.current.querySelector(`[data-module-id="${highlightId}"]`);
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [highlightId]);
 
   if (loading) {
     return (
@@ -442,7 +484,7 @@ function InstalledTab({
           </span>
         </p>
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      <div ref={listRef} className="grid grid-cols-2 gap-3">
         {allModules.map((m) => {
           const isBuiltin = m.type === 'builtin';
           const moduleEntry = m.data as ModuleEntry;
@@ -452,7 +494,13 @@ function InstalledTab({
           return (
             <div
               key={`${m.type}-${manifest.id}`}
-              className="border-border/20 bg-foreground/[0.02] hover:border-border/40 hover:bg-foreground/[0.04] flex flex-col gap-3 rounded-xl border p-4 transition-colors"
+              data-module-id={manifest.id}
+              className={cn(
+                'flex flex-col gap-3 rounded-xl border p-4 transition-all duration-700',
+                highlightId === manifest.id
+                  ? 'border-blue-400/60 bg-blue-500/5 shadow-[0_0_12px_rgba(59,130,246,0.15)]'
+                  : 'border-border/20 bg-foreground/[0.02] hover:border-border/40 hover:bg-foreground/[0.04]',
+              )}
             >
               <div className="flex items-start gap-3">
                 <span className="bg-muted flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-base">
@@ -534,21 +582,78 @@ function InstalledTab({
   );
 }
 
+const ALLOWED_MANIFEST_NAMES = ['module.json'];
+const ALLOWED_BUNDLE_EXTS = ['.js', '.mjs'];
+
+interface FileValidation {
+  valid: boolean;
+  error?: string;
+  manifestFile?: File;
+  bundleFile?: File;
+}
+
+function validateModuleFiles(files: File[]): FileValidation {
+  if (files.length === 0) return { valid: false, error: 'No files selected' };
+  if (files.length > 5) return { valid: false, error: 'Too many files (max 5)' };
+
+  const manifestFiles = files.filter((f) => ALLOWED_MANIFEST_NAMES.includes(f.name));
+  if (manifestFiles.length === 0) {
+    return { valid: false, error: 'Missing module.json — pilih file manifest modul' };
+  }
+  if (manifestFiles.length > 1) {
+    return { valid: false, error: 'Hanya satu module.json yang diizinkan' };
+  }
+
+  const invalidFiles = files.filter((f) => {
+    if (ALLOWED_MANIFEST_NAMES.includes(f.name)) return false;
+    return !ALLOWED_BUNDLE_EXTS.some((e) => f.name.endsWith(e));
+  });
+
+  if (invalidFiles.length > 0) {
+    return {
+      valid: false,
+      error: `File tidak valid: ${invalidFiles.map((f) => f.name).join(', ')}. Hanya file module.json dan bundle (.js/.mjs) yang diizinkan`,
+    };
+  }
+
+  const manifestFile = manifestFiles[0]!;
+  const bundleFile = files.find((f) => f.name.endsWith('.js') || f.name.endsWith('.mjs'));
+
+  return { valid: true, manifestFile, bundleFile };
+}
+
 function OfflineTab({ onInstall }: { onInstall: (files: FileList) => void }) {
   const [dragOver, setDragOver] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
+  const [validation, setValidation] = useState<FileValidation | null>(null);
+  const installing = useRef(false);
+
+  useEffect(() => {
+    if (files.length > 0 && validation?.valid && !installing.current) {
+      installing.current = true;
+      const dt = new DataTransfer();
+      files.forEach((f) => dt.items.add(f));
+      onInstall(dt.files);
+    }
+  }, [files, validation, onInstall]);
+
+  const processFiles = (raw: File[]) => {
+    setFiles(raw);
+    setValidation(validateModuleFiles(raw));
+    installing.current = false;
+  };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
     if (e.dataTransfer.files.length > 0) {
-      setFiles(Array.from(e.dataTransfer.files));
+      processFiles(Array.from(e.dataTransfer.files));
     }
   };
 
   const handleFilePick = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      setFiles(Array.from(e.target.files));
+      processFiles(Array.from(e.target.files));
     }
   };
 
@@ -563,26 +668,48 @@ function OfflineTab({ onInstall }: { onInstall: (files: FileList) => void }) {
         onDrop={handleDrop}
         className={cn(
           'flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed px-6 py-12 transition-colors',
-          dragOver ? 'border-blue-400 bg-blue-500/5' : 'border-border/30 hover:border-border/50',
+          dragOver && !validation?.valid
+            ? 'border-blue-400 bg-blue-500/5'
+            : validation?.valid
+              ? 'border-green-400 bg-green-500/5'
+              : validation && !validation.valid
+                ? 'border-red-400 bg-red-500/5'
+                : 'border-border/30 hover:border-border/50',
         )}
       >
         <Upload
           size={32}
-          className={cn('transition-colors', dragOver ? 'text-blue-400' : 'text-foreground/20')}
+          className={cn(
+            'transition-colors',
+            dragOver && !validation?.valid
+              ? 'text-blue-400'
+              : validation?.valid
+                ? 'text-green-400'
+                : validation && !validation.valid
+                  ? 'text-red-400'
+                  : 'text-foreground/20',
+          )}
         />
         <div className="text-center">
           <p className="text-foreground/60 text-sm font-medium">
-            {dragOver ? 'Drop files here' : 'Drag & drop module files'}
+            {validation?.error
+              ? validation.error
+              : validation?.valid
+                ? 'Module files valid — menginstal...'
+                : dragOver
+                  ? 'Drop files here'
+                  : 'Drag & drop module files'}
           </p>
           <p className="text-foreground/40 mt-1 text-xs">
-            or click to browse — select module.json and bundle files
+            Hanya file <strong>module.json</strong> dan bundle <strong>.js/.mjs</strong> yang
+            diizinkan
           </p>
         </div>
         <label className="bg-foreground/10 text-foreground/60 hover:bg-foreground/15 cursor-pointer rounded-lg px-4 py-2 text-xs font-medium transition-colors">
           <input
             type="file"
             multiple
-            accept=".json,.js,.ts,.mjs"
+            accept=".json,.js,.mjs"
             className="hidden"
             onChange={handleFilePick}
           />
@@ -594,33 +721,36 @@ function OfflineTab({ onInstall }: { onInstall: (files: FileList) => void }) {
         <div className="border-border/20 bg-foreground/[0.02] rounded-xl border p-4">
           <p className="text-foreground/60 mb-2 text-xs font-medium">Selected Files</p>
           <div className="space-y-1.5">
-            {files.map((f, i) => (
-              <div
-                key={i}
-                className="bg-foreground/[0.02] flex items-center justify-between rounded-lg px-3 py-2"
-              >
-                <div className="flex items-center gap-2">
-                  <FileCode size={14} className="text-foreground/30" />
-                  <span className="text-foreground/60 text-xs">{f.name}</span>
+            {files.map((f, i) => {
+              const isValid =
+                ALLOWED_MANIFEST_NAMES.includes(f.name) ||
+                ALLOWED_BUNDLE_EXTS.some((e) => f.name.endsWith(e));
+              return (
+                <div
+                  key={i}
+                  className={cn(
+                    'flex items-center justify-between rounded-lg px-3 py-2',
+                    isValid ? 'bg-foreground/[0.02]' : 'bg-red-500/10',
+                  )}
+                >
+                  <div className="flex items-center gap-2">
+                    <FileCode
+                      size={14}
+                      className={cn(isValid ? 'text-foreground/30' : 'text-red-400')}
+                    />
+                    <span
+                      className={cn('text-xs', isValid ? 'text-foreground/60' : 'text-red-400')}
+                    >
+                      {f.name}
+                    </span>
+                  </div>
+                  <span className="text-foreground/30 text-[10px]">
+                    {(f.size / 1024).toFixed(1)} KB
+                  </span>
                 </div>
-                <span className="text-foreground/30 text-[10px]">
-                  {(f.size / 1024).toFixed(1)} KB
-                </span>
-              </div>
-            ))}
+              );
+            })}
           </div>
-
-          <button
-            onClick={() => {
-              const dt = new DataTransfer();
-              files.forEach((f) => dt.items.add(f));
-              onInstall(dt.files);
-            }}
-            className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg bg-blue-500 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-600"
-          >
-            <Download size={14} />
-            Install from Local Files
-          </button>
         </div>
       )}
 
@@ -630,6 +760,64 @@ function OfflineTab({ onInstall }: { onInstall: (files: FileList) => void }) {
           <p className="text-foreground/50 text-xs leading-relaxed">
             Offline installation bypasses registry security checks. Only install modules from
             trusted sources. Verify the module's integrity before installing.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function UrlInstallTab({ onInstall }: { onInstall: (url: string) => void }) {
+  const [url, setUrl] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  const handleInstall = () => {
+    const trimmed = url.trim();
+    if (!trimmed) {
+      setError('Masukkan URL module.json');
+      return;
+    }
+    if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) {
+      setError('URL harus dimulai dengan http:// atau https://');
+      return;
+    }
+    setError(null);
+    onInstall(trimmed);
+  };
+
+  return (
+    <div className="flex flex-col gap-4 p-4">
+      <div className="border-border/20 bg-foreground/[0.02] rounded-xl border p-5">
+        <p className="text-foreground/60 mb-3 text-xs font-medium">Module URL</p>
+        <input
+          value={url}
+          onChange={(e) => {
+            setUrl(e.target.value);
+            setError(null);
+          }}
+          onKeyDown={(e) => e.key === 'Enter' && handleInstall()}
+          placeholder="http://localhost:4321"
+          className="border-border/20 bg-background text-foreground placeholder:text-foreground/20 w-full rounded-lg border px-3 py-2.5 text-sm outline-none focus:border-blue-500/40 focus:ring-1 focus:ring-blue-500/20"
+        />
+        {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
+        <button
+          onClick={handleInstall}
+          disabled={!url.trim()}
+          className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg bg-blue-500 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-600 disabled:opacity-40"
+        >
+          <Download size={14} />
+          Install from URL
+        </button>
+      </div>
+
+      <div className="border-border/20 rounded-xl border bg-blue-500/5 px-4 py-3">
+        <div className="flex items-start gap-2">
+          <Globe size={14} className="mt-0.5 shrink-0 text-blue-400" />
+          <p className="text-foreground/50 text-xs leading-relaxed">
+            Masukkan URL ke folder <strong>dist/</strong> module yang sudah di-build. Server harus
+            menyajikan <strong>module.json</strong> di root URL dan
+            <strong> bundle.js</strong> sesuai entry di manifest. Cocok untuk menguji module dari{' '}
+            <strong>dev server</strong> (<code>arunaos dev</code>) atau hosting sementara.
           </p>
         </div>
       </div>

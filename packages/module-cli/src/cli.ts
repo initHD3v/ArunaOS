@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { buildModule, validateBuild } from '@arunaos/module-bundler';
-import { createModule } from './create';
-import { devServer } from './dev';
-import { migrateModule } from './migrate';
-import { publishModule } from './publish';
+import { createModule } from './create.js';
+import { devServer } from './dev.js';
+import { migrateModule } from './migrate.js';
+import { publishModule } from './publish.js';
 
 async function main() {
   const args = process.argv.slice(2);
@@ -36,7 +36,7 @@ async function main() {
         process.exit(1);
       }
       const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8'));
-      const entry = join(sourceDir, manifest.entry || './index.ts');
+      const entry = resolve(sourceDir, manifest.entry || './index.ts');
       const outDir = args[2] || join(sourceDir, 'dist');
       const minify = !args.includes('--no-minify');
       const sourcemap = args.includes('--sourcemap');

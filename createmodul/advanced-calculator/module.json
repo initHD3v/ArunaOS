@@ -1,0 +1,26 @@
+{
+  "id": "com.arunaos.advanced-calculator",
+  "name": "Advanced Calculator",
+  "version": "1.0.0",
+  "description": "Kalkulator aritmatika advanced dengan fungsi trigonometri, logaritma, memori, dan riwayat perhitungan",
+  "icon": "calculator",
+  "entry": "./src/index.js",
+  "type": "external",
+  "permissions": ["storage:read", "storage:write", "notification"],
+  "author": "ArunaOS",
+  "homepage": "",
+  "categories": ["utilities", "math"],
+  "window": {
+    "defaultWidth": 320,
+    "defaultHeight": 520,
+    "minWidth": 280,
+    "minHeight": 400,
+    "resizable": true,
+    "titleBar": true
+  },
+  "api": {
+    "expose": ["calculate", "getHistory", "clearHistory", "memoryRecall", "getStatus"],
+    "require": []
+  },
+  "shortcuts": ["Ctrl+Shift+C"]
+}

@@ -3,6 +3,7 @@ import type { ExternalModuleManifest, SystemAPI, Permission, IPCMessage } from '
 export interface SandboxV2Config {
   manifest: ExternalModuleManifest;
   systemAPI: SystemAPI;
+  bundleCode?: string;
   onMessage?(msg: IPCMessage): void;
   onError?(error: Error): void;
   resourceLimits?: ResourceLimits;
@@ -30,6 +31,11 @@ export class SandboxV2 {
     string,
     { resolve: (v: unknown) => void; reject: (e: Error) => void }
   >();
+  private lifecyclePending = new Map<
+    string,
+    { resolve: (v: unknown) => void; reject: (e: Error) => void }
+  >();
+  private lifecycleId = 0;
   private messageId = 0;
   private messageCount = 0;
   private _destroyed = false;
@@ -91,52 +97,47 @@ export class SandboxV2 {
   }
 
   private buildSandboxHTML(): string {
-    return `<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"></head>
-<body>
-<script>
-const bridge = {
-  _pending: new Map(),
-  _id: 0,
+    const code = this.config.bundleCode ?? '';
+    const escapedCode = code.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$/g, '\\$');
 
-  call(method, payload) {
-    return new Promise((resolve, reject) => {
-      const id = ++this._id;
-      this._pending.set(id, { resolve, reject });
-      window.parent.postMessage({ type: 'request', id, method, payload, source: 'module' }, '*');
-    });
-  },
-
-  on(method, handler) {
-    this._listeners = this._listeners || new Map();
-    this._listeners.set(method, handler);
-  },
-
-  _handleResponse(msg) {
-    const pending = this._pending.get(msg.id);
-    if (!pending) return;
-    this._pending.delete(msg.id);
-    if (msg.error) pending.reject(new Error(msg.error));
-    else pending.resolve(msg.payload);
-  },
-};
-
-window.addEventListener('message', (event) => {
-  const msg = event.data;
-  if (!msg || typeof msg !== 'object') return;
-  if (msg.type === 'response') {
-    bridge._handleResponse(msg);
-  } else if (msg.type === 'event') {
-    const handler = bridge._listeners?.get(msg.event);
-    if (handler) handler(msg.payload);
+    const moduleScript = escapedCode
+      ? `<script type="module">
+const bridge = window.__BRIDGE__;
+try {
+  const mod = await import('data:text/javascript;base64,' + btoa(unescape(encodeURIComponent(\`${escapedCode}\`))));
+  if (mod.registerAPI) mod.registerAPI(bridge);
+  if (mod.api) bridge.registerAPI(mod.api);
+  if (mod.default) {
+    if (typeof mod.default === 'function') mod.default(bridge);
+    else if (mod.default.api) bridge.registerAPI(mod.default.api);
+    else bridge.registerAPI(mod.default);
   }
-});
+} catch (e) {
+  console.error('[module] init error:', e);
+  bridge.call('logger.error', ['Module', 'Init error: ' + e.message]);
+}
+<` + `/script>`
+      : '';
 
-window.__BRIDGE__ = bridge;
-</script>
-</body>
-</html>`;
+    const html =
+      "<!DOCTYPE html>\n<html>\n<head><meta charset=\"utf-8\"></head>\n<body>\n<div id=\"root\"></div>\n<script>\nvar bridge = {\n  _pending: new Map(),\n  _id: 0,\n  _hooks: {},\n\n  call: function(method, payload) {\n    return new Promise(function(resolve, reject) {\n      var id = ++bridge._id;\n      bridge._pending.set(id, { resolve: resolve, reject: reject });\n      window.parent.postMessage({ type: 'request', id: id, method: method, payload: payload, source: 'module' }, '*');\n    });\n  },\n\n  on: function(method, handler) {\n    bridge._listeners = bridge._listeners || new Map();\n    bridge._listeners.set(method, handler);\n  },\n\n  registerAPI: function(hooks) {\n    bridge._hooks = hooks || {};\n  },\n\n  getAPI: function() {\n    return bridge._hooks;\n  },\n\n  _handleResponse: function(msg) {\n    var pending = bridge._pending.get(msg.id);\n    if (!pending) return;\n    bridge._pending.delete(msg.id);\n    if (msg.error) pending.reject(new Error(msg.error));\n    else pending.resolve(msg.payload);\n  },\n};\n\nwindow.addEventListener('message', function(event) {\n  var msg = event.data;\n  if (!msg || typeof msg !== 'object') return;\n  if (msg.type === 'response') {\n    bridge._handleResponse(msg);\n  } else if (msg.type === 'event') {\n    var handler = bridge._listeners ? bridge._listeners.get(msg.event) : null;\n    if (handler) handler(msg.payload);\n  } else if (msg.type === 'call-lifecycle') {\n    var fn = bridge._hooks[msg.method];\n    if (typeof fn === 'function') {\n      Promise.resolve(fn(msg.payload)).then(function(result) {\n        window.parent.postMessage({ type: 'lifecycle-result', id: msg.id, result: result }, '*');\n      }).catch(function(err) {\n        window.parent.postMessage({ type: 'lifecycle-result', id: msg.id, error: err.message }, '*');\n      });\n    }\n  }\n});\n\nwindow.__BRIDGE__ = bridge;\n<" +
+      '/script>\n' +
+      moduleScript +
+      '\n</body>\n</html>';
+
+    return html;
+  }
+
+  async callLifecycle(method: string, payload?: unknown): Promise<unknown> {
+    if (!this.iframe?.contentWindow) throw new Error('Sandbox not mounted');
+    const id = `lc-${++this.lifecycleId}`;
+    return new Promise((resolve, reject) => {
+      this.lifecyclePending.set(id, { resolve, reject });
+      this.iframe!.contentWindow!.postMessage(
+        { type: 'call-lifecycle', id, method, payload, source: 'system' },
+        '*',
+      );
+    });
   }
 
   private handleMessage = (event: MessageEvent): void => {
@@ -150,8 +151,21 @@ window.__BRIDGE__ = bridge;
       this.handleRequest(msg);
     } else if (msg.type === 'response') {
       this.handleResponse(msg);
+    } else if (msg.type === 'lifecycle-result') {
+      const pending = this.lifecyclePending.get(msg.id);
+      if (!pending) return;
+      this.lifecyclePending.delete(msg.id);
+      if (msg.error) pending.reject(new Error(msg.error as string));
+      else pending.resolve(msg.result);
     }
   };
+
+  private resolveNested(obj: Record<string, unknown>, path: string): unknown {
+    return path.split('.').reduce((acc, part) => {
+      if (acc && typeof acc === 'object') return (acc as Record<string, unknown>)[part];
+      return undefined;
+    }, obj as unknown);
+  }
 
   private async handleRequest(msg: IPCMessage): Promise<void> {
     const method = msg.method;
@@ -168,7 +182,7 @@ window.__BRIDGE__ = bridge;
     }
 
     const api = this.buildAPIBridge();
-    const fn = (api as Record<string, unknown>)[method];
+    const fn = this.resolveNested(api, method);
 
     if (typeof fn !== 'function') {
       this.postResponse(msg, null, `API method '${method}' not available`);

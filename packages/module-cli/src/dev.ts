@@ -4,7 +4,7 @@ import { existsSync } from 'node:fs';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { buildModule } from '@arunaos/module-bundler';
-import type { DevServerOptions } from './types';
+import type { DevServerOptions } from './types.js';
 
 type SSEClient = { id: number; res: ServerResponse };
 
@@ -107,7 +107,9 @@ export class DevServer {
         sourcemap: true,
       });
 
-      console.log(`[build] ${result.manifest.id} v${result.manifest.version} (${(result.bundleSize / 1024).toFixed(1)} KB)`);
+      console.log(
+        `[build] ${result.manifest.id} v${result.manifest.version} (${(result.bundleSize / 1024).toFixed(1)} KB)`,
+      );
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error(`[build] Error: ${msg}`);
@@ -167,7 +169,9 @@ export class DevServer {
     for (const client of this.sseClients) {
       try {
         client.res.end();
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     }
     this.sseClients = [];
     if (this.server) {

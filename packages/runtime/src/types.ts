@@ -64,12 +64,13 @@ export interface ModuleLifecycleHooks {
 
 export interface IPCMessage {
   id: string;
-  type: 'request' | 'response' | 'event' | 'broadcast';
+  type: 'request' | 'response' | 'event' | 'broadcast' | 'call-lifecycle' | 'lifecycle-result';
   source: string;
   target?: string;
   method?: string;
   event?: string;
   payload?: unknown;
+  result?: unknown;
   error?: string;
   timestamp: number;
 }

@@ -153,6 +153,9 @@ export class ExternalModuleLoader {
   ): Promise<ExternalModuleResult> {
     const res = await this.fetchWithRetry(manifestUrl);
     const raw = await res.json();
+    if (!raw.manifestUrl) {
+      raw.manifestUrl = manifestUrl;
+    }
     const manifest = this.validateManifest(raw);
 
     if (this.entries.has(manifest.id)) {
@@ -165,7 +168,8 @@ export class ExternalModuleLoader {
       );
     }
 
-    const bundleRes = await this.fetchWithRetry(manifest.entry);
+    const bundleUrl = new URL(manifest.entry, manifestUrl).href;
+    const bundleRes = await this.fetchWithRetry(bundleUrl);
     const code = await bundleRes.text();
 
     const actualHash = await sha256(code);

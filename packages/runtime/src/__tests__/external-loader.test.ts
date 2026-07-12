@@ -170,7 +170,7 @@ describe('ExternalModuleLoader', () => {
       const hash = 'abc123def456abc123def456abc123def456abc123def456abc123def456abc1';
 
       mockFetchOnce(manifestUrl, manifest);
-      mockFetchOnce('./bundle.js', code);
+      mockFetchOnce('https://example.com/bundle.js', code);
       mockSha256(hash);
       manifest.checksum = hash;
 
@@ -191,7 +191,7 @@ describe('ExternalModuleLoader', () => {
       const hash = 'abc123def456abc123def456abc123def456abc123def456abc123def456abc1';
 
       mockFetchOnce(manifestUrl, { ...manifest, checksum: hash });
-      mockFetchOnce('./bundle.js', code);
+      mockFetchOnce('https://example.com/bundle.js', code);
       mockSha256(hash);
       manifest.checksum = hash;
 
@@ -229,7 +229,7 @@ describe('ExternalModuleLoader', () => {
       const code = makeBundleCode();
 
       mockFetchOnce(manifestUrl, manifest);
-      mockFetchOnce('./bundle.js', code);
+      mockFetchOnce('https://example.com/bundle.js', code);
       // Return wrong hash
       mockSha256('ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff');
 
@@ -261,7 +261,9 @@ describe('ExternalModuleLoader', () => {
 
       await expect(loader.installFromUrl(manifestUrl)).rejects.toThrow('Network error');
       // fetchWithRetry should have retried the bundle URL
-      expect(fetchCalls.filter((u) => u === './bundle.js').length).toBeGreaterThanOrEqual(3);
+      expect(
+        fetchCalls.filter((u) => u === 'https://example.com/bundle.js').length,
+      ).toBeGreaterThanOrEqual(3);
     });
   });
 
@@ -274,7 +276,7 @@ describe('ExternalModuleLoader', () => {
       const hash = 'abc123def456abc123def456abc123def456abc123def456abc123def456abc1';
 
       mockFetchOnce('https://example.com/module.json', { ...manifest, checksum: hash });
-      mockFetchOnce('./bundle.js', code);
+      mockFetchOnce('https://example.com/bundle.js', code);
       mockSha256(hash);
       manifest.checksum = hash;
 
@@ -297,7 +299,7 @@ describe('ExternalModuleLoader', () => {
       const hash = 'abc123def456abc123def456abc123def456abc123def456abc123def456abc1';
 
       mockFetchOnce('https://example.com/module.json', { ...manifest, checksum: hash });
-      mockFetchOnce('./bundle.js', code);
+      mockFetchOnce('https://example.com/bundle.js', code);
       mockSha256(hash);
       manifest.checksum = hash;
 
@@ -352,7 +354,7 @@ describe('ExternalModuleLoader', () => {
       // First fetch for checkForUpdates, second for installFromUrl
       mockFetchOnce('https://example.com/module.json', { ...newManifest, checksum: newHash });
       mockFetchOnce('https://example.com/module.json', { ...newManifest, checksum: newHash });
-      mockFetchOnce('./bundle.js', newCode);
+      mockFetchOnce('https://example.com/bundle.js', newCode);
       mockSha256(newHash);
       mockSha256(newHash);
 
@@ -376,7 +378,7 @@ describe('ExternalModuleLoader', () => {
       const hash = 'abc123def456abc123def456abc123def456abc123def456abc123def456abc1';
 
       mockFetchOnce('https://example.com/module.json', { ...makeValidManifest(), checksum: hash });
-      mockFetchOnce('./bundle.js', code);
+      mockFetchOnce('https://example.com/bundle.js', code);
       mockSha256(hash);
 
       const result = await loader.reinstall('my.external.mod');
@@ -446,7 +448,7 @@ describe('ExternalModuleLoader', () => {
     const hash = 'abc123def456abc123def456abc123def456abc123def456abc123def456abc1';
 
     mockFetchOnce('https://example.com/module.json', { ...manifest, checksum: hash });
-    mockFetchOnce('./bundle.js', code);
+    mockFetchOnce('https://example.com/bundle.js', code);
     mockSha256(hash);
     manifest.checksum = hash;
 

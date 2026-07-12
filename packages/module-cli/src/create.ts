@@ -1,6 +1,6 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
-import type { CreateModuleOptions } from './types';
+import type { CreateModuleOptions } from './types.js';
 
 const MODULE_JSON_TEMPLATE = (opts: {
   id: string;
@@ -57,10 +57,7 @@ export async function createModule(options: CreateModuleOptions): Promise<string
 
   await writeFile(join(srcDir, 'index.ts'), INDEX_TEMPLATE);
 
-  await writeFile(
-    join(targetDir, '.gitignore'),
-    'node_modules/\ndist/\n',
-  );
+  await writeFile(join(targetDir, '.gitignore'), 'node_modules/\ndist/\n');
 
   return targetDir;
 }

@@ -22,6 +22,7 @@ import {
   ExternalModuleLoader,
   SecurityRatingSystem,
 } from '@arunaos/runtime';
+import type { SystemAPI } from '@arunaos/runtime';
 import { NotificationService } from '@/services/notification/notification-service';
 import { ModalService } from '@/services/modal/modal-service';
 import { ShortcutService } from '@/services/shortcut/shortcut-service';
@@ -281,17 +282,26 @@ export function ServiceProvider({ children }: { children: ReactNode }) {
           });
         }
 
-        // Set system API for module sandbox
-        moduleLoader.setSystemAPI({
-          openWindow: (config) => moduleWindowService.openModule(config.title, config.appData),
-          closeWindow: (windowId) => moduleWindowService.closeModule(windowId),
-          notify: (type, message, options) => {
+        // Build system API for module sandbox
+        const systemAPI = {
+          openWindow: (config: { title: string; appData?: Record<string, unknown> }) =>
+            moduleWindowService.openModule(config.title, config.appData),
+          closeWindow: (windowId: string) => moduleWindowService.closeModule(windowId),
+          notify: (
+            type: 'info' | 'success' | 'warning' | 'error',
+            message: string,
+            options?: {
+              duration?: number;
+              action?: { label: string; handler: () => void };
+              toast?: boolean;
+            },
+          ) => {
             return notification.notify(type, message, options);
           },
           storage: {
-            get: (key) => storage.get(key),
-            set: (key, value) => storage.set(key, value),
-            delete: (key) => storage.delete(key),
+            get: (key: string) => storage.get(key),
+            set: (key: string, value: unknown) => storage.set(key, value),
+            delete: (key: string) => storage.delete(key),
           },
           settings: {
             get: (k: string) => (settings as unknown as { get(key: string): unknown }).get(k),
@@ -303,14 +313,16 @@ export function ServiceProvider({ children }: { children: ReactNode }) {
           },
           theme: {
             getMode: () => theme.getMode(),
-            setMode: (mode) => theme.setMode(mode as Parameters<typeof theme.setMode>[0]),
+            setMode: (mode: string) => theme.setMode(mode as Parameters<typeof theme.setMode>[0]),
           },
           logger: {
-            info: (mod, msg, data) => logger.info(mod, msg, data),
-            warn: (mod, msg, data) => logger.warn(mod, msg, data),
-            error: (mod, msg, data) => logger.error(mod, msg, data),
+            info: (mod: string, msg: string, data?: unknown) => logger.info(mod, msg, data),
+            warn: (mod: string, msg: string, data?: unknown) => logger.warn(mod, msg, data),
+            error: (mod: string, msg: string, data?: unknown) => logger.error(mod, msg, data),
           },
-        });
+        } as SystemAPI;
+        moduleLoader.setSystemAPI(systemAPI);
+        container.register('systemAPI', () => systemAPI);
 
         cleanups.push(() => moduleIPC.destroy());
 

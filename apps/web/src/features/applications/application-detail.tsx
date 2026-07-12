@@ -28,7 +28,7 @@ function Label({ children }: { children: React.ReactNode }) {
 }
 
 function Value({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <p className={cn('text-foreground/70 text-[11px]', className)}>{children}</p>;
+  return <div className={cn('text-foreground/70 text-[11px]', className)}>{children}</div>;
 }
 
 function DetailRow({ label, children }: { label: string; children: React.ReactNode }) {
