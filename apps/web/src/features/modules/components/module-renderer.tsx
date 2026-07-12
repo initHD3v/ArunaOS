@@ -51,6 +51,20 @@ const AppStore = dynamic(
     })),
   { ssr: false, loading },
 );
+const Applications = dynamic(
+  () =>
+    import('@/features/applications/applications').then((m) => ({
+      default: m.Applications,
+    })),
+  { ssr: false, loading },
+);
+const WeatherApp = dynamic(
+  () =>
+    import('@/features/weather/weather-app').then((m) => ({
+      default: m.WeatherApp,
+    })),
+  { ssr: false, loading },
+);
 
 const MODULE_COMPONENTS: Record<string, React.ComponentType> = {
   'arunaos.files': Finder,
@@ -61,6 +75,8 @@ const MODULE_COMPONENTS: Record<string, React.ComponentType> = {
   'arunaos.devtools': ModuleDevtools,
   'arunaos.installer': ModuleInstaller,
   'arunaos.appstore': AppStore,
+  'arunaos.applications': Applications,
+  'arunaos.weather': WeatherApp,
 };
 
 interface ModuleRendererProps {

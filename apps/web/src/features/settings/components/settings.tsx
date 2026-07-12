@@ -7,6 +7,7 @@ import { useService, useEventBus } from '@/providers/service-provider';
 import type { ThemeService, SettingsService, WallpaperConfig } from '@arunaos/services';
 import type { ShortcutService } from '@/services/shortcut/shortcut-service';
 import { OSTour } from './os-tour';
+import { AISettingsPanel } from './ai-settings';
 import {
   Sun,
   Moon,
@@ -14,6 +15,7 @@ import {
   Keyboard,
   Info,
   Lock,
+  Sparkles,
   AlertCircle,
   CheckCircle,
   Upload,
@@ -24,13 +26,14 @@ import {
   Play,
 } from 'lucide-react';
 
-type SettingsTab = 'general' | 'appearance' | 'keyboard' | 'security' | 'about';
+type SettingsTab = 'general' | 'appearance' | 'keyboard' | 'security' | 'ai' | 'about';
 
 const tabs: { id: SettingsTab; label: string; icon: React.ElementType }[] = [
   { id: 'general', label: 'General', icon: Info },
   { id: 'appearance', label: 'Appearance', icon: Sun },
   { id: 'keyboard', label: 'Keyboard', icon: Keyboard },
   { id: 'security', label: 'Security', icon: Lock },
+  { id: 'ai', label: 'AI', icon: Sparkles },
   { id: 'about', label: 'About', icon: Monitor },
 ];
 
@@ -734,6 +737,7 @@ const panelComponents: Record<SettingsTab, React.ElementType> = {
   appearance: AppearancePanel,
   keyboard: KeyboardPanel,
   security: SecurityPanel,
+  ai: AISettingsPanel,
   about: AboutPanel,
 };
 

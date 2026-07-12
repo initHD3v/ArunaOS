@@ -4,7 +4,13 @@ import { useState, useEffect, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import { useService } from '@/providers/service-provider';
 import { ExternalModuleLoader, SecurityRatingSystem } from '@arunaos/runtime';
-import type { ExternalModuleEntry, ExternalModuleManifest, SecurityScore } from '@arunaos/runtime';
+import type {
+  ExternalModuleEntry,
+  ExternalModuleManifest,
+  SecurityScore,
+  ModuleRegistry,
+  ModuleEntry,
+} from '@arunaos/runtime';
 import {
   Download,
   Package,
@@ -41,11 +47,19 @@ export function AppStore() {
   } | null>(null);
 
   const externalLoader = useService<ExternalModuleLoader>('externalModuleLoader');
+  const moduleRegistry = useService<ModuleRegistry>('moduleRegistry');
   const securityRating = useService<SecurityRatingSystem>('securityRating');
 
+  const [builtinEntries, setBuiltinEntries] = useState<ModuleEntry[]>([]);
+
   const refreshInstalled = useCallback(() => {
-    setInstalled(externalLoader.getInstalledModules());
-  }, [externalLoader]);
+    const ext = externalLoader.getInstalledModules();
+    setInstalled(ext);
+    const all = moduleRegistry.getAll();
+    setBuiltinEntries(
+      all.filter((e) => e.manifest.type !== 'external' && e.manifest.type !== 'system'),
+    );
+  }, [externalLoader, moduleRegistry]);
 
   useEffect(() => {
     refreshInstalled();
@@ -326,6 +340,7 @@ export function AppStore() {
         {activeTab === 'installed' && (
           <InstalledTab
             entries={installed}
+            builtinEntries={builtinEntries}
             loading={loadingInstalled}
             onUninstall={uninstallModule}
           />
@@ -347,16 +362,35 @@ export function AppStore() {
   );
 }
 
+const ICON_MAP: Record<string, string> = {
+  folder: '📁',
+  settings: '⚙️',
+  activity: '📊',
+  camera: '📷',
+  sparkles: '✨',
+  grid: '🔲',
+  code: '💻',
+  monitor: '🖥️',
+  package: '📦',
+};
+
+function getIcon(icon: string): string {
+  return (ICON_MAP[icon] ?? icon.length <= 2) ? icon : '🧩';
+}
+
 function InstalledTab({
   entries,
+  builtinEntries,
   loading,
   onUninstall,
 }: {
   entries: ExternalModuleEntry[];
+  builtinEntries: ModuleEntry[];
   loading: boolean;
   onUninstall: (entry: ExternalModuleEntry) => void;
 }) {
   const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [filter, setFilter] = useState('');
 
   if (loading) {
     return (
@@ -366,82 +400,136 @@ function InstalledTab({
     );
   }
 
-  if (entries.length === 0) {
+  const allModules: { type: 'builtin' | 'external'; data: ModuleEntry | ExternalModuleEntry }[] = [
+    ...builtinEntries.map((e) => ({ type: 'builtin' as const, data: e })),
+    ...entries.map((e) => ({ type: 'external' as const, data: e })),
+  ].filter((m) => {
+    const manifest = m.data.manifest;
+    return (
+      !filter ||
+      manifest.name.toLowerCase().includes(filter.toLowerCase()) ||
+      manifest.id.toLowerCase().includes(filter.toLowerCase())
+    );
+  });
+
+  if (allModules.length === 0) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3">
         <Package size={36} className="text-foreground/20" />
-        <p className="text-foreground/40 text-sm">No modules installed</p>
+        <p className="text-foreground/40 text-sm">
+          {filter ? 'Tidak ditemukan' : 'Belum ada modul'}
+        </p>
         <p className="text-foreground/30 text-xs">Browse the AppStore to find modules</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-1 p-4">
-      <div className="mb-3 flex items-center justify-between">
+    <div className="p-4">
+      <div className="mb-3 flex items-center gap-2">
+        <input
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          placeholder="Cari modul..."
+          className="bg-foreground/5 text-foreground placeholder:text-foreground/20 border-border/20 focus:border-border/40 min-w-0 flex-1 rounded-lg border px-3 py-1.5 text-xs outline-none"
+        />
+      </div>
+      <div className="mb-3">
         <p className="text-foreground/40 text-xs">
-          {entries.length} module{entries.length > 1 ? 's' : ''} installed
+          {allModules.length} modul diinstal
+          <span className="text-foreground/20 ml-2 text-[10px]">
+            ({builtinEntries.length} bawaan, {entries.length} eksternal)
+          </span>
         </p>
       </div>
-      {entries.map((entry) => (
-        <div
-          key={entry.id}
-          className="border-border/20 bg-foreground/[0.02] hover:border-border/40 hover:bg-foreground/[0.04] flex items-center gap-3 rounded-xl border px-4 py-3 transition-colors"
-        >
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-500/10 text-blue-400">
-            <Package size={18} />
-          </span>
+      <div className="grid grid-cols-2 gap-3">
+        {allModules.map((m) => {
+          const isBuiltin = m.type === 'builtin';
+          const moduleEntry = m.data as ModuleEntry;
+          const extEntry = m.data as ExternalModuleEntry;
+          const manifest = m.data.manifest;
 
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <span className="text-foreground text-sm font-medium">{entry.manifest.name}</span>
-              <span className="text-foreground/40 text-[11px]">v{entry.manifest.version}</span>
-              <span className="bg-foreground/5 text-foreground/40 rounded px-1.5 py-0.5 text-[9px]">
-                {entry.source}
-              </span>
-            </div>
-            <p className="text-foreground/40 mt-0.5 truncate text-xs">
-              {entry.manifest.description}
-            </p>
-            <div className="text-foreground/30 mt-1 flex items-center gap-2 text-[10px]">
-              <span>ID: {entry.id}</span>
-              <span>{(entry.bundleSize / 1024).toFixed(1)} KB</span>
-              <span>Installed: {new Date(entry.installedAt).toLocaleDateString()}</span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-1.5">
-            {confirmId === entry.id ? (
-              <div className="flex items-center gap-1.5">
-                <button
-                  onClick={() => {
-                    onUninstall(entry);
-                    setConfirmId(null);
-                  }}
-                  className="flex items-center gap-1 rounded-lg bg-red-500/15 px-2.5 py-1.5 text-[11px] font-medium text-red-400 transition-colors hover:bg-red-500/25"
-                >
-                  <Trash2 size={12} />
-                  Confirm
-                </button>
-                <button
-                  onClick={() => setConfirmId(null)}
-                  className="text-foreground/40 hover:bg-foreground/5 rounded-lg px-2.5 py-1.5 text-[11px] transition-colors"
-                >
-                  Cancel
-                </button>
+          return (
+            <div
+              key={`${m.type}-${manifest.id}`}
+              className="border-border/20 bg-foreground/[0.02] hover:border-border/40 hover:bg-foreground/[0.04] flex flex-col gap-3 rounded-xl border p-4 transition-colors"
+            >
+              <div className="flex items-start gap-3">
+                <span className="bg-muted flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-base">
+                  {getIcon(manifest.icon)}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-foreground truncate text-sm font-medium">
+                      {manifest.name}
+                    </span>
+                    <span className="text-foreground/40 shrink-0 text-[10px]">
+                      v{manifest.version}
+                    </span>
+                  </div>
+                  <p className="text-foreground/40 mt-0.5 line-clamp-2 text-xs leading-relaxed">
+                    {manifest.description}
+                  </p>
+                </div>
               </div>
-            ) : (
-              <button
-                onClick={() => setConfirmId(entry.id)}
-                className="text-foreground/40 flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] transition-colors hover:bg-red-500/10 hover:text-red-400"
-              >
-                <Trash2 size={12} />
-                Uninstall
-              </button>
-            )}
-          </div>
-        </div>
-      ))}
+
+              <div className="border-border/10 flex items-center justify-between border-t pt-3">
+                <div className="flex items-center gap-2">
+                  <span className="bg-foreground/5 text-foreground/40 rounded px-1.5 py-0.5 text-[9px] capitalize">
+                    {isBuiltin ? 'bawaan' : 'eksternal'}
+                  </span>
+                  {isBuiltin && moduleEntry.status && (
+                    <span
+                      className={cn(
+                        'text-[10px]',
+                        moduleEntry.status === 'active' ? 'text-green-400' : 'text-foreground/30',
+                      )}
+                    >
+                      {moduleEntry.status === 'active' ? 'Berjalan' : moduleEntry.status}
+                    </span>
+                  )}
+                  {!isBuiltin && (
+                    <span className="text-foreground/30 text-[10px]">
+                      {(extEntry.bundleSize / 1024).toFixed(1)} KB
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  {isBuiltin ? (
+                    <span className="text-foreground/20 px-2 text-[10px]">Bawaan</span>
+                  ) : confirmId === extEntry.id ? (
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => {
+                          onUninstall(extEntry);
+                          setConfirmId(null);
+                        }}
+                        className="flex items-center gap-1 rounded-lg bg-red-500/15 px-2 py-1 text-[10px] font-medium text-red-400 transition-colors hover:bg-red-500/25"
+                      >
+                        <Trash2 size={10} /> Confirm
+                      </button>
+                      <button
+                        onClick={() => setConfirmId(null)}
+                        className="text-foreground/40 hover:bg-foreground/5 rounded-lg px-2 py-1 text-[10px] transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setConfirmId(extEntry.id)}
+                      className="text-foreground/40 flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] transition-colors hover:bg-red-500/10 hover:text-red-400"
+                    >
+                      <Trash2 size={10} /> Uninstall
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

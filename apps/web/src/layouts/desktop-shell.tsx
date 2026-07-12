@@ -1,6 +1,6 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { Wallpaper } from '@/features/wallpaper/components/wallpaper';
 import { MenuBar } from '@/features/menu-bar/components/menu-bar';
 import { Dock } from '@/features/dock/components/dock';
@@ -14,11 +14,26 @@ import { ScreensaverOverlay } from '@/features/menu-bar/components/screensaver-o
 import { ToastContainer } from '@/services/notification/components/notification-ui';
 import { ModalRenderer } from '@/services/modal/modal-service';
 import { CommandPaletteProvider } from '@/features/command-palette/command-palette-provider';
+import { AICommandBarProvider } from '@/features/ai/ai-command-bar-provider';
 import { DebugPanel } from '@/components/debug-panel';
 import { useAuthStore } from '@/stores/auth.store';
 import { useService } from '@/providers/service-provider';
 import type { LifecycleService } from '@/services/lifecycle/lifecycle-service';
+import { LocationPermissionDialog } from '@/features/location/location-permission-dialog';
+import { useLocationStore, startBackgroundRefresh } from '@/stores/location.store';
+function useBackgroundLocationRefresh() {
+  const { enabled, permissionAsked } = useLocationStore();
+
+  useEffect(() => {
+    if (!enabled || !permissionAsked) return;
+    startBackgroundRefresh();
+    const id = setInterval(() => startBackgroundRefresh(), 300000);
+    return () => clearInterval(id);
+  }, [enabled, permissionAsked]);
+}
+
 export function DesktopShell({ children }: { children: ReactNode }) {
+  useBackgroundLocationRefresh();
   useShortcutManager();
 
   const lifecycle = useService<LifecycleService>('lifecycle');
@@ -43,7 +58,9 @@ export function DesktopShell({ children }: { children: ReactNode }) {
         <ToastContainer />
         <ModalRenderer />
         <CommandPaletteProvider />
+        <AICommandBarProvider />
         <DebugPanel />
+        <LocationPermissionDialog />
       </div>
     </AuthGate>
   );

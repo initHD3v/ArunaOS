@@ -235,6 +235,40 @@ export function ServiceProvider({ children }: { children: ReactNode }) {
               resizable: true,
             },
           },
+          {
+            id: 'arunaos.weather',
+            name: 'Weather',
+            version: '1.0.0',
+            description: 'Prakiraan cuaca real-time dengan data presisi',
+            icon: '☀️',
+            entry: '',
+            type: 'builtin' as const,
+            permissions: ['network', 'geolocation'] as const,
+            window: {
+              defaultWidth: 480,
+              defaultHeight: 640,
+              minWidth: 360,
+              minHeight: 480,
+              resizable: true,
+            },
+          },
+          {
+            id: 'arunaos.applications',
+            name: 'Applications',
+            version: '1.0.0',
+            description: 'Semua aplikasi yang terinstal di ArunaOS',
+            icon: 'grid',
+            entry: '',
+            type: 'builtin' as const,
+            permissions: [] as const,
+            window: {
+              defaultWidth: 800,
+              defaultHeight: 560,
+              minWidth: 480,
+              minHeight: 400,
+              resizable: true,
+            },
+          },
         ];
 
         for (const manifest of builtinManifests) {
@@ -311,6 +345,12 @@ export function ServiceProvider({ children }: { children: ReactNode }) {
           return { api: {} };
         });
         moduleLoader.registerFactory('arunaos.appstore', async () => {
+          return { api: {} };
+        });
+        moduleLoader.registerFactory('arunaos.weather', async () => {
+          return { api: {} };
+        });
+        moduleLoader.registerFactory('arunaos.applications', async () => {
           return { api: {} };
         });
 

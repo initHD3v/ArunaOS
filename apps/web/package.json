@@ -31,7 +31,11 @@
     "@arunaos/types": "workspace:*",
     "@arunaos/icons": "workspace:*",
     "@arunaos/animations": "workspace:*",
-    "@arunaos/design-tokens": "workspace:*"
+    "@arunaos/design-tokens": "workspace:*",
+    "@arunaos/ai": "workspace:*",
+    "@arunaos/engine": "workspace:*",
+    "@arunaos/runtime": "workspace:*",
+    "@arunaos/registry-api": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.8.0",

@@ -1,59 +1,54 @@
 import { ModuleGenerator, type GeneratorOptions, type GeneratorResult } from './module-generator';
+import { AIService } from './ai-service';
+import type { AIProviderType } from './types';
+import { detectProviders } from './providers/interface';
 
-export interface AIProviderConfig {
-  apiKey?: string;
-  baseUrl?: string;
-  model?: string;
-}
+export class AIModuleGenerator {
+  private fallback: ModuleGenerator;
+  private aiService: AIService | null = null;
 
-const AI_PROVIDERS: Record<string, { baseUrl: string; model: string }> = {
-  openai: { baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini' },
-  openrouter: { baseUrl: 'https://openrouter.ai/api/v1', model: 'openai/gpt-4o-mini' },
-  anthropic: { baseUrl: 'https://api.anthropic.com/v1', model: 'claude-3-haiku-20240307' },
-};
-
-function detectProvider(): { provider: string; config: AIProviderConfig } | null {
-  const openaiKey = process.env.OPENAI_API_KEY;
-  if (openaiKey) {
-    return {
-      provider: 'openai',
-      config: {
-        apiKey: openaiKey,
-        baseUrl: process.env.OPENAI_BASE_URL,
-        model: process.env.OPENAI_MODEL,
-      },
-    };
+  constructor() {
+    this.fallback = new ModuleGenerator();
+    this.initializeAI();
   }
 
-  const openrouterKey = process.env.OPENROUTER_API_KEY;
-  if (openrouterKey) {
-    return {
-      provider: 'openrouter',
-      config: {
-        apiKey: openrouterKey,
-        baseUrl: process.env.OPENROUTER_BASE_URL,
-        model: process.env.OPENROUTER_MODEL,
-      },
-    };
+  registerProvider(
+    type: AIProviderType,
+    config: { apiKey?: string; baseUrl?: string; model?: string },
+  ): void {
+    this.aiService = new AIService();
+    this.aiService.registerProvider(type, config);
   }
 
-  const anthropicKey = process.env.ANTHROPIC_API_KEY;
-  if (anthropicKey) {
-    return {
-      provider: 'anthropic',
-      config: {
-        apiKey: anthropicKey,
-        baseUrl: process.env.ANTHROPIC_BASE_URL,
-        model: process.env.ANTHROPIC_MODEL,
-      },
-    };
+  private initializeAI(): void {
+    const providers = detectProviders();
+    if (providers.length > 0) {
+      this.aiService = new AIService();
+      for (const { type, config } of providers) {
+        this.aiService.registerProvider(type, config);
+      }
+    }
   }
 
-  return null;
-}
+  get isAvailable(): boolean {
+    return this.aiService !== null;
+  }
 
-function buildPrompt(options: GeneratorOptions): string {
-  return `Generate an ArunaOS external module.
+  get providerName(): string | null {
+    if (!this.aiService) return null;
+    const providers = this.aiService.getAvailableProviders();
+    return providers.find((p) => p.available)?.type ?? null;
+  }
+
+  async generate(options: GeneratorOptions): Promise<GeneratorResult> {
+    if (!this.aiService) {
+      return this.fallback.generate(options);
+    }
+
+    try {
+      const systemPrompt = `You are an ArunaOS module generator. You generate valid module code only. Return valid JSON only, no markdown fences.`;
+
+      const userPrompt = `Generate an ArunaOS external module.
 
 Name: "${options.name}"
 Description: "${options.description}"
@@ -66,82 +61,18 @@ Return ONLY a JSON object with these fields:
 - files: [{ path: string, content: string }] (include module.json, src/index.ts, .gitignore, README.md)
 
 Use semver version "0.1.0". Infer permissions from the description.`;
-}
 
-export class AIModuleGenerator {
-  private fallback: ModuleGenerator;
-  private provider: ReturnType<typeof detectProvider>;
-
-  constructor() {
-    this.fallback = new ModuleGenerator();
-    this.provider = detectProvider();
-  }
-
-  get isAvailable(): boolean {
-    return this.provider !== null;
-  }
-
-  get providerName(): string | null {
-    return this.provider?.provider ?? null;
-  }
-
-  async generate(options: GeneratorOptions): Promise<GeneratorResult> {
-    if (!this.provider) {
-      return this.fallback.generate(options);
-    }
-
-    const { provider, config } = this.provider;
-    const providerInfo = AI_PROVIDERS[provider];
-    if (!providerInfo) {
-      return this.fallback.generate(options);
-    }
-
-    const baseUrl = config.baseUrl ?? providerInfo.baseUrl;
-    const model = config.model ?? providerInfo.model;
-
-    try {
-      const response = await fetch(`${baseUrl}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(provider === 'anthropic'
-            ? { 'x-api-key': config.apiKey!, 'anthropic-version': '2023-06-01' }
-            : { Authorization: `Bearer ${config.apiKey!}` }),
-        },
-        body: JSON.stringify({
-          model,
-          messages: [
-            {
-              role: 'system',
-              content:
-                'You are an ArunaOS module generator. Return valid JSON only, no markdown fences.',
-            },
-            { role: 'user', content: buildPrompt(options) },
-          ],
-          temperature: 0.3,
-          response_format: provider !== 'anthropic' ? { type: 'json_object' } : undefined,
-        }),
+      const response = await this.aiService.complete({
+        messages: [{ role: 'user', content: userPrompt }],
+        systemPrompt,
+        temperature: 0.3,
       });
 
-      if (!response.ok) {
-        const errorText = await response.text().catch(() => 'Unknown error');
-        console.warn(`[AI] ${provider} API error (${response.status}): ${errorText}`);
-        return this.fallback.generate(options);
-      }
-
-      const data = await response.json();
-      let content: string;
-
-      if (provider === 'anthropic') {
-        content = data.content?.[0]?.text ?? '';
-      } else {
-        content = data.choices?.[0]?.message?.content ?? '';
-      }
-
-      content = content
+      const content = response.message.content
         .replace(/```json\s*/gi, '')
         .replace(/```\s*$/g, '')
         .trim();
+
       const parsed = JSON.parse(content);
 
       return {

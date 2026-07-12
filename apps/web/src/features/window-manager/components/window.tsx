@@ -12,6 +12,9 @@ import { ModuleRenderer } from '@/features/modules/components/module-renderer';
 import { ModuleDevtools } from '@/features/module-devtools/module-devtools';
 import { ModuleInstaller } from '@/features/module-installer/module-installer';
 import { AppStore } from '@/features/appstore/components/appstore';
+import { AIChat } from '@/features/ai/ai-chat';
+import { Applications } from '@/features/applications/applications';
+import { WeatherApp } from '@/features/weather/weather-app';
 import { cn } from '@/lib/utils';
 import type { WindowData } from '@/types';
 
@@ -284,17 +287,23 @@ export const Window = memo(function Window({ data }: WindowProps) {
             {data.appId === 'viewer' && <ViewerWindow data={data} />}
             {data.appId === 'astat' && <AStat />}
             {data.appId === 'camera' && <CameraApp />}
+            {data.appId === 'ai' && <AIChat />}
             {data.appId === 'devtools' && <ModuleDevtools />}
             {data.appId === 'module-installer' && <ModuleInstaller />}
             {data.appId === 'appstore' && <AppStore />}
+            {data.appId === 'applications' && <Applications />}
+            {data.appId === 'weather' && <WeatherApp />}
             {data.appId !== 'files' &&
               data.appId !== 'settings' &&
               data.appId !== 'viewer' &&
               data.appId !== 'astat' &&
               data.appId !== 'camera' &&
+              data.appId !== 'ai' &&
               data.appId !== 'devtools' &&
               data.appId !== 'module-installer' &&
               data.appId !== 'appstore' &&
+              data.appId !== 'applications' &&
+              data.appId !== 'weather' &&
               (data.appId?.startsWith('module-') ? (
                 <ModuleRenderer
                   moduleId={data.appId.replace('module-', '')}

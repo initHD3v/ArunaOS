@@ -4,6 +4,7 @@ import { useCallback, useMemo } from 'react';
 import { DesktopShell } from '@/layouts/desktop-shell';
 import { DesktopGrid } from '@/features/desktop-icons/components/desktop-grid';
 import { Selection } from '@/features/selection/components/selection';
+import { DesktopWidgetPanel } from '@/features/desktop-widgets/desktop-widget-panel';
 import { useUIStore } from '@/stores/ui-store';
 import { useDesktopStore } from '@/features/desktop/stores/desktop.store';
 import { useWindowStore } from '@/features/window-manager/stores/window.store';
@@ -88,6 +89,7 @@ export default function Home() {
       <div className="relative h-full w-full" onContextMenu={handleContextMenu}>
         <Selection />
         <DesktopGrid />
+        <DesktopWidgetPanel />
       </div>
     </DesktopShell>
   );
