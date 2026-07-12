@@ -10,6 +10,7 @@ import { getAppIdForModule } from '@/services/module-window';
 import { useWindowStore } from '@/features/window-manager/stores/window.store';
 import { useDockStore, ICON_MAP } from '@/features/dock/stores/dock.store';
 import type { DockItem } from '@/features/dock/stores/dock.store';
+import { useIsMobile } from '@/hooks/use-media-query';
 
 export function Dock() {
   const windows = useWindowStore((s) => s.windows);
@@ -29,6 +30,8 @@ export function Dock() {
   const menuRef = useRef<HTMLDivElement>(null);
   const contextRef = useRef<HTMLDivElement>(null);
   const dockRef = useRef<HTMLDivElement>(null);
+
+  const isMobile = useIsMobile();
 
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
@@ -111,18 +114,23 @@ export function Dock() {
         size: { width: 640, height: 480 },
       };
 
+      const isMobile = vw < 768;
+      const finalSize = isMobile ? { width: vw, height: vh } : cfg.size;
+
       openWindow({
         id,
         title: cfg.title,
         icon: cfg.icon,
         appId: appId === 'finder' ? 'files' : appId,
-        position: {
-          x: Math.max(40, (vw - cfg.size.width) / 2 + (Math.random() - 0.5) * 80),
-          y: Math.max(40, (vh - cfg.size.height) / 2 + (Math.random() - 0.5) * 40),
-        },
-        size: cfg.size,
+        position: isMobile
+          ? { x: 0, y: 0 }
+          : {
+              x: Math.max(40, (vw - cfg.size.width) / 2 + (Math.random() - 0.5) * 80),
+              y: Math.max(40, (vh - cfg.size.height) / 2 + (Math.random() - 0.5) * 40),
+            },
+        size: finalSize,
         zIndex: 1,
-        state: 'active',
+        state: isMobile ? 'maximized' : 'active',
       });
     },
     [windows, focusWindow, restoreWindow, openWindow, moduleWindowService],
@@ -205,8 +213,13 @@ export function Dock() {
     setDragOverIdx(null);
   }, []);
 
+  const iconSize = isMobile ? Math.max(settings.iconSize, 26) : settings.iconSize;
+
   const positionClasses = {
-    bottom: 'fixed bottom-4 left-1/2 -translate-x-1/2 flex-row',
+    bottom: cn(
+      'fixed left-1/2 -translate-x-1/2 flex-row',
+      isMobile ? 'bottom-2 px-2 py-2 gap-0.5' : 'bottom-4 px-3 py-2 gap-1',
+    ),
     left: 'fixed left-4 top-1/2 -translate-y-1/2 flex-col',
     right: 'fixed right-4 top-1/2 -translate-y-1/2 flex-col',
   };
@@ -216,10 +229,12 @@ export function Dock() {
       <div
         ref={dockRef}
         className={cn(
-          'border-border/30 bg-background/20 z-50 flex items-center gap-1 rounded-2xl border px-3 py-2 shadow-lg shadow-black/5 backdrop-blur-2xl transition-all duration-200',
+          'border-border/30 bg-background/20 z-50 flex items-center rounded-2xl border shadow-lg shadow-black/5 backdrop-blur-2xl transition-all duration-200',
           positionClasses[settings.position],
-          settings.autoHide ? 'opacity-0 hover:opacity-100' : 'opacity-100',
+          settings.autoHide && !isMobile ? 'opacity-0 hover:opacity-100' : 'opacity-100',
+          isMobile && 'scrollbar-none max-w-[95vw] overflow-x-auto',
         )}
+        style={{ WebkitOverflowScrolling: 'touch' }}
       >
         {dockItems.map((item, idx) => {
           const Icon = ICON_MAP[item.iconName];
@@ -233,7 +248,11 @@ export function Dock() {
           return (
             <div key={item.id} className="relative flex flex-col items-center">
               <motion.button
-                whileHover={settings.magnification ? { scale: 1.25, y: -4 } : { scale: 1.1, y: -3 }}
+                whileHover={
+                  !isMobile && settings.magnification
+                    ? { scale: 1.25, y: -4 }
+                    : { scale: 1.1, y: -3 }
+                }
                 whileTap={{ scale: 0.95 }}
                 transition={{ type: 'spring', stiffness: 400, damping: 25 }}
                 onClick={() => handleClick(item.appId)}
@@ -247,18 +266,21 @@ export function Dock() {
                 onDrop={(e) => handleDrop(e, idx)}
                 onDragEnd={handleDragEnd}
                 className={cn(
-                  'flex flex-col items-center gap-1 rounded-xl px-3 py-1.5 transition-colors duration-150 hover:bg-white/10 dark:hover:bg-white/10',
+                  'flex flex-col items-center rounded-xl transition-colors duration-150 hover:bg-white/10 dark:hover:bg-white/10',
+                  isMobile ? 'gap-0.5 px-2 py-1.5' : 'gap-1 px-3 py-1.5',
                   dragIdx === idx && 'opacity-50',
                   dragOverIdx === idx && dragIdx !== idx && 'scale-110',
                 )}
                 aria-label={item.label}
               >
                 <Icon
-                  size={settings.iconSize}
+                  size={iconSize}
                   className="text-foreground/80 drop-shadow-sm"
                   strokeWidth={1.5}
                 />
-                <span className="text-foreground/60 text-[10px] font-medium">{item.label}</span>
+                {!isMobile && (
+                  <span className="text-foreground/60 text-[10px] font-medium">{item.label}</span>
+                )}
                 <div className="flex h-1.5 items-center gap-1">
                   {activeCount > 0 && <span className="bg-foreground/60 h-1 w-1 rounded-full" />}
                 </div>

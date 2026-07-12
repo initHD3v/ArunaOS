@@ -3,6 +3,7 @@
 import { memo, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useWindowStore } from '@/features/window-manager/stores/window.store';
+import { useIsMobile } from '@/hooks/use-media-query';
 import { Finder } from '@modules/arunaos.files/components/finder';
 import { Settings } from '@/features/settings/components/settings';
 import { ViewerWindow } from '@/features/viewer/components/viewer-window';
@@ -22,9 +23,34 @@ interface WindowProps {
   data: WindowData;
 }
 
+function getPos(e: MouseEvent | TouchEvent | React.MouseEvent | React.TouchEvent) {
+  if ('touches' in e) {
+    const t = e.touches[0] ?? e.changedTouches[0];
+    return { x: t?.clientX ?? 0, y: t?.clientY ?? 0 };
+  }
+  return { x: e.clientX, y: e.clientY };
+}
+
+function getStartPos(e: MouseEvent | TouchEvent | React.MouseEvent | React.TouchEvent) {
+  if ('touches' in e) {
+    const t = e.touches[0];
+    return { x: t?.clientX ?? 0, y: t?.clientY ?? 0 };
+  }
+  return { x: e.clientX, y: e.clientY };
+}
+
+function getEndPos(e: MouseEvent | TouchEvent | React.MouseEvent | React.TouchEvent) {
+  if ('touches' in e) {
+    const t = e.changedTouches[0];
+    return { x: t?.clientX ?? 0, y: t?.clientY ?? 0 };
+  }
+  return { x: e.clientX, y: e.clientY };
+}
+
 export const Window = memo(function Window({ data }: WindowProps) {
   const winRef = useRef<HTMLDivElement>(null);
   const rafId = useRef(0);
+  const isMobile = useIsMobile();
 
   const focusWindow = useWindowStore((s) => s.focusWindow);
   const closeWindow = useWindowStore((s) => s.closeWindow);
@@ -35,54 +61,56 @@ export const Window = memo(function Window({ data }: WindowProps) {
   const resizeWindow = useWindowStore((s) => s.resizeWindow);
   const isFocused = useWindowStore((s) => s.focusedWindowId === data.id);
 
-  const handleMouseDown = useCallback(
-    (e: React.MouseEvent) => {
+  const handlePointerDown = useCallback(
+    (e: React.MouseEvent | React.TouchEvent) => {
+      if ('touches' in e) e.preventDefault();
       focusWindow(data.id);
       const el = winRef.current;
-      if (!el) return;
+      if (!el || isMobile) return;
 
       const rect = el.getBoundingClientRect();
-      const offsetX = e.clientX - rect.left;
-      const offsetY = e.clientY - rect.top;
+      const start = getStartPos(e);
+      const offsetX = start.x - rect.left;
+      const offsetY = start.y - rect.top;
       const baseX = data.position.x;
       const baseY = data.position.y;
       let isDragging = false;
+      const startX = start.x;
+      const startY = start.y;
 
-      const onMove = (ev: MouseEvent) => {
-        const cx = ev.clientX;
-        const cy = ev.clientY;
+      const onMove = (ev: MouseEvent | TouchEvent) => {
+        const pos = getPos(ev);
 
         if (!isDragging) {
-          const dx = cx - e.clientX;
-          const dy = cy - e.clientY;
-          if (Math.abs(dx) < 3 && Math.abs(dy) < 3) return;
+          if (Math.abs(pos.x - startX) < 4 && Math.abs(pos.y - startY) < 4) return;
           isDragging = true;
         }
 
         cancelAnimationFrame(rafId.current);
         rafId.current = requestAnimationFrame(() => {
-          const nx = cx - offsetX - baseX;
-          const ny = cy - offsetY - baseY;
-          el.style.transform = `translate(${nx}px, ${ny}px)`;
+          el.style.transform = `translate(${pos.x - offsetX - baseX}px, ${pos.y - offsetY - baseY}px)`;
         });
       };
 
-      const onUp = (ev: MouseEvent) => {
+      const onUp = (ev: MouseEvent | TouchEvent) => {
         cancelAnimationFrame(rafId.current);
         if (isDragging) {
-          const nx = ev.clientX - offsetX;
-          const ny = ev.clientY - offsetY;
+          const end = getEndPos(ev);
           el.style.transform = '';
-          moveWindow(data.id, { x: nx, y: ny });
+          moveWindow(data.id, { x: end.x - offsetX, y: end.y - offsetY });
         }
         document.removeEventListener('mousemove', onMove);
         document.removeEventListener('mouseup', onUp);
+        document.removeEventListener('touchmove', onMove);
+        document.removeEventListener('touchend', onUp);
       };
 
       document.addEventListener('mousemove', onMove);
       document.addEventListener('mouseup', onUp);
+      document.addEventListener('touchmove', onMove, { passive: false });
+      document.addEventListener('touchend', onUp);
     },
-    [data.id, data.position, focusWindow, moveWindow],
+    [data.id, data.position, focusWindow, moveWindow, isMobile],
   );
 
   const handleMaximizeToggle = useCallback(
@@ -98,104 +126,125 @@ export const Window = memo(function Window({ data }: WindowProps) {
   );
 
   const handleTitleDoubleClick = useCallback(() => {
+    if (isMobile) return;
     if (data.state === 'maximized') {
       restoreWindow(data.id);
     } else {
       maximizeWindow(data.id);
     }
-  }, [data.id, data.state, maximizeWindow, restoreWindow]);
+  }, [data.id, data.state, maximizeWindow, restoreWindow, isMobile]);
 
-  const handleResizeMouseDown = useCallback(
-    (e: React.MouseEvent) => {
+  const handleResizeStart = useCallback(
+    (e: React.MouseEvent | React.TouchEvent) => {
       e.stopPropagation();
+      if (isMobile) return;
       const el = winRef.current;
       if (!el) return;
 
-      const startX = e.clientX;
-      const startY = e.clientY;
+      const start = getStartPos(e);
       const startW = data.size.width;
       const startH = data.size.height;
 
-      const onMove = (ev: MouseEvent) => {
-        const dw = ev.clientX - startX;
-        const dh = ev.clientY - startY;
-        const nw = Math.max(480, startW + dw);
-        const nh = Math.max(320, startH + dh);
-        el.style.width = `${nw}px`;
-        el.style.height = `${nh}px`;
+      const onMove = (ev: MouseEvent | TouchEvent) => {
+        const pos = getPos(ev);
+        const dw = pos.x - start.x;
+        const dh = pos.y - start.y;
+        el.style.width = `${Math.max(320, startW + dw)}px`;
+        el.style.height = `${Math.max(240, startH + dh)}px`;
       };
 
-      const onUp = (ev: MouseEvent) => {
-        const dw = ev.clientX - startX;
-        const dh = ev.clientY - startY;
+      const onUp = (ev: MouseEvent | TouchEvent) => {
+        const end = getEndPos(ev);
+        const dw = end.x - start.x;
+        const dh = end.y - start.y;
         el.style.width = '';
         el.style.height = '';
         resizeWindow(data.id, {
-          width: Math.max(480, startW + dw),
-          height: Math.max(320, startH + dh),
+          width: Math.max(320, startW + dw),
+          height: Math.max(240, startH + dh),
         });
         document.removeEventListener('mousemove', onMove);
         document.removeEventListener('mouseup', onUp);
+        document.removeEventListener('touchmove', onMove);
+        document.removeEventListener('touchend', onUp);
       };
 
       document.addEventListener('mousemove', onMove);
       document.addEventListener('mouseup', onUp);
+      document.addEventListener('touchmove', onMove, { passive: false });
+      document.addEventListener('touchend', onUp);
     },
-    [data.id, data.size, resizeWindow],
+    [data.id, data.size, resizeWindow, isMobile],
   );
 
   const handleBottomResize = useCallback(
-    (e: React.MouseEvent) => {
+    (e: React.MouseEvent | React.TouchEvent) => {
       e.stopPropagation();
+      if (isMobile) return;
       const el = winRef.current;
       if (!el) return;
-      const startY = e.clientY;
+      const start = getStartPos(e);
       const startH = data.size.height;
-      const onMove = (ev: MouseEvent) => {
-        const dh = ev.clientY - startY;
-        el.style.height = `${Math.max(320, startH + dh)}px`;
+
+      const onMove = (ev: MouseEvent | TouchEvent) => {
+        const pos = getPos(ev);
+        el.style.height = `${Math.max(240, startH + pos.y - start.y)}px`;
       };
-      const onUp = (ev: MouseEvent) => {
-        const dh = ev.clientY - startY;
+
+      const onUp = (ev: MouseEvent | TouchEvent) => {
+        const end = getEndPos(ev);
         el.style.height = '';
         resizeWindow(data.id, {
           width: data.size.width,
-          height: Math.max(320, startH + dh),
+          height: Math.max(240, startH + end.y - start.y),
         });
         document.removeEventListener('mousemove', onMove);
         document.removeEventListener('mouseup', onUp);
+        document.removeEventListener('touchmove', onMove);
+        document.removeEventListener('touchend', onUp);
       };
+
       document.addEventListener('mousemove', onMove);
       document.addEventListener('mouseup', onUp);
+      document.addEventListener('touchmove', onMove, { passive: false });
+      document.addEventListener('touchend', onUp);
     },
-    [data.id, data.size, resizeWindow],
+    [data.id, data.size, resizeWindow, isMobile],
   );
 
   const handleRightResize = useCallback(
-    (e: React.MouseEvent) => {
+    (e: React.MouseEvent | React.TouchEvent) => {
       e.stopPropagation();
+      if (isMobile) return;
       const el = winRef.current;
       if (!el) return;
-      const startX = e.clientX;
+      const start = getStartPos(e);
       const startW = data.size.width;
-      const onMove = (ev: MouseEvent) => {
-        const dw = ev.clientX - startX;
-        el.style.width = `${Math.max(480, startW + dw)}px`;
+
+      const onMove = (ev: MouseEvent | TouchEvent) => {
+        const pos = getPos(ev);
+        el.style.width = `${Math.max(320, startW + pos.x - start.x)}px`;
       };
-      const onUp = (ev: MouseEvent) => {
-        const dw = ev.clientX - startX;
+
+      const onUp = (ev: MouseEvent | TouchEvent) => {
+        const end = getEndPos(ev);
         el.style.width = '';
         resizeWindow(data.id, {
-          width: Math.max(480, startW + dw),
+          width: Math.max(320, startW + end.x - start.x),
           height: data.size.height,
         });
         document.removeEventListener('mousemove', onMove);
         document.removeEventListener('mouseup', onUp);
+        document.removeEventListener('touchmove', onMove);
+        document.removeEventListener('touchend', onUp);
       };
+
       document.addEventListener('mousemove', onMove);
       document.addEventListener('mouseup', onUp);
+      document.addEventListener('touchmove', onMove, { passive: false });
+      document.addEventListener('touchend', onUp);
     },
-    [data.id, data.size, resizeWindow],
+    [data.id, data.size, resizeWindow, isMobile],
   );
 
   const isMinimized = data.state === 'minimized';
@@ -207,34 +256,41 @@ export const Window = memo(function Window({ data }: WindowProps) {
         <motion.div
           key={data.id}
           ref={winRef}
-          initial={{ opacity: 0, scale: 0.95 }}
+          initial={{ opacity: 0, scale: isMobile ? 0.98 : 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.5, y: 60, transition: { duration: 0.2 } }}
+          exit={{
+            opacity: 0,
+            scale: isMobile ? 0.96 : 0.5,
+            y: isMobile ? 0 : 60,
+            transition: { duration: 0.2 },
+          }}
           transition={{ type: 'spring', stiffness: 300, damping: 30, mass: 0.8 }}
           onMouseDown={() => focusWindow(data.id)}
+          onTouchStart={() => focusWindow(data.id)}
           style={{
-            left: data.position.x,
-            top: data.position.y,
-            width: data.size.width,
-            height: data.size.height,
+            left: isMobile ? 0 : data.position.x,
+            top: isMobile ? 0 : data.position.y,
+            width: isMobile ? '100%' : data.size.width,
+            height: isMobile ? '100%' : data.size.height,
             zIndex: data.zIndex,
           }}
           className={cn(
             'fixed flex flex-col overflow-hidden',
-            'bg-card/80 group border shadow-xl backdrop-blur-2xl',
-            isMaximized ? 'rounded-none' : 'rounded-xl',
-            isFocused ? 'border-border/60 shadow-black/10' : 'border-border/20 shadow-black/5',
+            'bg-card/80 border shadow-xl backdrop-blur-2xl',
+            isMaximized || isMobile ? 'rounded-none border-0' : 'border-border/60 rounded-xl',
+            isFocused ? 'shadow-black/10' : 'shadow-black/5',
           )}
           role="dialog"
           aria-label={data.title}
           aria-modal={isFocused}
         >
           <div
-            onMouseDown={handleMouseDown}
+            onMouseDown={handlePointerDown}
+            onTouchStart={handlePointerDown}
             onDoubleClick={handleTitleDoubleClick}
             className={cn(
-              'flex h-10 shrink-0 items-center gap-3 px-4',
-              'border-b',
+              'flex shrink-0 items-center border-b',
+              isMobile ? 'h-11 gap-2 px-3' : 'h-10 gap-3 px-4',
               isFocused ? 'border-border/40' : 'border-border/10',
               'select-none',
             )}
@@ -262,7 +318,10 @@ export const Window = memo(function Window({ data }: WindowProps) {
               </button>
               <button
                 onClick={handleMaximizeToggle}
-                className="flex h-5 w-5 items-center justify-center rounded-full transition-colors hover:bg-green-500/20"
+                className={cn(
+                  'flex h-5 w-5 items-center justify-center rounded-full transition-colors hover:bg-green-500/20',
+                  isMobile && 'hidden',
+                )}
                 aria-label={isMaximized ? 'Restore' : 'Maximize'}
               >
                 {isMaximized ? (
@@ -275,10 +334,15 @@ export const Window = memo(function Window({ data }: WindowProps) {
                 )}
               </button>
             </div>
-            <span className="text-foreground/60 mx-4 flex-1 truncate text-center text-xs font-medium">
+            <span
+              className={cn(
+                'flex-1 truncate text-center text-xs font-medium',
+                isMobile ? 'text-foreground/70 mx-2' : 'text-foreground/60 mx-4',
+              )}
+            >
               {data.title}
             </span>
-            <div className="w-14" />
+            {!isMobile && <div className="w-14" />}
           </div>
 
           <div className="flex-1 overflow-hidden">
@@ -316,20 +380,23 @@ export const Window = memo(function Window({ data }: WindowProps) {
               ))}
           </div>
 
-          {!isMaximized && (
+          {!isMaximized && !isMobile && (
             <>
               <div
-                onMouseDown={handleResizeMouseDown}
+                onMouseDown={handleResizeStart}
+                onTouchStart={handleResizeStart}
                 className="absolute bottom-0 right-0 z-10 h-6 w-6 cursor-se-resize"
               >
                 <div className="border-foreground/20 absolute bottom-0.5 right-0.5 h-2.5 w-2.5 rounded-br-sm border-b-2 border-r-2" />
               </div>
               <div
                 onMouseDown={handleBottomResize}
+                onTouchStart={handleBottomResize}
                 className="absolute bottom-0 left-0 right-4 h-2 cursor-s-resize rounded-b-xl transition-colors hover:bg-blue-500/5"
               />
               <div
                 onMouseDown={handleRightResize}
+                onTouchStart={handleRightResize}
                 className="absolute bottom-4 right-0 top-0 w-2 cursor-e-resize rounded-r-xl transition-colors hover:bg-blue-500/5"
               />
             </>

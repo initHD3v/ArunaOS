@@ -8,6 +8,7 @@ import { useAuthStore } from '@/stores/auth.store';
 import { useService, useEventBus } from '@/providers/service-provider';
 import type { ThemeService, ThemeMode } from '@arunaos/services';
 import type { LifecycleService } from '@/services/lifecycle/lifecycle-service';
+import { useIsMobile } from '@/hooks/use-media-query';
 import { AboutOverlay } from './about-overlay';
 import { CalendarPopup } from './calendar-popup';
 import { usePerformanceStore } from '@/stores/performance.store';
@@ -47,6 +48,7 @@ function formatDate(date: Date) {
 function ThemeToggle() {
   const themeService = useService<ThemeService>('theme');
   const bus = useEventBus();
+  const isMobile = useIsMobile();
   const [currentMode, setCurrentMode] = useState<ThemeMode>(themeService.getMode());
 
   useEffect(() => {
@@ -66,14 +68,14 @@ function ThemeToggle() {
     <button
       onClick={() => themeService.setMode(isDark ? 'light' : 'dark')}
       className={cn(
-        'flex items-center justify-center',
-        'h-6 w-6 rounded-md',
+        'flex items-center justify-center rounded-md',
         'text-muted-foreground hover:text-foreground',
         'hover:bg-muted transition-colors duration-150',
+        isMobile ? 'h-8 w-8' : 'h-6 w-6',
       )}
       aria-label="Toggle theme"
     >
-      {isDark ? <Sun size={14} /> : <Moon size={14} />}
+      {isDark ? <Sun size={isMobile ? 16 : 14} /> : <Moon size={isMobile ? 16 : 14} />}
     </button>
   );
 }
@@ -302,6 +304,7 @@ function AppleMenu({
 
 export function MenuBar() {
   const time = useTime();
+  const isMobile = useIsMobile();
   const [mounted, setMounted] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
@@ -345,12 +348,13 @@ export function MenuBar() {
       <header
         className={cn(
           'fixed left-0 right-0 top-0 z-50',
-          'h-8 px-3',
+          isMobile ? 'h-10 px-2' : 'h-8 px-3',
           'flex items-center justify-between',
           'bg-background/30 backdrop-blur-xl',
           'border-border/50 border-b',
           'select-none',
         )}
+        style={isMobile ? { paddingTop: 'env(safe-area-inset-top, 0px)' } : undefined}
       >
         <div className="flex items-center gap-2">
           {/* Aruna logo */}
@@ -416,14 +420,15 @@ export function MenuBar() {
                 setCalendarOpen(false);
               }}
               className={cn(
-                'flex h-6 w-6 items-center justify-center rounded-md transition-colors',
+                'flex items-center justify-center rounded-md transition-colors',
+                isMobile ? 'h-8 w-8' : 'h-6 w-6',
                 controlCenterOpen
                   ? 'bg-muted text-foreground'
                   : 'text-foreground/60 hover:text-foreground hover:bg-muted/50',
               )}
               title="Control Center"
             >
-              <Sliders size={12} />
+              <Sliders size={isMobile ? 16 : 12} />
             </button>
             <AnimatePresence>
               {controlCenterOpen && (
@@ -459,8 +464,15 @@ export function MenuBar() {
                     : 'text-foreground/80 hover:text-foreground hover:bg-muted/50',
                 )}
               >
-                <span className="text-muted-foreground text-xs">{formatDate(time)}</span>
-                <span className="text-foreground/70 text-xs font-medium tabular-nums">
+                {!isMobile && (
+                  <span className="text-muted-foreground text-xs">{formatDate(time)}</span>
+                )}
+                <span
+                  className={cn(
+                    'font-medium tabular-nums',
+                    isMobile ? 'text-foreground/80 text-sm' : 'text-foreground/70 text-xs',
+                  )}
+                >
                   {formatTime(time)}
                 </span>
               </button>

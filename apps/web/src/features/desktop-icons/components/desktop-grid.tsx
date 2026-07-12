@@ -8,6 +8,8 @@ import { useService } from '@/providers/service-provider';
 import type { ModuleWindowService } from '@/services/module-window';
 import { getAppIdForModule } from '@/services/module-window';
 import { useUIStore } from '@/stores/ui-store';
+import { useIsMobile } from '@/hooks/use-media-query';
+import { cn } from '@/lib/utils';
 import type { DesktopIconData } from '@/types';
 
 function createWindowFromIcon(data: DesktopIconData) {
@@ -31,6 +33,7 @@ function createWindowFromIcon(data: DesktopIconData) {
 }
 
 export const DesktopGrid = memo(function DesktopGrid() {
+  const isMobile = useIsMobile();
   const icons = useDesktopStore((s) => s.icons);
   const refreshKey = useDesktopStore((s) => s.refreshKey);
   const selectedIconId = useDesktopStore((s) => s.selectedIconId);
@@ -180,8 +183,13 @@ export const DesktopGrid = memo(function DesktopGrid() {
       onKeyDown={handleKeyDown}
       onContextMenu={(e) => e.stopPropagation()}
       onDrop={handleContainerDrop}
-      className="flex flex-wrap content-start gap-2 p-4 pt-6 outline-none"
-      style={{ maxWidth: 96 * 4 + 32 }}
+      className={cn(
+        'flex flex-wrap content-start gap-2 outline-none',
+        isMobile ? 'gap-1 p-2 pt-2' : 'p-4 pt-6',
+      )}
+      style={{
+        maxWidth: isMobile ? '100%' : 96 * 4 + 32,
+      }}
     >
       {!desktopIconsHidden &&
         icons.map((icon, index) => (

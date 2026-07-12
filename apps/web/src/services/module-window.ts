@@ -50,8 +50,18 @@ export class ModuleWindowService {
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
 
-    const dWidth = winConfig.defaultWidth ?? 640;
-    const dHeight = winConfig.defaultHeight ?? 480;
+    const isMobile = viewportWidth < 768;
+
+    let dWidth = winConfig.defaultWidth ?? 640;
+    let dHeight = winConfig.defaultHeight ?? 480;
+
+    // On mobile, use full screen or reasonable defaults
+    if (isMobile) {
+      const safeBottom = 0;
+      const safeTop = 0;
+      dWidth = viewportWidth;
+      dHeight = viewportHeight - safeTop - safeBottom;
+    }
 
     const windowId = `module-${moduleId}-${Date.now()}`;
 
@@ -63,13 +73,15 @@ export class ModuleWindowService {
       title: manifest.name,
       icon: manifest.icon,
       appId,
-      position: {
-        x: Math.max(20, (viewportWidth - dWidth) / 2 + (Math.random() - 0.5) * 60),
-        y: Math.max(20, (viewportHeight - dHeight) / 2 + (Math.random() - 0.5) * 30),
-      },
+      position: isMobile
+        ? { x: 0, y: 0 }
+        : {
+            x: Math.max(20, (viewportWidth - dWidth) / 2 + (Math.random() - 0.5) * 60),
+            y: Math.max(20, (viewportHeight - dHeight) / 2 + (Math.random() - 0.5) * 30),
+          },
       size: { width: dWidth, height: dHeight },
       zIndex: 1,
-      state: 'active',
+      state: isMobile ? 'maximized' : 'active',
       appData: params,
     });
 

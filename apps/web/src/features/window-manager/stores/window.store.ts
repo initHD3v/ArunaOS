@@ -105,6 +105,9 @@ export const useWindowStore = create<WindowStore>()(
             };
           }
 
+          const isMobile = window.innerWidth < 768;
+          const safeTop = isMobile ? 0 : 0;
+          const safeBottom = isMobile ? 0 : 0;
           const vw = window.innerWidth;
           const vh = window.innerHeight;
           return {
@@ -113,8 +116,8 @@ export const useWindowStore = create<WindowStore>()(
               [id]: {
                 ...target,
                 state: 'maximized' as WindowState,
-                position: { x: 0, y: 0 },
-                size: { width: vw, height: vh },
+                position: { x: 0, y: safeTop },
+                size: { width: vw, height: vh - safeTop - safeBottom },
                 zIndex: s.nextZIndex,
               },
             },

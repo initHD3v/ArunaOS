@@ -10,6 +10,7 @@ import { Overlay } from '@/features/overlay/components/overlay';
 import { AuthGate } from '@/features/auth/components/auth-gate';
 import { useShortcutManager } from '@/hooks/use-shortcut-manager';
 import { useIdleTimer } from '@/hooks/use-idle-timer';
+import { useIsMobile } from '@/hooks/use-media-query';
 import { ScreensaverOverlay } from '@/features/menu-bar/components/screensaver-overlay';
 import { ToastContainer } from '@/services/notification/components/notification-ui';
 import { ModalRenderer } from '@/services/modal/modal-service';
@@ -35,6 +36,7 @@ function useBackgroundLocationRefresh() {
 export function DesktopShell({ children }: { children: ReactNode }) {
   useBackgroundLocationRefresh();
   useShortcutManager();
+  const isMobile = useIsMobile();
 
   const lifecycle = useService<LifecycleService>('lifecycle');
 
@@ -45,10 +47,24 @@ export function DesktopShell({ children }: { children: ReactNode }) {
 
   return (
     <AuthGate>
-      <div className="relative h-screen w-screen overflow-hidden">
+      <div
+        className="relative overflow-hidden"
+        style={{
+          height: '100dvh',
+          width: '100dvw',
+        }}
+      >
         <Wallpaper />
         <MenuBar />
-        <main className="h-full w-full pb-20 pt-8">{children}</main>
+        <main
+          className="h-full w-full"
+          style={{
+            paddingTop: isMobile ? 0 : 32,
+            paddingBottom: isMobile ? 0 : 80,
+          }}
+        >
+          {children}
+        </main>
         <WindowManager />
         <Dock />
         <div id="portal-root" />
