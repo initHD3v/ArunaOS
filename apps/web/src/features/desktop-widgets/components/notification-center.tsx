@@ -55,6 +55,16 @@ export function NotificationCenterPopup({ onClose }: { onClose: () => void }) {
     return () => window.removeEventListener('keydown', handleKey);
   }, [onClose]);
 
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        onClose();
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [onClose]);
+
   const grouped = useMemo(() => {
     const map = new Map<string, SystemNotification[]>();
     for (const n of notifications) {
@@ -221,7 +231,7 @@ export function NotificationCenterPopup({ onClose }: { onClose: () => void }) {
 
   if (isMobile) {
     return (
-      <div className="fixed inset-0 z-[9999]">
+      <div ref={ref} className="fixed inset-0 z-[9999]">
         <div className="bg-background/95 flex h-full flex-col backdrop-blur-2xl">
           <div
             className="flex shrink-0 items-center justify-between border-b px-4 py-3"

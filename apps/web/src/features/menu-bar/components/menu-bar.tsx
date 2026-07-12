@@ -325,6 +325,7 @@ export function MenuBar() {
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
+      if (isMobile) return;
       if (calendarRef.current && !calendarRef.current.contains(e.target as Node)) {
         setCalendarOpen(false);
       }
@@ -334,7 +335,7 @@ export function MenuBar() {
     }
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
-  }, []);
+  }, [isMobile]);
 
   useEffect(() => {
     const unsubSleep = lifecycle.onSleep(() => setSleepActive(true));

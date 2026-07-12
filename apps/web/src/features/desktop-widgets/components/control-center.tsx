@@ -59,7 +59,6 @@ export function ControlCenterPopup({ onClose }: { onClose: () => void }) {
   const [weatherExpanded, setWeatherExpanded] = useState(false);
 
   useEffect(() => {
-    if (isMobile) return;
     function handleClick(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) {
         onClose();
@@ -67,7 +66,7 @@ export function ControlCenterPopup({ onClose }: { onClose: () => void }) {
     }
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
-  }, [onClose, isMobile]);
+  }, [onClose]);
 
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
@@ -147,7 +146,7 @@ export function ControlCenterPopup({ onClose }: { onClose: () => void }) {
 
   if (isMobile) {
     return (
-      <div className="fixed inset-0 z-[9999]">
+      <div ref={ref} className="fixed inset-0 z-[9999]">
         <div className="bg-background/95 flex h-full flex-col backdrop-blur-2xl">
           <div
             className="flex shrink-0 items-center justify-between border-b px-4 py-3"
