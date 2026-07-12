@@ -14,6 +14,7 @@ import { CalendarPopup } from './calendar-popup';
 import { usePerformanceStore } from '@/stores/performance.store';
 
 import { NotificationIndicator } from '@/features/desktop-widgets/components/notification-indicator';
+import { NotificationCenterPopup } from '@/features/desktop-widgets/components/notification-center';
 import { ControlCenterPopup } from '@/features/desktop-widgets/components/control-center';
 
 function useTime() {
@@ -310,6 +311,7 @@ export function MenuBar() {
   const [aboutOpen, setAboutOpen] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [controlCenterOpen, setControlCenterOpen] = useState(false);
+  const [notificationOpen, setNotificationOpen] = useState(false);
   const [sleepActive, setSleepActive] = useState(false);
   const [shutdownActive, setShutdownActive] = useState(false);
   const [restartActive, setRestartActive] = useState(false);
@@ -425,6 +427,7 @@ export function MenuBar() {
                 setControlCenterOpen((p) => !p);
                 setMenuOpen(false);
                 setCalendarOpen(false);
+                setNotificationOpen(false);
               }}
               className={cn(
                 'flex items-center justify-center rounded-md transition-colors',
@@ -437,11 +440,7 @@ export function MenuBar() {
             >
               <Sliders size={isMobile ? 16 : 12} />
             </button>
-            {isMobile ? (
-              controlCenterOpen && (
-                <ControlCenterPopup onClose={() => setControlCenterOpen(false)} />
-              )
-            ) : (
+            {isMobile ? null : (
               <AnimatePresence>
                 {controlCenterOpen && (
                   <motion.div
@@ -459,7 +458,10 @@ export function MenuBar() {
           </div>
 
           {/* Notification dots */}
-          <NotificationIndicator />
+          <NotificationIndicator
+            open={isMobile ? notificationOpen : undefined}
+            onToggle={isMobile ? () => setNotificationOpen((p) => !p) : undefined}
+          />
 
           {/* Date/Time */}
           {mounted && (
@@ -496,6 +498,13 @@ export function MenuBar() {
           <ThemeToggle />
         </div>
       </header>
+
+      {isMobile && controlCenterOpen && (
+        <ControlCenterPopup onClose={() => setControlCenterOpen(false)} />
+      )}
+      {isMobile && notificationOpen && (
+        <NotificationCenterPopup onClose={() => setNotificationOpen(false)} />
+      )}
 
       <AnimatePresence>
         {aboutOpen && <AboutOverlay onClose={() => setAboutOpen(false)} />}

@@ -15,11 +15,21 @@ const DOT_COLORS: Record<string, string> = {
   low: 'bg-foreground/30',
 };
 
-export function NotificationIndicator() {
+export function NotificationIndicator({
+  open,
+  onToggle,
+}: {
+  open?: boolean;
+  onToggle?: () => void;
+}) {
   const { engine, ready } = useArunaEngine();
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
   const [unread, setUnread] = useState<SystemNotification[]>([]);
   const ref = useRef<HTMLDivElement>(null);
+
+  const isControlled = open !== undefined && onToggle !== undefined;
+  const isOpen = isControlled ? open : internalOpen;
+  const toggle = isControlled ? onToggle : () => setInternalOpen((p) => !p);
 
   useEffect(() => {
     if (!engine || !ready) return;
@@ -35,15 +45,15 @@ export function NotificationIndicator() {
   }, [engine, ready]);
 
   useEffect(() => {
-    if (!open) return;
+    if (isControlled || !internalOpen) return;
     function handleClick(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
+        setInternalOpen(false);
       }
     }
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
-  }, [open]);
+  }, [internalOpen, isControlled]);
 
   const isMobile = useIsMobile();
   const hasUnread = unread.length > 0;
@@ -53,7 +63,7 @@ export function NotificationIndicator() {
   return (
     <div ref={ref} className="relative">
       <button
-        onClick={() => setOpen((p) => !p)}
+        onClick={() => toggle()}
         className={cn(
           'flex items-center gap-0.5 rounded-md transition-colors',
           isMobile ? 'h-8 w-8 justify-center' : 'h-6 px-1.5 py-0.5',
@@ -83,11 +93,9 @@ export function NotificationIndicator() {
         )}
       </button>
 
-      {isMobile ? (
-        open && <NotificationCenterPopup onClose={() => setOpen(false)} />
-      ) : (
+      {isControlled ? null : (
         <AnimatePresence>
-          {open && (
+          {isOpen && (
             <motion.div
               initial={{ opacity: 0, y: -4, scale: 0.96 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -95,7 +103,7 @@ export function NotificationIndicator() {
               transition={{ duration: 0.12 }}
               className="absolute right-0 top-full z-[9999] mt-1"
             >
-              <NotificationCenterPopup onClose={() => setOpen(false)} />
+              <NotificationCenterPopup onClose={toggle} />
             </motion.div>
           )}
         </AnimatePresence>
