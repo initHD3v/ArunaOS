@@ -1,7 +1,9 @@
 'use client';
 
 import { useEffect, useState, useRef, useMemo } from 'react';
+
 import { cn } from '@/lib/utils';
+import { useIsMobile } from '@/hooks/use-media-query';
 import { useWeatherStore, CONDITION_EMOJI, getCondition } from '@/features/weather/weather.store';
 import type { WeatherState, WeatherActions } from '@/features/weather/weather.store';
 import { WeatherBackground } from '@/features/weather/weather-animations';
@@ -53,9 +55,11 @@ function isNightTime(): boolean {
 
 export function ControlCenterPopup({ onClose }: { onClose: () => void }) {
   const ref = useRef<HTMLDivElement>(null);
+  const isMobile = useIsMobile();
   const [weatherExpanded, setWeatherExpanded] = useState(false);
 
   useEffect(() => {
+    if (isMobile) return;
     function handleClick(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) {
         onClose();
@@ -63,7 +67,7 @@ export function ControlCenterPopup({ onClose }: { onClose: () => void }) {
     }
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
-  }, [onClose]);
+  }, [onClose, isMobile]);
 
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
@@ -78,25 +82,31 @@ export function ControlCenterPopup({ onClose }: { onClose: () => void }) {
     setWeatherExpanded((v) => !v);
   }
 
-  return (
-    <div
-      ref={ref}
-      className={cn(
-        'border-border/30 bg-card/95 overflow-hidden rounded-xl border shadow-xl shadow-black/10 backdrop-blur-2xl transition-all duration-200',
-        weatherExpanded ? 'w-[460px]' : 'w-72',
-      )}
-    >
+  const content = (
+    <>
       {/* Header */}
-      <div className="border-border/20 flex items-center gap-2 border-b px-3 py-2.5">
+      <div className="border-border/20 flex shrink-0 items-center gap-2 border-b px-3 py-2.5">
         <Sliders size={12} className="text-foreground/40" />
         <span className="text-foreground/70 text-[11px] font-medium">Control Center</span>
-        <div className="ml-auto">
-          <EngineStatus />
-        </div>
+        {isMobile && (
+          <button
+            onClick={onClose}
+            className="text-foreground/30 hover:text-foreground/60 ml-auto text-[10px]"
+          >
+            Tutup
+          </button>
+        )}
+        {!isMobile && (
+          <div className="ml-auto">
+            <EngineStatus />
+          </div>
+        )}
       </div>
 
       {/* Content */}
-      <div className="max-h-[80vh] space-y-3 overflow-y-auto p-3">
+      <div
+        className={isMobile ? 'space-y-4 p-4 pb-8' : 'max-h-[80vh] space-y-3 overflow-y-auto p-3'}
+      >
         {/* Weather — clickable to expand */}
         <Section label="Cuaca" onClick={toggleWeather}>
           <WeatherSection expanded={weatherExpanded} />
@@ -132,6 +142,67 @@ export function ControlCenterPopup({ onClose }: { onClose: () => void }) {
           </div>
         </Section>
       </div>
+    </>
+  );
+
+  if (isMobile) {
+    return (
+      <div
+        className="bg-background/95 fixed inset-0 z-[9999] flex flex-col backdrop-blur-2xl"
+        onClick={onClose}
+      >
+        <div
+          className="flex shrink-0 items-center justify-between border-b px-4 py-3"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center gap-2">
+            <Sliders size={16} className="text-foreground/40" />
+            <span className="text-foreground/70 text-xs font-medium">Control Center</span>
+          </div>
+          <button onClick={onClose} className="text-foreground/30 hover:text-foreground/60 text-xs">
+            Tutup
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-4" onClick={(e) => e.stopPropagation()}>
+          <div className="mx-auto max-w-lg space-y-4">
+            <Section label="Cuaca" onClick={toggleWeather}>
+              <WeatherSection expanded={weatherExpanded} />
+            </Section>
+            <Section label="Suasana Hati">
+              <MoodTracker />
+            </Section>
+            <Section label="Tugas">
+              <TaskSummary />
+            </Section>
+            <Section label="Lokasi">
+              <LocationToggle />
+            </Section>
+            <Section label="Widget">
+              <WidgetToggle />
+            </Section>
+            <Section label="Sistem">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <MemoryViewer />
+                </div>
+                <ThemeToggle />
+              </div>
+            </Section>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      ref={ref}
+      className={cn(
+        'border-border/30 bg-card/95 overflow-hidden rounded-xl border shadow-xl shadow-black/10 backdrop-blur-2xl transition-all duration-200',
+        weatherExpanded ? 'w-[460px]' : 'w-72',
+      )}
+    >
+      {content}
     </div>
   );
 }

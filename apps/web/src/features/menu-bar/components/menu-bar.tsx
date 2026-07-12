@@ -348,13 +348,20 @@ export function MenuBar() {
       <header
         className={cn(
           'fixed left-0 right-0 top-0 z-50',
-          isMobile ? 'h-10 px-2' : 'h-8 px-3',
+          isMobile ? 'h-12 px-2' : 'h-8 px-3',
           'flex items-center justify-between',
           'bg-background/30 backdrop-blur-xl',
           'border-border/50 border-b',
           'select-none',
         )}
-        style={isMobile ? { paddingTop: 'env(safe-area-inset-top, 0px)' } : undefined}
+        style={
+          isMobile
+            ? {
+                paddingTop: 'env(safe-area-inset-top, 0px)',
+                height: 'calc(48px + env(safe-area-inset-top, 0px))',
+              }
+            : undefined
+        }
       >
         <div className="flex items-center gap-2">
           {/* Aruna logo */}
@@ -430,19 +437,25 @@ export function MenuBar() {
             >
               <Sliders size={isMobile ? 16 : 12} />
             </button>
-            <AnimatePresence>
-              {controlCenterOpen && (
-                <motion.div
-                  initial={{ opacity: 0, y: -4, scale: 0.96 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -4, scale: 0.96 }}
-                  transition={{ duration: 0.12 }}
-                  className="absolute right-0 top-full z-[9999] mt-1"
-                >
-                  <ControlCenterPopup onClose={() => setControlCenterOpen(false)} />
-                </motion.div>
-              )}
-            </AnimatePresence>
+            {isMobile ? (
+              controlCenterOpen && (
+                <ControlCenterPopup onClose={() => setControlCenterOpen(false)} />
+              )
+            ) : (
+              <AnimatePresence>
+                {controlCenterOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -4, scale: 0.96 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -4, scale: 0.96 }}
+                    transition={{ duration: 0.12 }}
+                    className="absolute right-0 top-full z-[9999] mt-1"
+                  >
+                    <ControlCenterPopup onClose={() => setControlCenterOpen(false)} />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            )}
           </div>
 
           {/* Notification dots */}

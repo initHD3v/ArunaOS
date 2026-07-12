@@ -3,6 +3,7 @@
 import { memo, useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/lib/utils';
+import { useIsMobile } from '@/hooks/use-media-query';
 import { useAuthStore } from '@/stores/auth.store';
 import { useService, useEventBus } from '@/providers/service-provider';
 import type { ThemeService, SettingsService, WallpaperConfig } from '@arunaos/services';
@@ -1035,32 +1036,59 @@ const panelComponents: Record<SettingsTab, React.ElementType> = {
 };
 
 export const Settings = memo(function Settings() {
+  const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = useState<SettingsTab>('general');
   const Panel = panelComponents[activeTab];
 
   return (
-    <div className="bg-background/40 flex h-full">
-      <div className="border-border/20 w-48 shrink-0 overflow-auto border-r p-2">
-        {tabs.map((tab) => {
-          const Icon = tab.icon;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={cn(
-                'flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors',
-                activeTab === tab.id
-                  ? 'bg-muted text-foreground'
-                  : 'text-foreground/60 hover:text-foreground hover:bg-muted/50',
-              )}
-            >
-              <Icon size={16} className="shrink-0" />
-              <span>{tab.label}</span>
-            </button>
-          );
-        })}
-      </div>
-      <div className="flex-1 overflow-auto p-5">
+    <div className="bg-background/40 flex h-full flex-col">
+      {isMobile ? (
+        /* Mobile: horizontal scrollable tabs */
+        <div className="border-border/20 scrollbar-none flex shrink-0 gap-1 overflow-x-auto border-b p-2 pb-0">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={cn(
+                  'flex shrink-0 items-center gap-1.5 rounded-t-lg px-3 py-2 text-xs transition-colors',
+                  isActive
+                    ? 'bg-muted text-foreground border-border/30 border-x border-t'
+                    : 'text-foreground/60 hover:text-foreground hover:bg-muted/30',
+                )}
+              >
+                <Icon size={14} className="shrink-0" />
+                <span className="whitespace-nowrap">{tab.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+        /* Desktop: sidebar tabs */
+        <div className="border-border/20 w-48 shrink-0 overflow-auto border-r p-2">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={cn(
+                  'flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors',
+                  activeTab === tab.id
+                    ? 'bg-muted text-foreground'
+                    : 'text-foreground/60 hover:text-foreground hover:bg-muted/50',
+                )}
+              >
+                <Icon size={16} className="shrink-0" />
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+      <div className={cn('flex-1 overflow-auto', isMobile ? 'p-3' : 'p-5')}>
         <Panel />
       </div>
     </div>

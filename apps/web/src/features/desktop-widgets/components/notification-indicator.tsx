@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { cn } from '@/lib/utils';
+import { useIsMobile } from '@/hooks/use-media-query';
 import { useArunaEngine } from '@/features/engine/engine-context';
 import type { SystemNotification } from '@arunaos/engine';
 import { NotificationCenterPopup } from './notification-center';
@@ -44,6 +45,7 @@ export function NotificationIndicator() {
     return () => document.removeEventListener('mousedown', handleClick);
   }, [open]);
 
+  const isMobile = useIsMobile();
   const hasUnread = unread.length > 0;
   const showDots = unread.slice(0, 4);
   const extra = unread.length - showDots.length;
@@ -53,7 +55,8 @@ export function NotificationIndicator() {
       <button
         onClick={() => setOpen((p) => !p)}
         className={cn(
-          'flex h-6 items-center gap-0.5 rounded-md px-1.5 py-0.5 transition-colors',
+          'flex items-center gap-0.5 rounded-md transition-colors',
+          isMobile ? 'h-8 w-8 justify-center' : 'h-6 px-1.5 py-0.5',
           open
             ? 'bg-muted text-foreground'
             : 'text-foreground/60 hover:text-foreground hover:bg-muted/50',
@@ -80,19 +83,23 @@ export function NotificationIndicator() {
         )}
       </button>
 
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ opacity: 0, y: -4, scale: 0.96 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -4, scale: 0.96 }}
-            transition={{ duration: 0.12 }}
-            className="absolute right-0 top-full z-[9999] mt-1"
-          >
-            <NotificationCenterPopup onClose={() => setOpen(false)} />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {isMobile ? (
+        open && <NotificationCenterPopup onClose={() => setOpen(false)} />
+      ) : (
+        <AnimatePresence>
+          {open && (
+            <motion.div
+              initial={{ opacity: 0, y: -4, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -4, scale: 0.96 }}
+              transition={{ duration: 0.12 }}
+              className="absolute right-0 top-full z-[9999] mt-1"
+            >
+              <NotificationCenterPopup onClose={() => setOpen(false)} />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      )}
     </div>
   );
 }

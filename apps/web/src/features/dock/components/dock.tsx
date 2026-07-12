@@ -93,6 +93,8 @@ export function Dock() {
 
       const vw = window.innerWidth;
       const vh = window.innerHeight;
+      const APP_PAD = 8;
+      const MENUBAR_HEIGHT = 44;
       const id = `dock-${appId}-${Date.now()}`;
 
       const defaults: Record<
@@ -114,22 +116,19 @@ export function Dock() {
         size: { width: 640, height: 480 },
       };
 
-      const isMobile = vw < 768;
-      const MENUBAR_HEIGHT = 44;
-      const DOCK_HEIGHT = 64;
+      // Always clamp to viewport — same behaviour on all devices
+      const winWidth = Math.min(cfg.size.width, vw - APP_PAD * 2);
+      const winHeight = Math.min(cfg.size.height, vh - MENUBAR_HEIGHT - APP_PAD);
+      const winX = Math.round((vw - winWidth) / 2);
+      const winY = MENUBAR_HEIGHT + Math.round((vh - MENUBAR_HEIGHT - winHeight) / 2);
 
       openWindow({
         id,
         title: cfg.title,
         icon: cfg.icon,
         appId: appId === 'finder' ? 'files' : appId,
-        position: isMobile
-          ? { x: 0, y: MENUBAR_HEIGHT }
-          : {
-              x: Math.max(40, (vw - cfg.size.width) / 2 + (Math.random() - 0.5) * 80),
-              y: Math.max(40, (vh - cfg.size.height) / 2 + (Math.random() - 0.5) * 40),
-            },
-        size: isMobile ? { width: vw, height: vh - MENUBAR_HEIGHT - DOCK_HEIGHT } : cfg.size,
+        position: { x: winX, y: winY },
+        size: { width: winWidth, height: winHeight },
         zIndex: 1,
         state: 'active',
       });

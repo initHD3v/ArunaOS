@@ -13,36 +13,27 @@ import { cn } from '@/lib/utils';
 import type { DesktopIconData } from '@/types';
 
 function createWindowFromIcon(data: DesktopIconData) {
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const APP_PAD = 8;
+  const MENUBAR_HEIGHT = 44;
+  const D_W = 960;
+  const D_H = 640;
   const id = `window-${data.id}-${Date.now()}`;
-  const viewportWidth = window.innerWidth;
-  const viewportHeight = window.innerHeight;
-  const isMobile = viewportWidth < 768;
 
-  if (isMobile) {
-    const MENUBAR_HEIGHT = 44;
-    const DOCK_HEIGHT = 64;
-    return {
-      id,
-      title: data.title,
-      icon: data.icon,
-      appId: data.appId,
-      position: { x: 0, y: MENUBAR_HEIGHT },
-      size: { width: viewportWidth, height: viewportHeight - MENUBAR_HEIGHT - DOCK_HEIGHT },
-      zIndex: 1,
-      state: 'active' as const,
-    };
-  }
+  // Always clamp to viewport — same behaviour on all devices
+  const winWidth = Math.min(D_W, vw - APP_PAD * 2);
+  const winHeight = Math.min(D_H, vh - MENUBAR_HEIGHT - APP_PAD);
+  const winX = Math.round((vw - winWidth) / 2);
+  const winY = MENUBAR_HEIGHT + Math.round((vh - MENUBAR_HEIGHT - winHeight) / 2);
 
   return {
     id,
     title: data.title,
     icon: data.icon,
     appId: data.appId,
-    position: {
-      x: Math.max(40, (viewportWidth - 960) / 2 + Math.random() * 80),
-      y: Math.max(40, (viewportHeight - 640) / 2 + Math.random() * 40),
-    },
-    size: { width: 960, height: 640 },
+    position: { x: winX, y: winY },
+    size: { width: winWidth, height: winHeight },
     zIndex: 1,
     state: 'active' as const,
   };

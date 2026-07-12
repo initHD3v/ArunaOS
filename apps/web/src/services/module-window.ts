@@ -47,29 +47,18 @@ export class ModuleWindowService {
       resizable?: boolean;
       titleBar?: boolean;
     } = manifest.window ?? {};
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
-
-    const isMobile = viewportWidth < 768;
-
-    // On mobile, fit window between menu bar and dock
+    const dWidth = winConfig.defaultWidth ?? 640;
+    const dHeight = winConfig.defaultHeight ?? 480;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const APP_PAD = 8;
     const MENUBAR_HEIGHT = 44;
-    const DOCK_HEIGHT = 64;
 
-    let dWidth = winConfig.defaultWidth ?? 640;
-    let dHeight = winConfig.defaultHeight ?? 480;
-    let posX: number;
-    let posY: number;
-
-    if (isMobile) {
-      dWidth = viewportWidth;
-      dHeight = viewportHeight - MENUBAR_HEIGHT - DOCK_HEIGHT;
-      posX = 0;
-      posY = MENUBAR_HEIGHT;
-    } else {
-      posX = Math.max(20, (viewportWidth - dWidth) / 2 + (Math.random() - 0.5) * 60);
-      posY = Math.max(20, (viewportHeight - dHeight) / 2 + (Math.random() - 0.5) * 30);
-    }
+    // Always clamp to viewport — same behaviour on all devices
+    const winWidth = Math.min(dWidth, vw - APP_PAD * 2);
+    const winHeight = Math.min(dHeight, vh - MENUBAR_HEIGHT - APP_PAD);
+    const winX = Math.round((vw - winWidth) / 2);
+    const winY = MENUBAR_HEIGHT + Math.round((vh - MENUBAR_HEIGHT - winHeight) / 2);
 
     const windowId = `module-${moduleId}-${Date.now()}`;
 
@@ -81,8 +70,8 @@ export class ModuleWindowService {
       title: manifest.name,
       icon: manifest.icon,
       appId,
-      position: { x: posX, y: posY },
-      size: { width: dWidth, height: dHeight },
+      position: { x: winX, y: winY },
+      size: { width: winWidth, height: winHeight },
       zIndex: 1,
       state: 'active',
       appData: params,

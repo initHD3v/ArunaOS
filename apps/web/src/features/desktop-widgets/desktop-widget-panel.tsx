@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { cn } from '@/lib/utils';
+import { useIsMobile } from '@/hooks/use-media-query';
 import { getTimeEmoji, useArunaHomeStore } from './stores/aruna-home.store';
 import { useArunaEngine } from '@/features/engine/engine-context';
 import { useWidgetPanelStore } from './stores/widget-panel.store';
@@ -28,6 +29,7 @@ const STATUS_DOT: Record<string, string> = {
 };
 
 export function DesktopWidgetPanel() {
+  const isMobile = useIsMobile();
   const checkAndReset = useArunaHomeStore((s) => s.checkAndReset);
   const { status } = useArunaEngine();
 
@@ -56,21 +58,35 @@ export function DesktopWidgetPanel() {
     return () => window.removeEventListener('keydown', handler);
   }, [toggle]);
 
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    if (!panelRef.current) return;
-    const rect = panelRef.current.getBoundingClientRect();
-    dragRef.current = { startX: e.clientX, startY: e.clientY, origX: rect.left, origY: rect.top };
+  const startDrag = useCallback((clientX: number, clientY: number) => {
+    const el = panelRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    dragRef.current = { startX: clientX, startY: clientY, origX: rect.left, origY: rect.top };
     setDragging(true);
   }, []);
 
+  const handlePointerDown = useCallback(
+    (e: React.MouseEvent | React.TouchEvent) => {
+      if (isMobile) return;
+      if ('touches' in e) {
+        const t = e.touches[0]!;
+        startDrag(t.clientX, t.clientY);
+      } else {
+        startDrag(e.clientX, e.clientY);
+      }
+    },
+    [isMobile, startDrag],
+  );
+
   useEffect(() => {
     if (!dragging || !dragRef.current) return;
-    function onMove(e: MouseEvent) {
-      if (!dragRef.current) return;
-      setPosition(
-        dragRef.current.origX + e.clientX - dragRef.current.startX,
-        dragRef.current.origY + e.clientY - dragRef.current.startY,
-      );
+    function onMove(e: MouseEvent | TouchEvent) {
+      const d = dragRef.current;
+      if (!d) return;
+      const cx = 'touches' in e ? e.touches[0]!.clientX : e.clientX;
+      const cy = 'touches' in e ? e.touches[0]!.clientY : e.clientY;
+      setPosition(d.origX + cx - d.startX, d.origY + cy - d.startY);
     }
     function onUp() {
       setDragging(false);
@@ -78,39 +94,31 @@ export function DesktopWidgetPanel() {
     }
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
+    window.addEventListener('touchmove', onMove);
+    window.addEventListener('touchend', onUp);
     return () => {
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
+      window.removeEventListener('touchmove', onMove);
+      window.removeEventListener('touchend', onUp);
     };
   }, [dragging, setPosition]);
 
   if (!visible) return null;
 
-  return (
-    <motion.div
-      ref={panelRef}
-      initial={{ opacity: 0, x: 20 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: 20 }}
-      transition={{ duration: 0.25, ease: 'easeOut' }}
-      style={{
-        position: 'fixed',
-        left: position.x || undefined,
-        right: position.x ? undefined : 20,
-        top: position.y || 56,
-        width,
-      }}
-      className="z-50 flex select-none flex-col gap-2"
-    >
+  const panelContent = (
+    <>
       {/* Header */}
       <motion.div
         layout
-        onMouseDown={handleMouseDown}
+        onMouseDown={handlePointerDown}
+        onTouchStart={handlePointerDown}
         className={cn(
-          'bg-card/60 rounded-xl border p-4 backdrop-blur-xl',
+          'rounded-xl border p-4 backdrop-blur-xl',
           'border-border/30 shadow-sm',
           'transition-shadow duration-200',
-          dragging ? 'cursor-grabbing shadow-md' : 'cursor-grab',
+          isMobile ? 'bg-background/95' : 'bg-card/60',
+          !isMobile && (dragging ? 'cursor-grabbing shadow-md' : 'cursor-grab'),
         )}
       >
         {/* Row 1: emoji + date + actions */}
@@ -187,6 +195,54 @@ export function DesktopWidgetPanel() {
           </motion.div>
         )}
       </AnimatePresence>
+    </>
+  );
+
+  if (isMobile) {
+    return (
+      <div
+        className="bg-background/95 fixed inset-0 z-50 flex flex-col backdrop-blur-2xl"
+        onClick={toggle}
+      >
+        <div
+          className="flex shrink-0 items-center justify-between border-b px-4 py-3"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <span className="text-foreground/70 text-xs font-medium">Widget Panel</span>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              toggle();
+            }}
+            className="text-foreground/30 hover:text-foreground/60 text-xs"
+          >
+            Tutup
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-4" onClick={(e) => e.stopPropagation()}>
+          <div className="mx-auto max-w-lg">{panelContent}</div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <motion.div
+      ref={panelRef}
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: 20 }}
+      transition={{ duration: 0.25, ease: 'easeOut' }}
+      style={{
+        position: 'fixed',
+        left: position.x || undefined,
+        right: position.x ? undefined : 20,
+        top: position.y || 56,
+        width,
+      }}
+      className="z-50 flex select-none flex-col gap-2"
+    >
+      {panelContent}
     </motion.div>
   );
 }

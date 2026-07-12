@@ -66,7 +66,7 @@ export const Window = memo(function Window({ data }: WindowProps) {
       if ('touches' in e) e.preventDefault();
       focusWindow(data.id);
       const el = winRef.current;
-      if (!el || isMobile) return;
+      if (!el) return;
 
       const rect = el.getBoundingClientRect();
       const start = getStartPos(e);
@@ -78,6 +78,8 @@ export const Window = memo(function Window({ data }: WindowProps) {
       const startX = start.x;
       const startY = start.y;
 
+      const MENUBAR_HEIGHT = 44;
+
       const onMove = (ev: MouseEvent | TouchEvent) => {
         const pos = getPos(ev);
 
@@ -88,7 +90,8 @@ export const Window = memo(function Window({ data }: WindowProps) {
 
         cancelAnimationFrame(rafId.current);
         rafId.current = requestAnimationFrame(() => {
-          el.style.transform = `translate(${pos.x - offsetX - baseX}px, ${pos.y - offsetY - baseY}px)`;
+          const newY = Math.max(MENUBAR_HEIGHT, pos.y - offsetY);
+          el.style.transform = `translate(${pos.x - offsetX - baseX}px, ${newY - baseY}px)`;
         });
       };
 
@@ -97,7 +100,8 @@ export const Window = memo(function Window({ data }: WindowProps) {
         if (isDragging) {
           const end = getEndPos(ev);
           el.style.transform = '';
-          moveWindow(data.id, { x: end.x - offsetX, y: end.y - offsetY });
+          const clampedY = Math.max(MENUBAR_HEIGHT, end.y - offsetY);
+          moveWindow(data.id, { x: end.x - offsetX, y: clampedY });
         }
         document.removeEventListener('mousemove', onMove);
         document.removeEventListener('mouseup', onUp);
@@ -126,18 +130,16 @@ export const Window = memo(function Window({ data }: WindowProps) {
   );
 
   const handleTitleDoubleClick = useCallback(() => {
-    if (isMobile) return;
     if (data.state === 'maximized') {
       restoreWindow(data.id);
     } else {
       maximizeWindow(data.id);
     }
-  }, [data.id, data.state, maximizeWindow, restoreWindow, isMobile]);
+  }, [data.id, data.state, maximizeWindow, restoreWindow]);
 
   const handleResizeStart = useCallback(
     (e: React.MouseEvent | React.TouchEvent) => {
       e.stopPropagation();
-      if (isMobile) return;
       const el = winRef.current;
       if (!el) return;
 
@@ -180,7 +182,6 @@ export const Window = memo(function Window({ data }: WindowProps) {
   const handleBottomResize = useCallback(
     (e: React.MouseEvent | React.TouchEvent) => {
       e.stopPropagation();
-      if (isMobile) return;
       const el = winRef.current;
       if (!el) return;
       const start = getStartPos(e);
@@ -215,7 +216,6 @@ export const Window = memo(function Window({ data }: WindowProps) {
   const handleRightResize = useCallback(
     (e: React.MouseEvent | React.TouchEvent) => {
       e.stopPropagation();
-      if (isMobile) return;
       const el = winRef.current;
       if (!el) return;
       const start = getStartPos(e);
@@ -268,16 +268,16 @@ export const Window = memo(function Window({ data }: WindowProps) {
           onMouseDown={() => focusWindow(data.id)}
           onTouchStart={() => focusWindow(data.id)}
           style={{
-            left: isMobile ? 0 : data.position.x,
-            top: isMobile ? 0 : data.position.y,
-            width: isMobile ? '100%' : data.size.width,
-            height: isMobile ? '100%' : data.size.height,
+            left: data.position.x,
+            top: data.position.y,
+            width: data.size.width,
+            height: data.size.height,
             zIndex: data.zIndex,
           }}
           className={cn(
             'fixed flex flex-col overflow-hidden',
             'bg-card/80 border shadow-xl backdrop-blur-2xl',
-            isMaximized || isMobile ? 'rounded-none border-0' : 'border-border/60 rounded-xl',
+            isMaximized ? 'rounded-none border-0' : 'border-border/60 rounded-xl',
             isFocused ? 'shadow-black/10' : 'shadow-black/5',
           )}
           role="dialog"
@@ -380,7 +380,7 @@ export const Window = memo(function Window({ data }: WindowProps) {
               ))}
           </div>
 
-          {!isMaximized && !isMobile && (
+          {!isMaximized && (
             <>
               <div
                 onMouseDown={handleResizeStart}

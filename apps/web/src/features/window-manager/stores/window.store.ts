@@ -107,17 +107,14 @@ export const useWindowStore = create<WindowStore>()(
 
           const vw = window.innerWidth;
           const vh = window.innerHeight;
-          const isMobile = vw < 768;
-          const menubarH = isMobile ? 44 : 0;
-          const dockH = isMobile ? 64 : 0;
           return {
             windows: {
               ...s.windows,
               [id]: {
                 ...target,
                 state: 'maximized' as WindowState,
-                position: { x: 0, y: menubarH },
-                size: { width: vw, height: vh - menubarH - dockH },
+                position: { x: 0, y: 0 },
+                size: { width: vw, height: vh },
                 zIndex: s.nextZIndex,
               },
             },
