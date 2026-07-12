@@ -200,27 +200,26 @@ export function DesktopWidgetPanel() {
 
   if (isMobile) {
     return (
-      <div
-        className="bg-background/95 fixed inset-0 z-50 flex flex-col backdrop-blur-2xl"
-        onClick={toggle}
-      >
-        <div
-          className="flex shrink-0 items-center justify-between border-b px-4 py-3"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <span className="text-foreground/70 text-xs font-medium">Widget Panel</span>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              toggle();
-            }}
-            className="text-foreground/30 hover:text-foreground/60 text-xs"
+      <div className="fixed inset-0 z-50">
+        <div className="bg-background/95 flex h-full flex-col backdrop-blur-2xl">
+          <div
+            className="flex shrink-0 items-center justify-between border-b px-4 py-3"
+            onClick={(e) => e.stopPropagation()}
           >
-            Tutup
-          </button>
-        </div>
-        <div className="flex-1 overflow-y-auto p-4" onClick={(e) => e.stopPropagation()}>
-          <div className="mx-auto max-w-lg">{panelContent}</div>
+            <span className="text-foreground/70 text-xs font-medium">Widget Panel</span>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                toggle();
+              }}
+              className="text-foreground/30 hover:text-foreground/60 text-xs"
+            >
+              Tutup
+            </button>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto p-4" onClick={(e) => e.stopPropagation()}>
+            <div className="mx-auto max-w-lg">{panelContent}</div>
+          </div>
         </div>
       </div>
     );

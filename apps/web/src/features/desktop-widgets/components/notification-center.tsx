@@ -221,122 +221,126 @@ export function NotificationCenterPopup({ onClose }: { onClose: () => void }) {
 
   if (isMobile) {
     return (
-      <div
-        className="bg-background/95 fixed inset-0 z-[9999] flex flex-col backdrop-blur-2xl"
-        onClick={onClose}
-      >
-        <div
-          className="flex shrink-0 items-center justify-between border-b px-4 py-3"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="flex items-center gap-2">
-            <Bell size={16} className="text-foreground/40" />
-            <span className="text-foreground/70 text-xs font-medium">Notifikasi</span>
-            {totalUnread > 0 && (
-              <span className="bg-danger/70 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[8px] font-medium text-white">
-                {totalUnread}
-              </span>
-            )}
-          </div>
-          <button onClick={onClose} className="text-foreground/30 hover:text-foreground/60 text-xs">
-            Tutup
-          </button>
-        </div>
-        <div className="flex-1 overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-          <div className="mx-auto max-w-lg">
-            {notifications.length === 0 ? (
-              <div className="text-foreground/20 flex flex-col items-center gap-2 py-16">
-                <BellOff size={24} />
-                <p className="text-xs">Tidak ada notifikasi</p>
-              </div>
-            ) : (
-              <div className="divide-border/10 divide-y">
-                {grouped.map((g) => {
-                  const expanded = expandedSources.has(g.source);
-                  const unreadCount = g.notifications.filter((n) => !n.read).length;
-                  return (
-                    <div key={g.source}>
-                      <button
-                        onClick={() => toggleGroup(g.source)}
-                        className="hover:bg-muted/30 flex w-full items-center gap-2 px-4 py-3 text-left transition-colors"
-                      >
-                        {expanded ? (
-                          <ChevronDown size={12} className="text-foreground/30" />
-                        ) : (
-                          <ChevronRight size={12} className="text-foreground/30" />
-                        )}
-                        <span className="text-foreground/60 flex-1 text-xs font-medium">
-                          {g.source}
-                        </span>
-                        {unreadCount > 0 && (
-                          <span className="bg-primary/20 text-primary flex h-4 min-w-4 items-center justify-center rounded-full px-1.5 text-[8px] font-medium">
-                            {unreadCount}
-                          </span>
-                        )}
-                        <span className="text-foreground/20 text-[10px]">
-                          {g.notifications.length}
-                        </span>
-                      </button>
-                      {expanded && (
-                        <div className="space-y-1 px-4 pb-3">
-                          {g.notifications.map((n) => (
-                            <div
-                              key={n.id}
-                              className={cn(
-                                'flex items-start gap-2 rounded-lg border-l-2 px-3 py-2 transition-colors',
-                                PRIORITY_COLORS[n.priority] ?? 'border-l-transparent',
-                                !n.read ? 'bg-muted/40' : '',
-                              )}
-                            >
-                              <span
-                                className={cn(
-                                  'mt-1 h-1.5 w-1.5 shrink-0 rounded-full',
-                                  PRIORITY_DOT[n.priority],
-                                )}
-                              />
-                              <div className="min-w-0 flex-1">
-                                <div className="flex items-center gap-1">
-                                  <p className="text-foreground/70 truncate text-xs font-medium">
-                                    {n.title}
-                                  </p>
-                                  <span className="text-foreground/20 ml-auto shrink-0 text-[8px]">
-                                    {formatTime(n.timestamp)}
-                                  </span>
-                                </div>
-                                <p className="text-foreground/40 truncate text-[10px]">{n.body}</p>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </div>
-        {notifications.length > 0 && (
+      <div className="fixed inset-0 z-[9999]">
+        <div className="bg-background/95 flex h-full flex-col backdrop-blur-2xl">
           <div
-            className="flex shrink-0 items-center gap-2 border-t px-4 py-3"
+            className="flex shrink-0 items-center justify-between border-b px-4 py-3"
             onClick={(e) => e.stopPropagation()}
           >
+            <div className="flex items-center gap-2">
+              <Bell size={16} className="text-foreground/40" />
+              <span className="text-foreground/70 text-xs font-medium">Notifikasi</span>
+              {totalUnread > 0 && (
+                <span className="bg-danger/70 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[8px] font-medium text-white">
+                  {totalUnread}
+                </span>
+              )}
+            </div>
             <button
-              onClick={markAllRead}
-              className="text-foreground/30 hover:text-foreground/60 hover:bg-muted flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs transition-colors"
+              onClick={onClose}
+              className="text-foreground/30 hover:text-foreground/60 text-xs"
             >
-              <Trash2 size={12} />
-              Tandai dibaca
-            </button>
-            <button
-              onClick={clearNotifs}
-              className="text-foreground/30 hover:text-danger/60 hover:bg-danger/10 ml-auto flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs transition-colors"
-            >
-              <BellOff size={12} />
-              Kosongkan
+              Tutup
             </button>
           </div>
-        )}
+          <div className="min-h-0 flex-1 overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="mx-auto max-w-lg">
+              {notifications.length === 0 ? (
+                <div className="text-foreground/20 flex flex-col items-center gap-2 py-16">
+                  <BellOff size={24} />
+                  <p className="text-xs">Tidak ada notifikasi</p>
+                </div>
+              ) : (
+                <div className="divide-border/10 divide-y">
+                  {grouped.map((g) => {
+                    const expanded = expandedSources.has(g.source);
+                    const unreadCount = g.notifications.filter((n) => !n.read).length;
+                    return (
+                      <div key={g.source}>
+                        <button
+                          onClick={() => toggleGroup(g.source)}
+                          className="hover:bg-muted/30 flex w-full items-center gap-2 px-4 py-3 text-left transition-colors"
+                        >
+                          {expanded ? (
+                            <ChevronDown size={12} className="text-foreground/30" />
+                          ) : (
+                            <ChevronRight size={12} className="text-foreground/30" />
+                          )}
+                          <span className="text-foreground/60 flex-1 text-xs font-medium">
+                            {g.source}
+                          </span>
+                          {unreadCount > 0 && (
+                            <span className="bg-primary/20 text-primary flex h-4 min-w-4 items-center justify-center rounded-full px-1.5 text-[8px] font-medium">
+                              {unreadCount}
+                            </span>
+                          )}
+                          <span className="text-foreground/20 text-[10px]">
+                            {g.notifications.length}
+                          </span>
+                        </button>
+                        {expanded && (
+                          <div className="space-y-1 px-4 pb-3">
+                            {g.notifications.map((n) => (
+                              <div
+                                key={n.id}
+                                className={cn(
+                                  'flex items-start gap-2 rounded-lg border-l-2 px-3 py-2 transition-colors',
+                                  PRIORITY_COLORS[n.priority] ?? 'border-l-transparent',
+                                  !n.read ? 'bg-muted/40' : '',
+                                )}
+                              >
+                                <span
+                                  className={cn(
+                                    'mt-1 h-1.5 w-1.5 shrink-0 rounded-full',
+                                    PRIORITY_DOT[n.priority],
+                                  )}
+                                />
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-1">
+                                    <p className="text-foreground/70 truncate text-xs font-medium">
+                                      {n.title}
+                                    </p>
+                                    <span className="text-foreground/20 ml-auto shrink-0 text-[8px]">
+                                      {formatTime(n.timestamp)}
+                                    </span>
+                                  </div>
+                                  <p className="text-foreground/40 truncate text-[10px]">
+                                    {n.body}
+                                  </p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+          {notifications.length > 0 && (
+            <div
+              className="flex shrink-0 items-center gap-2 border-t px-4 py-3"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                onClick={markAllRead}
+                className="text-foreground/30 hover:text-foreground/60 hover:bg-muted flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs transition-colors"
+              >
+                <Trash2 size={12} />
+                Tandai dibaca
+              </button>
+              <button
+                onClick={clearNotifs}
+                className="text-foreground/30 hover:text-danger/60 hover:bg-danger/10 ml-auto flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs transition-colors"
+              >
+                <BellOff size={12} />
+                Kosongkan
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     );
   }

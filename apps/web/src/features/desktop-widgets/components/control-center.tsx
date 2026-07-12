@@ -147,47 +147,51 @@ export function ControlCenterPopup({ onClose }: { onClose: () => void }) {
 
   if (isMobile) {
     return (
-      <div
-        className="bg-background/95 fixed inset-0 z-[9999] flex flex-col backdrop-blur-2xl"
-        onClick={onClose}
-      >
-        <div
-          className="flex shrink-0 items-center justify-between border-b px-4 py-3"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="flex items-center gap-2">
-            <Sliders size={16} className="text-foreground/40" />
-            <span className="text-foreground/70 text-xs font-medium">Control Center</span>
+      <div className="fixed inset-0 z-[9999]">
+        <div className="bg-background/95 flex h-full flex-col backdrop-blur-2xl">
+          <div
+            className="flex shrink-0 items-center justify-between border-b px-4 py-3"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-2">
+              <Sliders size={16} className="text-foreground/40" />
+              <span className="text-foreground/70 text-xs font-medium">Control Center</span>
+            </div>
+            <button
+              onClick={onClose}
+              className="text-foreground/30 hover:text-foreground/60 text-xs"
+            >
+              Tutup
+            </button>
           </div>
-          <button onClick={onClose} className="text-foreground/30 hover:text-foreground/60 text-xs">
-            Tutup
-          </button>
-        </div>
-        <div className="flex-1 overflow-y-auto p-4" onClick={(e) => e.stopPropagation()}>
-          <div className="mx-auto max-w-lg space-y-4">
-            <Section label="Cuaca" onClick={toggleWeather}>
-              <WeatherSection expanded={weatherExpanded} />
-            </Section>
-            <Section label="Suasana Hati">
-              <MoodTracker />
-            </Section>
-            <Section label="Tugas">
-              <TaskSummary />
-            </Section>
-            <Section label="Lokasi">
-              <LocationToggle />
-            </Section>
-            <Section label="Widget">
-              <WidgetToggle />
-            </Section>
-            <Section label="Sistem">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <MemoryViewer />
-                </div>
-                <ThemeToggle />
+          <div className="min-h-0 flex-1 overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="p-4">
+              <div className="mx-auto max-w-lg space-y-4">
+                <Section label="Cuaca" onClick={toggleWeather}>
+                  <WeatherSection expanded={weatherExpanded} />
+                </Section>
+                <Section label="Suasana Hati">
+                  <MoodTracker />
+                </Section>
+                <Section label="Tugas">
+                  <TaskSummary />
+                </Section>
+                <Section label="Lokasi">
+                  <LocationToggle />
+                </Section>
+                <Section label="Widget">
+                  <WidgetToggle />
+                </Section>
+                <Section label="Sistem">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <MemoryViewer />
+                    </div>
+                    <ThemeToggle />
+                  </div>
+                </Section>
               </div>
-            </Section>
+            </div>
           </div>
         </div>
       </div>

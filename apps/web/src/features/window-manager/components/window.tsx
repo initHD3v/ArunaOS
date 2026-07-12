@@ -100,8 +100,9 @@ export const Window = memo(function Window({ data }: WindowProps) {
         if (isDragging) {
           const end = getEndPos(ev);
           el.style.transform = '';
+          const clampedX = Math.max(0, end.x - offsetX);
           const clampedY = Math.max(MENUBAR_HEIGHT, end.y - offsetY);
-          moveWindow(data.id, { x: end.x - offsetX, y: clampedY });
+          moveWindow(data.id, { x: clampedX, y: clampedY });
         }
         document.removeEventListener('mousemove', onMove);
         document.removeEventListener('mouseup', onUp);
@@ -137,6 +138,16 @@ export const Window = memo(function Window({ data }: WindowProps) {
     }
   }, [data.id, data.state, maximizeWindow, restoreWindow]);
 
+  function clampSize(w: number, h: number) {
+    const MENUBAR_HEIGHT = 44;
+    const maxW = window.innerWidth;
+    const maxH = window.innerHeight - MENUBAR_HEIGHT;
+    return {
+      width: Math.min(maxW, Math.max(320, w)),
+      height: Math.min(maxH, Math.max(240, h)),
+    };
+  }
+
   const handleResizeStart = useCallback(
     (e: React.MouseEvent | React.TouchEvent) => {
       e.stopPropagation();
@@ -149,22 +160,16 @@ export const Window = memo(function Window({ data }: WindowProps) {
 
       const onMove = (ev: MouseEvent | TouchEvent) => {
         const pos = getPos(ev);
-        const dw = pos.x - start.x;
-        const dh = pos.y - start.y;
-        el.style.width = `${Math.max(320, startW + dw)}px`;
-        el.style.height = `${Math.max(240, startH + dh)}px`;
+        const { width, height } = clampSize(startW + pos.x - start.x, startH + pos.y - start.y);
+        el.style.width = `${width}px`;
+        el.style.height = `${height}px`;
       };
 
       const onUp = (ev: MouseEvent | TouchEvent) => {
         const end = getEndPos(ev);
-        const dw = end.x - start.x;
-        const dh = end.y - start.y;
         el.style.width = '';
         el.style.height = '';
-        resizeWindow(data.id, {
-          width: Math.max(320, startW + dw),
-          height: Math.max(240, startH + dh),
-        });
+        resizeWindow(data.id, clampSize(startW + end.x - start.x, startH + end.y - start.y));
         document.removeEventListener('mousemove', onMove);
         document.removeEventListener('mouseup', onUp);
         document.removeEventListener('touchmove', onMove);
@@ -189,16 +194,14 @@ export const Window = memo(function Window({ data }: WindowProps) {
 
       const onMove = (ev: MouseEvent | TouchEvent) => {
         const pos = getPos(ev);
-        el.style.height = `${Math.max(240, startH + pos.y - start.y)}px`;
+        const { height } = clampSize(data.size.width, startH + pos.y - start.y);
+        el.style.height = `${height}px`;
       };
 
       const onUp = (ev: MouseEvent | TouchEvent) => {
         const end = getEndPos(ev);
         el.style.height = '';
-        resizeWindow(data.id, {
-          width: data.size.width,
-          height: Math.max(240, startH + end.y - start.y),
-        });
+        resizeWindow(data.id, clampSize(data.size.width, startH + end.y - start.y));
         document.removeEventListener('mousemove', onMove);
         document.removeEventListener('mouseup', onUp);
         document.removeEventListener('touchmove', onMove);
@@ -223,16 +226,14 @@ export const Window = memo(function Window({ data }: WindowProps) {
 
       const onMove = (ev: MouseEvent | TouchEvent) => {
         const pos = getPos(ev);
-        el.style.width = `${Math.max(320, startW + pos.x - start.x)}px`;
+        const { width } = clampSize(startW + pos.x - start.x, data.size.height);
+        el.style.width = `${width}px`;
       };
 
       const onUp = (ev: MouseEvent | TouchEvent) => {
         const end = getEndPos(ev);
         el.style.width = '';
-        resizeWindow(data.id, {
-          width: Math.max(320, startW + end.x - start.x),
-          height: data.size.height,
-        });
+        resizeWindow(data.id, clampSize(startW + end.x - start.x, data.size.height));
         document.removeEventListener('mousemove', onMove);
         document.removeEventListener('mouseup', onUp);
         document.removeEventListener('touchmove', onMove);

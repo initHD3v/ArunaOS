@@ -105,6 +105,7 @@ export const useWindowStore = create<WindowStore>()(
             };
           }
 
+          const MENUBAR_HEIGHT = 44;
           const vw = window.innerWidth;
           const vh = window.innerHeight;
           return {
@@ -113,8 +114,8 @@ export const useWindowStore = create<WindowStore>()(
               [id]: {
                 ...target,
                 state: 'maximized' as WindowState,
-                position: { x: 0, y: 0 },
-                size: { width: vw, height: vh },
+                position: { x: 0, y: MENUBAR_HEIGHT },
+                size: { width: vw, height: vh - MENUBAR_HEIGHT },
                 zIndex: s.nextZIndex,
               },
             },
