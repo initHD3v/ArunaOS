@@ -52,15 +52,23 @@ export class ModuleWindowService {
 
     const isMobile = viewportWidth < 768;
 
+    // On mobile, fit window between menu bar and dock
+    const MENUBAR_HEIGHT = 44;
+    const DOCK_HEIGHT = 64;
+
     let dWidth = winConfig.defaultWidth ?? 640;
     let dHeight = winConfig.defaultHeight ?? 480;
+    let posX: number;
+    let posY: number;
 
-    // On mobile, use full screen or reasonable defaults
     if (isMobile) {
-      const safeBottom = 0;
-      const safeTop = 0;
       dWidth = viewportWidth;
-      dHeight = viewportHeight - safeTop - safeBottom;
+      dHeight = viewportHeight - MENUBAR_HEIGHT - DOCK_HEIGHT;
+      posX = 0;
+      posY = MENUBAR_HEIGHT;
+    } else {
+      posX = Math.max(20, (viewportWidth - dWidth) / 2 + (Math.random() - 0.5) * 60);
+      posY = Math.max(20, (viewportHeight - dHeight) / 2 + (Math.random() - 0.5) * 30);
     }
 
     const windowId = `module-${moduleId}-${Date.now()}`;
@@ -73,15 +81,10 @@ export class ModuleWindowService {
       title: manifest.name,
       icon: manifest.icon,
       appId,
-      position: isMobile
-        ? { x: 0, y: 0 }
-        : {
-            x: Math.max(20, (viewportWidth - dWidth) / 2 + (Math.random() - 0.5) * 60),
-            y: Math.max(20, (viewportHeight - dHeight) / 2 + (Math.random() - 0.5) * 30),
-          },
+      position: { x: posX, y: posY },
       size: { width: dWidth, height: dHeight },
       zIndex: 1,
-      state: isMobile ? 'maximized' : 'active',
+      state: 'active',
       appData: params,
     });
 

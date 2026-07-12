@@ -105,19 +105,19 @@ export const useWindowStore = create<WindowStore>()(
             };
           }
 
-          const isMobile = window.innerWidth < 768;
-          const safeTop = isMobile ? 0 : 0;
-          const safeBottom = isMobile ? 0 : 0;
           const vw = window.innerWidth;
           const vh = window.innerHeight;
+          const isMobile = vw < 768;
+          const menubarH = isMobile ? 44 : 0;
+          const dockH = isMobile ? 64 : 0;
           return {
             windows: {
               ...s.windows,
               [id]: {
                 ...target,
                 state: 'maximized' as WindowState,
-                position: { x: 0, y: safeTop },
-                size: { width: vw, height: vh - safeTop - safeBottom },
+                position: { x: 0, y: menubarH },
+                size: { width: vw, height: vh - menubarH - dockH },
                 zIndex: s.nextZIndex,
               },
             },

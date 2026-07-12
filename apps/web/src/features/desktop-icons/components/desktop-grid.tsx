@@ -16,6 +16,22 @@ function createWindowFromIcon(data: DesktopIconData) {
   const id = `window-${data.id}-${Date.now()}`;
   const viewportWidth = window.innerWidth;
   const viewportHeight = window.innerHeight;
+  const isMobile = viewportWidth < 768;
+
+  if (isMobile) {
+    const MENUBAR_HEIGHT = 44;
+    const DOCK_HEIGHT = 64;
+    return {
+      id,
+      title: data.title,
+      icon: data.icon,
+      appId: data.appId,
+      position: { x: 0, y: MENUBAR_HEIGHT },
+      size: { width: viewportWidth, height: viewportHeight - MENUBAR_HEIGHT - DOCK_HEIGHT },
+      zIndex: 1,
+      state: 'active' as const,
+    };
+  }
 
   return {
     id,

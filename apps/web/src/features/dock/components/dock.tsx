@@ -115,7 +115,8 @@ export function Dock() {
       };
 
       const isMobile = vw < 768;
-      const finalSize = isMobile ? { width: vw, height: vh } : cfg.size;
+      const MENUBAR_HEIGHT = 44;
+      const DOCK_HEIGHT = 64;
 
       openWindow({
         id,
@@ -123,14 +124,14 @@ export function Dock() {
         icon: cfg.icon,
         appId: appId === 'finder' ? 'files' : appId,
         position: isMobile
-          ? { x: 0, y: 0 }
+          ? { x: 0, y: MENUBAR_HEIGHT }
           : {
               x: Math.max(40, (vw - cfg.size.width) / 2 + (Math.random() - 0.5) * 80),
               y: Math.max(40, (vh - cfg.size.height) / 2 + (Math.random() - 0.5) * 40),
             },
-        size: finalSize,
+        size: isMobile ? { width: vw, height: vh - MENUBAR_HEIGHT - DOCK_HEIGHT } : cfg.size,
         zIndex: 1,
-        state: isMobile ? 'maximized' : 'active',
+        state: 'active',
       });
     },
     [windows, focusWindow, restoreWindow, openWindow, moduleWindowService],
