@@ -1043,7 +1043,6 @@ export const Settings = memo(function Settings() {
   return (
     <div className="bg-background/40 flex h-full flex-col">
       {isMobile ? (
-        /* Mobile: horizontal scrollable tabs */
         <div className="border-border/20 scrollbar-none flex shrink-0 gap-1 overflow-x-auto border-b p-2 pb-0">
           {tabs.map((tab) => {
             const Icon = tab.icon;
@@ -1065,31 +1064,33 @@ export const Settings = memo(function Settings() {
             );
           })}
         </div>
-      ) : (
-        /* Desktop: sidebar tabs */
-        <div className="border-border/20 w-48 shrink-0 overflow-auto border-r p-2">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={cn(
-                  'flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors',
-                  activeTab === tab.id
-                    ? 'bg-muted text-foreground'
-                    : 'text-foreground/60 hover:text-foreground hover:bg-muted/50',
-                )}
-              >
-                <Icon size={16} className="shrink-0" />
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
+      ) : null}
+      <div className="flex min-h-0 flex-1">
+        {!isMobile ? (
+          <div className="border-border/20 w-48 shrink-0 overflow-auto border-r p-2">
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={cn(
+                    'flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors',
+                    activeTab === tab.id
+                      ? 'bg-muted text-foreground'
+                      : 'text-foreground/60 hover:text-foreground hover:bg-muted/50',
+                  )}
+                >
+                  <Icon size={16} className="shrink-0" />
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        ) : null}
+        <div className={cn('min-w-0 flex-1 overflow-auto', isMobile ? 'p-3' : 'p-5')}>
+          <Panel />
         </div>
-      )}
-      <div className={cn('flex-1 overflow-auto', isMobile ? 'p-3' : 'p-5')}>
-        <Panel />
       </div>
     </div>
   );
