@@ -529,7 +529,7 @@ export const ArunaAssistant = memo(function ArunaAssistant() {
               idleTimerRef.current = setTimeout(() => setIdle(true), 3000);
             }}
             className={cn(
-              'fixed z-[9999] flex h-16 w-16 items-center justify-center transition-shadow duration-300',
+              'fixed z-[9999] flex h-20 w-20 items-center justify-center',
               collapsedDragging ? 'cursor-grabbing' : 'cursor-grab',
             )}
             style={{
@@ -541,17 +541,26 @@ export const ArunaAssistant = memo(function ArunaAssistant() {
           >
             <motion.div
               animate={{
-                scale: idle ? [1, 1.03, 1] : [1, 1.08, 1],
-                opacity: idle ? 0.5 : 1,
+                scale: idle ? [1, 1.02, 1] : [1, 1.07, 1],
               }}
-              transition={{ duration: idle ? 4 : 3, repeat: Infinity, ease: 'easeInOut' }}
-              className="flex h-12 w-12 items-center justify-center"
+              transition={{ duration: idle ? 4 : 2.5, repeat: Infinity, ease: 'easeInOut' }}
+              className="relative flex h-14 w-14 items-center justify-center"
             >
+              <motion.div
+                animate={{ opacity: idle ? 0.3 : 0.6 }}
+                transition={{ duration: 0.8 }}
+                className="absolute -inset-3 rounded-full bg-gradient-to-br from-violet-500/10 via-purple-500/5 to-transparent blur-xl"
+              />
+              <div className="absolute inset-0 rounded-full ring-1 ring-violet-400/20" />
               <img
                 src="/logo.png"
                 alt="ArunaOS"
-                className="h-12 w-12"
-                style={{ filter: idle ? 'grayscale(0.5) opacity(0.5)' : 'none' }}
+                className="relative h-10 w-10 drop-shadow-[0_0_12px_rgba(139,92,246,0.3)]"
+                style={{
+                  filter: idle
+                    ? 'grayscale(0.3) brightness(0.6) drop-shadow(0 0 6px rgba(139,92,246,0.15))'
+                    : 'drop-shadow(0 0 12px rgba(139,92,246,0.3))',
+                }}
               />
             </motion.div>
           </motion.div>
