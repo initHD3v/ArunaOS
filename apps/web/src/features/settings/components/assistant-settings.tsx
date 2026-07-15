@@ -5,6 +5,7 @@ import {
   BUTTON_SIZE_MAP,
 } from '@/features/aruna-assistant/stores/aruna-assistant-settings.store';
 import type { CollapsedButtonSize } from '@/features/aruna-assistant/stores/aruna-assistant-settings.store';
+import { MemoryViewer } from '@/features/engine/components/memory-viewer';
 import { RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -157,6 +158,9 @@ export function AssistantPanel() {
           onChange={settings.setShowContextSummary}
         />
       </div>
+
+      {/* Memory */}
+      <MemoryViewer />
     </div>
   );
 }

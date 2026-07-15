@@ -23,6 +23,7 @@ import {
 import { useWidgetPanelStore } from '@/features/desktop-widgets/stores/widget-panel.store';
 import { useArunaAssistantStore } from './stores/aruna-assistant-store';
 import { ProductivitySummary } from './components/productivity-summary';
+import { StateIndicator } from './components/state-indicator';
 import {
   useArunaAssistantSettings,
   BUTTON_SIZE_MAP,
@@ -217,6 +218,16 @@ function AISuggestions() {
     calendar: '#FF5A5F',
   };
 
+  const actionLabels: Record<string, string> = {
+    'daily-brief': 'Buka',
+    'continue-work': 'Buka Files',
+    'check-weather': 'Lihat',
+    'morning-routine': 'Mulai',
+    afternoon: 'Siap',
+    'daily-reflection': 'Review',
+    'frequent-module': 'Buka',
+  };
+
   return (
     <div className="flex flex-col gap-2">
       <span
@@ -236,13 +247,15 @@ function AISuggestions() {
                 : s.icon === 'sun'
                   ? Sun
                   : Calendar;
+          const actionLabel = actionLabels[s.id] ?? 'Buka';
+          const hasAction = s.action.toString() !== '() => {}' && s.action.toString() !== '()=>{}';
           return (
             <motion.button
               key={s.id}
               whileHover={{ scale: 1.01 }}
               whileTap={{ scale: 0.99 }}
               onClick={s.action}
-              className="flex items-center gap-3 rounded-xl px-4 py-2.5 text-left transition-colors"
+              className="group flex items-center gap-3 rounded-xl px-4 py-2.5 text-left transition-colors"
               style={{ backgroundColor: '#F7F8FA' }}
               onMouseEnter={(e) => {
                 (e.currentTarget as HTMLElement).style.backgroundColor = '#F0F1F3';
@@ -265,10 +278,25 @@ function AISuggestions() {
                   {s.description}
                 </div>
               </div>
-              <div className="flex items-center gap-1 text-[10px]" style={{ color: '#707070' }}>
-                <Clock size={10} />
-                {s.estimatedTime}
-              </div>
+              {hasAction ? (
+                <div className="flex items-center gap-1.5">
+                  <div
+                    className="rounded-lg px-2 py-1 text-[9px] font-medium opacity-0 transition-opacity group-hover:opacity-100"
+                    style={{ backgroundColor: `${color}15`, color }}
+                  >
+                    {actionLabel}
+                  </div>
+                  <div className="flex items-center gap-1 text-[10px]" style={{ color: '#707070' }}>
+                    <Clock size={10} />
+                    {s.estimatedTime}
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1 text-[10px]" style={{ color: '#707070' }}>
+                  <Clock size={10} />
+                  {s.estimatedTime}
+                </div>
+              )}
             </motion.button>
           );
         })}
@@ -372,7 +400,8 @@ function BottomActions() {
 export const ArunaAssistant = memo(function ArunaAssistant() {
   const visible = useWidgetPanelStore((s) => s.visible);
   const isBlocked = useAuthStore((s) => s.isAuthEnabled && (!s.hasSession || s.isLocked));
-  const { collapsed, setCollapsed, position, setPosition } = useArunaAssistantStore();
+  const { collapsed, setCollapsed, position, setPosition, assistantState } =
+    useArunaAssistantStore();
   const settings = useArunaAssistantSettings();
   const panelRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ sx: number; sy: number; ox: number; oy: number } | null>(null);
@@ -456,6 +485,9 @@ export const ArunaAssistant = memo(function ArunaAssistant() {
 
   const [idle, setIdle] = useState(false);
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const w = useWeatherStore();
+  const weatherTemp = w.hourly.length > 0 ? w.temp : null;
+  const notificationCount = 0;
   const collapsedDragRef = useRef<{ sx: number; sy: number; ox: number; oy: number } | null>(null);
   const [collapsedDragging, setCollapsedDragging] = useState(false);
 
@@ -590,6 +622,31 @@ export const ArunaAssistant = memo(function ArunaAssistant() {
                 }}
               />
             </motion.div>
+            {settings.showWeather && weatherTemp !== null && (
+              <motion.div
+                animate={{ opacity: idle ? 0.3 : 0.7 }}
+                className="absolute -bottom-1 left-1/2 -translate-x-1/2 rounded-full px-1.5"
+                style={{ backgroundColor: '#00000015' }}
+              >
+                <span
+                  className="text-[8px] font-medium tabular-nums"
+                  style={{ color: idle ? '#70707080' : '#707070' }}
+                >
+                  {weatherTemp}°
+                </span>
+              </motion.div>
+            )}
+            {notificationCount > 0 && (
+              <motion.div
+                animate={{ scale: idle ? 0.8 : 1 }}
+                className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full"
+                style={{ backgroundColor: '#FF5A5F' }}
+              >
+                <span className="text-[8px] font-bold text-white">
+                  {notificationCount > 9 ? '9+' : notificationCount}
+                </span>
+              </motion.div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
@@ -641,7 +698,10 @@ export const ArunaAssistant = memo(function ArunaAssistant() {
               style={{ maxHeight: 560 }}
             >
               <Header />
-              <PersonalityMessage />
+              <div className="flex items-center justify-between gap-2">
+                <PersonalityMessage />
+                <StateIndicator state={assistantState} />
+              </div>
               {settings.showContextSummary && <ContextSummary />}
               {settings.showSuggestions && <AISuggestions />}
               <ProductivitySummary />
