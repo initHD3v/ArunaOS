@@ -141,14 +141,15 @@ export function Applications() {
             {entries.map((entry) => (
               <motion.button
                 key={entry.manifest.id}
-                layout
                 draggable
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
-                onClick={() => setSelected(entry.manifest.id)}
+                layout={false}
+                onClick={() => handleOpen(entry.manifest.id)}
                 onContextMenu={(e) =>
                   handleContextMenu(e, entry.manifest.id, entry.manifest.name, entry.manifest.icon)
                 }
+                onDoubleClick={() => setSelected(entry.manifest.id)}
                 onDragStart={(e) => {
                   const dt = (e as unknown as React.DragEvent).dataTransfer;
                   if (dt) {

@@ -2,6 +2,7 @@
 
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { cn } from '@/lib/utils';
 import {
   Sparkles,
   Mic,
@@ -15,12 +16,17 @@ import {
   ChevronRight,
   Clock,
   Sun,
+  Droplets,
+  Wind,
+  Loader,
 } from 'lucide-react';
 import { useWidgetPanelStore } from '@/features/desktop-widgets/stores/widget-panel.store';
 import { useArunaAssistantStore } from './stores/aruna-assistant-store';
 import { useAuthStore } from '@/stores/auth.store';
 import { useService } from '@/providers/service-provider';
 import type { LifecycleService } from '@/services/lifecycle/lifecycle-service';
+import { useWeatherStore, CONDITION_EMOJI } from '@/features/weather/weather.store';
+import { useLocationStore } from '@/stores/location.store';
 
 /* ------------------------------------------------------------------ */
 /*  Context Summary items                                              */
@@ -45,6 +51,17 @@ function Header() {
   const timeOfDay = brief?.timeOfDay ?? 'morning';
   const now = new Date();
   const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+  const w = useWeatherStore();
+  const ls = useLocationStore();
+
+  useEffect(() => {
+    if (!w.loading && w.hourly.length === 0) {
+      const lat = ls.enabled && ls.latitude != null ? ls.latitude : -6.2088;
+      const lon = ls.enabled && ls.longitude != null ? ls.longitude : 106.8456;
+      w.fetchWeather(lat, lon, ls.city);
+    }
+  }, []);
 
   return (
     <div className="flex items-start justify-between">
@@ -81,7 +98,36 @@ function Header() {
           <span>{now.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}</span>
         </div>
       </div>
-      {brief?.weather && (
+      {w.loading && w.hourly.length === 0 ? (
+        <div className="flex flex-col items-center gap-0.5">
+          <Loader size={14} className="text-foreground/30 animate-spin" />
+          <span className="text-[8px]" style={{ color: '#707070' }}>
+            loading
+          </span>
+        </div>
+      ) : w.hourly.length > 0 ? (
+        <div className="flex flex-col items-center gap-0.5">
+          <span className="text-[22px] leading-none">{CONDITION_EMOJI[w.condition]}</span>
+          <div className="flex items-baseline gap-0.5">
+            <span className="text-[15px] font-medium tabular-nums" style={{ color: '#111111' }}>
+              {w.temp}°
+            </span>
+            <span className="text-[8px]" style={{ color: '#707070' }}>
+              {w.label}
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5 text-[8px]" style={{ color: '#707070' }}>
+            <span className="flex items-center gap-0.5">
+              <Droplets size={7} />
+              {w.humidity}%
+            </span>
+            <span className="flex items-center gap-0.5">
+              <Wind size={7} />
+              {w.windSpeed}
+            </span>
+          </div>
+        </div>
+      ) : brief?.weather ? (
         <div className="flex flex-col items-center gap-0.5">
           <span className="text-[22px] leading-none">☀️</span>
           <span className="text-[15px] font-medium" style={{ color: '#111111' }}>
@@ -91,7 +137,7 @@ function Header() {
             Now
           </span>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -110,6 +156,13 @@ function PersonalityMessage() {
 
 function ContextSummary() {
   const ctx = useArunaAssistantStore((s) => s.brief);
+  const items = contextIcons.map((c) => {
+    let value: string | null = null;
+    if (c.key === 'weather' && ctx?.weather) value = ctx.weather.split(' ').slice(2).join(' ');
+    return { ...c, value };
+  });
+  const hasData = items.some((i) => i.value !== null);
+  if (!hasData) return null;
   return (
     <div className="flex flex-col gap-2">
       <span
@@ -119,38 +172,29 @@ function ContextSummary() {
         Context
       </span>
       <div className="grid grid-cols-5 gap-2">
-        {contextIcons.map((c) => {
-          let value = '--';
-          if (c.key === 'focus') value = 'ArunaOS';
-          if (c.key === 'weather' && ctx?.weather)
-            value = ctx.weather.split(' ').slice(2).join(' ');
-          if (c.key === 'calendar') value = '2 Meetings';
-          if (c.key === 'email') value = '1 Important';
-          if (c.key === 'dm') value = '3 New';
-          return (
+        {items.map((c) => (
+          <div
+            key={c.key}
+            className="flex flex-col items-center gap-1 rounded-xl px-2 py-2.5"
+            style={{ backgroundColor: '#F7F8FA' }}
+          >
             <div
-              key={c.key}
-              className="flex flex-col items-center gap-1 rounded-xl px-2 py-2.5"
-              style={{ backgroundColor: '#F7F8FA' }}
+              className="flex h-7 w-7 items-center justify-center rounded-full"
+              style={{ backgroundColor: `${c.color}15` }}
             >
-              <div
-                className="flex h-7 w-7 items-center justify-center rounded-full"
-                style={{ backgroundColor: `${c.color}15` }}
-              >
-                <c.icon size={12} style={{ color: c.color }} />
-              </div>
-              <span
-                className="text-center text-[10px] font-medium leading-tight"
-                style={{ color: '#111111' }}
-              >
-                {value}
-              </span>
-              <span className="text-[8px]" style={{ color: '#707070' }}>
-                {c.label}
-              </span>
+              <c.icon size={12} style={{ color: c.color }} />
             </div>
-          );
-        })}
+            <span
+              className="text-center text-[10px] font-medium leading-tight"
+              style={{ color: c.value ? '#111111' : '#B0B0B0' }}
+            >
+              {c.value || '--'}
+            </span>
+            <span className="text-[8px]" style={{ color: '#707070' }}>
+              {c.label}
+            </span>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -364,6 +408,8 @@ export const ArunaAssistant = memo(function ArunaAssistant() {
   }, [collapsed, setCollapsed]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('button, input, textarea, a, [role="button"]')) return;
     if (!panelRef.current) return;
     const rect = panelRef.current.getBoundingClientRect();
     dragRef.current = { sx: e.clientX, sy: e.clientY, ox: rect.left, oy: rect.top };
@@ -391,22 +437,104 @@ export const ArunaAssistant = memo(function ArunaAssistant() {
     };
   }, [dragging, setPosition]);
 
+  const [idle, setIdle] = useState(false);
+  const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const collapsedDragRef = useRef<{ sx: number; sy: number; ox: number; oy: number } | null>(null);
+  const [collapsedDragging, setCollapsedDragging] = useState(false);
+
+  useEffect(() => {
+    if (collapsed && !collapsedDragging) {
+      idleTimerRef.current = setTimeout(() => setIdle(true), 3000);
+    } else {
+      setIdle(false);
+      if (idleTimerRef.current) {
+        clearTimeout(idleTimerRef.current);
+        idleTimerRef.current = null;
+      }
+    }
+    return () => {
+      if (idleTimerRef.current) {
+        clearTimeout(idleTimerRef.current);
+        idleTimerRef.current = null;
+      }
+    };
+  }, [collapsed, collapsedDragging]);
+
+  const handleCollapsedPointerDown = useCallback((e: React.MouseEvent) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    collapsedDragRef.current = { sx: e.clientX, sy: e.clientY, ox: rect.left, oy: rect.top };
+    setCollapsedDragging(true);
+  }, []);
+
+  useEffect(() => {
+    if (!collapsedDragging || !collapsedDragRef.current) return;
+    function onMove(e: MouseEvent) {
+      if (!collapsedDragRef.current) return;
+      const dx = e.clientX - collapsedDragRef.current.sx;
+      const dy = e.clientY - collapsedDragRef.current.sy;
+      if (Math.abs(dx) < 4 && Math.abs(dy) < 4) return;
+      setPosition({
+        x: collapsedDragRef.current.ox + dx,
+        y: collapsedDragRef.current.oy + dy,
+      });
+    }
+    function onUp(e: MouseEvent) {
+      const d = collapsedDragRef.current;
+      if (d) {
+        const dx = e.clientX - d.sx;
+        const dy = e.clientY - d.sy;
+        if (Math.abs(dx) < 4 && Math.abs(dy) < 4) {
+          setCollapsed(false);
+        }
+      }
+      setCollapsedDragging(false);
+      collapsedDragRef.current = null;
+    }
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, [collapsedDragging, setPosition, setCollapsed]);
+
   if (!visible || isBlocked) return null;
 
   return (
     <>
       <AnimatePresence>
         {collapsed && (
-          <motion.button
+          <motion.div
             initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
+            animate={{
+              scale: 1,
+              opacity: idle ? 0.25 : 1,
+            }}
             exit={{ scale: 0, opacity: 0 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-            onClick={() => setCollapsed(false)}
-            className="fixed bottom-6 right-6 z-[9999] flex h-14 w-14 items-center justify-center rounded-full shadow-lg backdrop-blur-xl"
+            transition={{
+              type: 'spring',
+              stiffness: 300,
+              damping: 25,
+              opacity: { duration: idle ? 0.8 : 0.3, ease: 'easeInOut' },
+            }}
+            onMouseDown={handleCollapsedPointerDown}
+            onMouseEnter={() => {
+              if (idleTimerRef.current) {
+                clearTimeout(idleTimerRef.current);
+                idleTimerRef.current = null;
+              }
+              setIdle(false);
+            }}
+            onMouseLeave={() => {
+              idleTimerRef.current = setTimeout(() => setIdle(true), 3000);
+            }}
+            className={cn(
+              'fixed z-[9999] flex h-14 w-14 items-center justify-center rounded-full shadow-lg backdrop-blur-xl transition-shadow duration-300',
+              collapsedDragging ? 'cursor-grabbing shadow-xl' : 'cursor-grab',
+            )}
             style={{
-              backgroundColor: '#FFFFFFE0',
-              boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+              backgroundColor: idle ? 'rgba(255,255,255,0.3)' : '#FFFFFFE0',
+              boxShadow: idle ? '0 2px 10px rgba(0,0,0,0.04)' : '0 4px 20px rgba(0,0,0,0.08)',
               left: position.x || undefined,
               right: position.x ? undefined : 24,
               top: position.y || undefined,
@@ -414,12 +542,15 @@ export const ArunaAssistant = memo(function ArunaAssistant() {
             }}
           >
             <motion.div
-              animate={{ scale: [1, 1.08, 1] }}
-              transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+              animate={{
+                scale: idle ? [1, 1.03, 1] : [1, 1.08, 1],
+                opacity: idle ? 0.6 : 1,
+              }}
+              transition={{ duration: idle ? 4 : 3, repeat: Infinity, ease: 'easeInOut' }}
             >
-              <Sparkles size={20} style={{ color: '#5D6BFF' }} />
+              <Sparkles size={20} style={{ color: idle ? '#5D6BFF60' : '#5D6BFF' }} />
             </motion.div>
-          </motion.button>
+          </motion.div>
         )}
       </AnimatePresence>
 
@@ -456,7 +587,7 @@ export const ArunaAssistant = memo(function ArunaAssistant() {
 
             <div
               onMouseDown={handleMouseDown}
-              className={`relative cursor-grab px-6 pt-5 ${dragging ? 'cursor-grabbing' : ''}`}
+              className={`relative px-6 pt-5 ${dragging ? 'cursor-grabbing' : 'cursor-grab'}`}
             >
               <div
                 className="mx-auto mb-3 h-1 w-8 rounded-full"
@@ -465,6 +596,7 @@ export const ArunaAssistant = memo(function ArunaAssistant() {
             </div>
 
             <div
+              onMouseDown={handleMouseDown}
               className="relative flex flex-col gap-5 overflow-y-auto px-6 pb-5"
               style={{ maxHeight: 560 }}
             >

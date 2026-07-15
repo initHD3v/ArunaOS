@@ -35,6 +35,16 @@ export function useShortcutManager() {
     );
 
     shortcut.register(
+      'cmd-m',
+      'meta+m',
+      () => {
+        const focusedId = useWindowStore.getState().focusedWindowId;
+        if (focusedId) winStore.minimizeWindow(focusedId);
+      },
+      { context: 'window', description: 'Minimize focused window' },
+    );
+
+    shortcut.register(
       'cmd-tab',
       'ctrl+]',
       () => {
@@ -98,6 +108,7 @@ export function useShortcutManager() {
     return () => {
       shortcut.unregister('cmd-k');
       shortcut.unregister('cmd-w');
+      shortcut.unregister('cmd-m');
       shortcut.unregister('cmd-tab');
       shortcut.unregister('cmd-shift-tab');
       shortcut.unregister('escape-global');

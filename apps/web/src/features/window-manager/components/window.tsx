@@ -17,7 +17,7 @@ import { AIChat } from '@/features/ai/ai-chat';
 import { Applications } from '@/features/applications/applications';
 import { WeatherApp } from '@/features/weather/weather-app';
 import { cn } from '@/lib/utils';
-import type { WindowData } from '@/types';
+import type { WindowData, Position, Size } from '@/types';
 
 interface WindowProps {
   data: WindowData;
@@ -60,6 +60,7 @@ export const Window = memo(function Window({ data }: WindowProps) {
   const moveWindow = useWindowStore((s) => s.moveWindow);
   const resizeWindow = useWindowStore((s) => s.resizeWindow);
   const isFocused = useWindowStore((s) => s.focusedWindowId === data.id);
+  const zoomOriginsRef = useRef<Record<string, Position & Size>>({});
 
   const handlePointerDown = useCallback(
     (e: React.MouseEvent | React.TouchEvent) => {
@@ -68,12 +69,9 @@ export const Window = memo(function Window({ data }: WindowProps) {
       const el = winRef.current;
       if (!el) return;
 
-      const rect = el.getBoundingClientRect();
       const start = getStartPos(e);
-      const offsetX = start.x - rect.left;
-      const offsetY = start.y - rect.top;
-      const baseX = data.position.x;
-      const baseY = data.position.y;
+      const offsetX = start.x - data.position.x;
+      const offsetY = start.y - data.position.y;
       let isDragging = false;
       const startX = start.x;
       const startY = start.y;
@@ -90,8 +88,10 @@ export const Window = memo(function Window({ data }: WindowProps) {
 
         cancelAnimationFrame(rafId.current);
         rafId.current = requestAnimationFrame(() => {
+          const newX = Math.max(0, pos.x - offsetX);
           const newY = Math.max(MENUBAR_HEIGHT, pos.y - offsetY);
-          el.style.transform = `translate(${pos.x - offsetX - baseX}px, ${newY - baseY}px)`;
+          el.style.left = `${newX}px`;
+          el.style.top = `${newY}px`;
         });
       };
 
@@ -99,7 +99,6 @@ export const Window = memo(function Window({ data }: WindowProps) {
         cancelAnimationFrame(rafId.current);
         if (isDragging) {
           const end = getEndPos(ev);
-          el.style.transform = '';
           const clampedX = Math.max(0, end.x - offsetX);
           const clampedY = Math.max(MENUBAR_HEIGHT, end.y - offsetY);
           moveWindow(data.id, { x: clampedX, y: clampedY });
@@ -121,13 +120,48 @@ export const Window = memo(function Window({ data }: WindowProps) {
   const handleMaximizeToggle = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
-      if (data.state === 'maximized') {
-        restoreWindow(data.id);
+      const origins = zoomOriginsRef.current;
+      const isZoomed = data.id in origins;
+
+      if (e.altKey || isZoomed) {
+        if (data.state === 'maximized') {
+          restoreWindow(data.id);
+        } else if (isZoomed) {
+          const orig = origins[data.id]!;
+          moveWindow(data.id, { x: orig.x, y: orig.y });
+          resizeWindow(data.id, { width: orig.width, height: orig.height });
+          delete origins[data.id];
+        } else {
+          const MENUBAR_HEIGHT = 44;
+          const vw = window.innerWidth;
+          const vh = window.innerHeight;
+          origins[data.id] = {
+            x: data.position.x,
+            y: data.position.y,
+            width: data.size.width,
+            height: data.size.height,
+          };
+          moveWindow(data.id, { x: 0, y: MENUBAR_HEIGHT });
+          resizeWindow(data.id, { width: vw, height: vh - MENUBAR_HEIGHT });
+        }
       } else {
-        maximizeWindow(data.id);
+        if (data.state === 'maximized') {
+          restoreWindow(data.id);
+        } else {
+          maximizeWindow(data.id);
+        }
       }
     },
-    [data.id, data.state, maximizeWindow, restoreWindow],
+    [
+      data.id,
+      data.state,
+      data.position,
+      data.size,
+      maximizeWindow,
+      restoreWindow,
+      moveWindow,
+      resizeWindow,
+    ],
   );
 
   const handleTitleDoubleClick = useCallback(() => {
@@ -263,9 +297,9 @@ export const Window = memo(function Window({ data }: WindowProps) {
             opacity: 0,
             scale: isMobile ? 0.96 : 0.5,
             y: isMobile ? 0 : 60,
-            transition: { duration: 0.2 },
+            transition: { duration: 0.15, ease: 'easeInOut' },
           }}
-          transition={{ type: 'spring', stiffness: 300, damping: 30, mass: 0.8 }}
+          transition={{ duration: 0.15, ease: 'easeOut' }}
           onMouseDown={() => focusWindow(data.id)}
           onTouchStart={() => focusWindow(data.id)}
           style={{
@@ -320,11 +354,15 @@ export const Window = memo(function Window({ data }: WindowProps) {
               <button
                 onClick={handleMaximizeToggle}
                 className={cn(
-                  'flex h-5 w-5 items-center justify-center rounded-full transition-colors hover:bg-green-500/20',
+                  'group relative flex h-5 w-5 items-center justify-center rounded-full transition-colors hover:bg-green-500/20',
                   isMobile && 'hidden',
                 )}
                 aria-label={isMaximized ? 'Restore' : 'Maximize'}
               >
+                <span className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-black/80 px-2 py-1 text-[9px] text-white opacity-0 transition-opacity group-hover:opacity-100">
+                  {isMaximized ? 'Kembalikan' : 'Layar Penuh'}
+                  <span className="ml-1 text-white/50">⌥ + Klik untuk Zoom</span>
+                </span>
                 {isMaximized ? (
                   <span className="relative h-2.5 w-2.5">
                     <span className="absolute inset-0 rounded-[1px] border-[1.5px] border-green-500" />

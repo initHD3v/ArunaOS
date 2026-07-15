@@ -33,7 +33,7 @@ export interface WidgetPanelActions {
 export const useWidgetPanelStore = create<WidgetPanelState & WidgetPanelActions>()(
   persist(
     (set) => ({
-      visible: true,
+      visible: false,
       position: { x: 0, y: 0 },
       width: 340,
       widgetOrder: ['proactive'],

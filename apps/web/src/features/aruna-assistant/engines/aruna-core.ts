@@ -241,11 +241,21 @@ export class ArunaCore {
 
     const suggestions: Suggestion[] = [];
 
+    const timeOfDay = ctx?.time.timeOfDay ?? 'morning';
+    const hour = ctx?.time.hour ?? 8;
+    const dayOfWeek = ctx?.time.dayOfWeek ?? 1;
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+    const weather = ctx?.weather;
+    const condition = weather?.condition?.toLowerCase() ?? '';
+    const isRainy =
+      condition.includes('rain') || condition.includes('drizzle') || condition.includes('thunder');
+    const isCold = (weather?.temp ?? 25) < 20;
+
     suggestions.push({
       id: 'daily-brief',
       icon: 'sparkles',
       title: 'Daily Brief',
-      description: ctx ? `${ctx.time.timeOfDay} overview` : 'Start your day',
+      description: ctx ? `${timeOfDay} overview — ${ctx.time.date}` : 'Start your day',
       estimatedTime: '~1m',
       action: () => this.generateBrief(),
     });
@@ -265,14 +275,53 @@ export class ArunaCore {
       id: 'check-weather',
       icon: 'sun',
       title: 'Check Weather',
-      description: ctx?.weather
-        ? `${ctx.weather.temp}° ${ctx.weather.condition}`
+      description: weather
+        ? `${weather.temp}° ${weather.condition}${isRainy ? ' — bawa payung!' : isCold ? ' — cuaca dingin' : ''}`
         : "Today's forecast",
       estimatedTime: '~1m',
       action: () => this._openModule?.('arunaos.weather'),
     });
 
-    if (ctx?.time.timeOfDay === 'evening' || ctx?.time.timeOfDay === 'night') {
+    if (timeOfDay === 'morning' && hour >= 4 && hour < 9) {
+      suggestions.push({
+        id: 'morning-routine',
+        icon: 'sun',
+        title: isWeekend ? 'Weekend Pagi' : 'Morning Routine',
+        description: isWeekend
+          ? 'Santai saja, akhir pekan!'
+          : isRainy
+            ? 'Mulai hari dengan segelas kopi hangat'
+            : 'Semangat pagi! Saatnya produktif',
+        estimatedTime: '~15m',
+        action: () => {},
+      });
+    }
+
+    if (timeOfDay === 'afternoon' && hour >= 12 && hour < 14) {
+      suggestions.push({
+        id: 'lunch-break',
+        icon: 'sun',
+        title: 'Istirahat Siang',
+        description: isRainy
+          ? 'Cocok makan sambil dengerin musik'
+          : 'Sempatkan jalan-jalan sebentar',
+        estimatedTime: '~30m',
+        action: () => {},
+      });
+    }
+
+    if (timeOfDay === 'afternoon' && hour >= 14 && hour < 17) {
+      suggestions.push({
+        id: 'afternoon-focus',
+        icon: 'sparkles',
+        title: 'Sesi Fokus Sore',
+        description: 'Selesaikan tugas utama sebelum hari berganti',
+        estimatedTime: '~1h',
+        action: () => this._openModule?.('arunaos.files'),
+      });
+    }
+
+    if (timeOfDay === 'evening' || timeOfDay === 'night') {
       suggestions.push({
         id: 'daily-reflection',
         icon: 'sparkles',
@@ -281,9 +330,52 @@ export class ArunaCore {
         estimatedTime: '~5m',
         action: () => this.generateDailyReflection(),
       });
+
+      if (hour >= 20 || hour < 4) {
+        suggestions.push({
+          id: 'wind-down',
+          icon: 'calendar',
+          title: 'Waktunya Istirahat',
+          description: 'Matikan layar, siapkan diri untuk tidur',
+          estimatedTime: '~10m',
+          action: () => {},
+        });
+      }
     }
 
-    // Add reflection-based suggestions
+    if (isWeekend && timeOfDay === 'morning') {
+      suggestions.push({
+        id: 'weekend-plan',
+        icon: 'calendar',
+        title: 'Weekend Plan',
+        description: 'Rencanakan kegiatan akhir pekanmu',
+        estimatedTime: '~5m',
+        action: () => {},
+      });
+    }
+
+    if (isRainy) {
+      suggestions.push({
+        id: 'rainy-activity',
+        icon: 'mail',
+        title: 'Aktivitas Indoor',
+        description: 'Hujan di luar — cocok untuk baca atau nulis',
+        estimatedTime: '~30m',
+        action: () => {},
+      });
+    }
+
+    if (weather && !isRainy && !isCold && (timeOfDay === 'morning' || timeOfDay === 'afternoon')) {
+      suggestions.push({
+        id: 'outdoor-suggestion',
+        icon: 'sun',
+        title: 'Cuaca Cerah',
+        description: `${weather.temp}° — cocok untuk aktivitas luar ruangan`,
+        estimatedTime: '~15m',
+        action: () => {},
+      });
+    }
+
     const prefs = this.learner.getPreferences();
     const topModule = prefs.favoriteModules[0];
     if (topModule) {
@@ -300,7 +392,7 @@ export class ArunaCore {
       });
     }
 
-    return suggestions;
+    return suggestions.slice(0, 6);
   }
 }
 

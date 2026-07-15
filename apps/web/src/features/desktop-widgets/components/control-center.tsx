@@ -28,10 +28,8 @@ import {
   Sunrise,
   Sunset,
   Sparkles,
-  LayoutPanelLeft,
 } from 'lucide-react';
 import { useLocationStore } from '@/stores/location.store';
-import { useWidgetPanelStore } from '@/features/desktop-widgets/stores/widget-panel.store';
 
 function formatHour(time: string) {
   const d = new Date(time);
@@ -126,11 +124,6 @@ export function ControlCenterPopup({ onClose }: { onClose: () => void }) {
           <LocationToggle />
         </Section>
 
-        {/* Widget */}
-        <Section label="Widget">
-          <WidgetToggle />
-        </Section>
-
         {/* System */}
         <Section label="Sistem">
           <div className="flex items-center justify-between">
@@ -177,9 +170,6 @@ export function ControlCenterPopup({ onClose }: { onClose: () => void }) {
                 </Section>
                 <Section label="Lokasi">
                   <LocationToggle />
-                </Section>
-                <Section label="Widget">
-                  <WidgetToggle />
                 </Section>
                 <Section label="Sistem">
                   <div className="flex items-center justify-between">
@@ -545,36 +535,6 @@ function LocationToggle() {
             )}
           />
         )}
-      </button>
-    </div>
-  );
-}
-
-function WidgetToggle() {
-  const visible = useWidgetPanelStore((s) => s.visible);
-  const toggle = useWidgetPanelStore((s) => s.toggle);
-
-  return (
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-2">
-        <LayoutPanelLeft size={10} className={visible ? 'text-primary' : 'text-foreground/30'} />
-        <span className="text-foreground/60 text-[10px]">
-          {visible ? 'Widget aktif' : 'Widget disembunyikan'}
-        </span>
-      </div>
-      <button
-        onClick={toggle}
-        className={cn(
-          'relative h-5 w-9 rounded-full transition-colors',
-          visible ? 'bg-primary' : 'bg-foreground/20',
-        )}
-      >
-        <span
-          className={cn(
-            'absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform',
-            visible ? 'translate-x-[18px]' : 'translate-x-0.5',
-          )}
-        />
       </button>
     </div>
   );

@@ -2,7 +2,17 @@
 
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Sun, Moon, Lock, Moon as MoonIcon, Power, RotateCcw, Info, Sliders } from 'lucide-react';
+import {
+  Sun,
+  Moon,
+  Lock,
+  Moon as MoonIcon,
+  Power,
+  RotateCcw,
+  Info,
+  Sliders,
+  LayoutPanelLeft,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth.store';
 import { useService, useEventBus } from '@/providers/service-provider';
@@ -12,6 +22,8 @@ import { useIsMobile } from '@/hooks/use-media-query';
 import { AboutOverlay } from './about-overlay';
 import { CalendarPopup } from './calendar-popup';
 import { usePerformanceStore } from '@/stores/performance.store';
+import { useWidgetPanelStore } from '@/features/desktop-widgets/stores/widget-panel.store';
+import { useArunaAssistantStore } from '@/features/aruna-assistant/stores/aruna-assistant-store';
 
 import { NotificationIndicator } from '@/features/desktop-widgets/components/notification-indicator';
 import { NotificationCenterPopup } from '@/features/desktop-widgets/components/notification-center';
@@ -303,6 +315,40 @@ function AppleMenu({
   );
 }
 
+function WidgetToggleButton({ isMobile }: { isMobile: boolean }) {
+  const visible = useWidgetPanelStore((s) => s.visible);
+  const toggle = useWidgetPanelStore((s) => s.toggle);
+  const collapsed = useArunaAssistantStore((s) => s.collapsed);
+  const setCollapsed = useArunaAssistantStore((s) => s.setCollapsed);
+
+  const handleClick = useCallback(() => {
+    if (!visible) {
+      useWidgetPanelStore.getState().show();
+      useArunaAssistantStore.getState().setCollapsed(false);
+    } else if (collapsed) {
+      setCollapsed(false);
+    } else {
+      toggle();
+    }
+  }, [visible, collapsed, toggle, setCollapsed]);
+
+  return (
+    <button
+      onClick={handleClick}
+      className={cn(
+        'flex items-center justify-center rounded-md transition-colors',
+        isMobile ? 'h-8 w-8' : 'h-6 w-6',
+        visible
+          ? 'bg-muted text-foreground'
+          : 'text-foreground/60 hover:text-foreground hover:bg-muted/50',
+      )}
+      title={visible ? (collapsed ? 'Buka Widget' : 'Sembunyikan Widget') : 'Tampilkan Widget'}
+    >
+      <LayoutPanelLeft size={isMobile ? 16 : 12} />
+    </button>
+  );
+}
+
 export function MenuBar() {
   const time = useTime();
   const isMobile = useIsMobile();
@@ -421,6 +467,9 @@ export function MenuBar() {
 
         {/* Clock & Calendar */}
         <div className="flex items-center gap-1">
+          {/* Widget Toggle */}
+          <WidgetToggleButton isMobile={isMobile} />
+
           {/* Control Center */}
           <div className="relative" ref={ccRef}>
             <button
