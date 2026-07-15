@@ -1,5 +1,5 @@
 export type CronSchedule =
-  'every-hour' | 'every-30min' | 'every-15min' | 'daily-morning' | 'daily-evening';
+  'every-hour' | 'every-30min' | 'every-15min' | 'daily-morning' | 'daily-midday' | 'daily-evening';
 
 export interface ScheduledTask {
   id: string;
@@ -69,6 +69,12 @@ export class Scheduler {
       case 'daily-morning': {
         const now = new Date();
         const target = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 6, 0, 0);
+        if (now > target) target.setDate(target.getDate() + 1);
+        return target.getTime() - now.getTime();
+      }
+      case 'daily-midday': {
+        const now = new Date();
+        const target = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12, 0, 0);
         if (now > target) target.setDate(target.getDate() + 1);
         return target.getTime() - now.getTime();
       }

@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { useWidgetPanelStore } from '@/features/desktop-widgets/stores/widget-panel.store';
 import { useArunaAssistantStore } from './stores/aruna-assistant-store';
+import { ProductivitySummary } from './components/productivity-summary';
 import {
   useArunaAssistantSettings,
   BUTTON_SIZE_MAP,
@@ -643,6 +644,7 @@ export const ArunaAssistant = memo(function ArunaAssistant() {
               <PersonalityMessage />
               {settings.showContextSummary && <ContextSummary />}
               {settings.showSuggestions && <AISuggestions />}
+              <ProductivitySummary />
               <ConversationPreview />
               <BottomActions />
             </div>
