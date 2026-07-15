@@ -23,34 +23,84 @@ export function ArunaEngineProvider({ children }: { children: ReactNode }) {
   const aliveRef = useRef(true);
 
   useEffect(() => {
-    const engine = new ArunaEngine({ proactiveMode: 'balanced' });
-    engineRef.current = engine;
     aliveRef.current = true;
+    const enginesToClean: ArunaEngine[] = [];
 
-    const unsubStatus = engine.onStatusChange(setStatus);
+    const attemptBoot = (retryCount = 0): void => {
+      if (!aliveRef.current) return;
 
-    engine
-      .boot()
-      .then(() => {
-        if (!aliveRef.current) return;
-        const core = getArunaCore();
-        const cleanupBridge = bridgeArunaEngine(engine, core);
-        if (!aliveRef.current) {
-          cleanupBridge();
-          resetArunaCore();
-          return;
-        }
-        engine.activate();
-      })
-      .catch((e: unknown) => {
-        console.warn('[ArunaEngine] Boot failed:', e);
-        if (aliveRef.current) setStatus('error' as EngineStatus);
-      });
+      const engine = new ArunaEngine({ proactiveMode: 'balanced' });
+      engineRef.current = engine;
+      enginesToClean.push(engine);
+
+      const unsubStatus = engine.onStatusChange(setStatus);
+
+      engine
+        .boot()
+        .then(() => {
+          if (!aliveRef.current) return;
+          const core = getArunaCore();
+          const cleanupBridge = bridgeArunaEngine(engine, core);
+          if (!aliveRef.current) {
+            cleanupBridge();
+            resetArunaCore();
+            return;
+          }
+          engine.activate();
+        })
+        .catch((e: unknown) => {
+          console.warn(`[ArunaEngine] Boot attempt ${retryCount + 1}/3 failed:`, e);
+          unsubStatus();
+          if (!aliveRef.current) return;
+
+          if (retryCount < 2) {
+            setTimeout(() => attemptBoot(retryCount + 1), 1000 * (retryCount + 1));
+          } else {
+            engine
+              .getMemoryStore()
+              .clear()
+              .then(() => {
+                const final = new ArunaEngine({ proactiveMode: 'balanced' });
+                engineRef.current = final;
+                enginesToClean.push(final);
+                const unsubFinal = final.onStatusChange(setStatus);
+                final
+                  .boot()
+                  .then(() => {
+                    if (!aliveRef.current) return;
+                    const core = getArunaCore();
+                    const cleanupBridge = bridgeArunaEngine(final, core);
+                    if (!aliveRef.current) {
+                      cleanupBridge();
+                      resetArunaCore();
+                      return;
+                    }
+                    final.activate();
+                  })
+                  .catch((e2: unknown) => {
+                    console.warn('[ArunaEngine] All boot attempts failed:', e2);
+                    unsubFinal();
+                    if (aliveRef.current) setStatus('error' as EngineStatus);
+                  });
+              })
+              .catch(() => {
+                if (aliveRef.current) setStatus('error' as EngineStatus);
+              });
+          }
+        });
+    };
+
+    attemptBoot();
 
     return () => {
       aliveRef.current = false;
-      unsubStatus();
-      engine.sleep();
+      for (const e of enginesToClean) {
+        try {
+          e.sleep();
+        } catch {
+          /* ignore */
+        }
+      }
     };
   }, []);
 

@@ -18,6 +18,9 @@ export interface MemoryStore {
   // Conversations
   saveConversation(conv: ConversationRecord): Promise<void>;
   getRecentConversations(days: number): Promise<ConversationRecord[]>;
+
+  // Maintenance
+  clear(): Promise<void>;
 }
 
 export class InMemoryStore implements MemoryStore {

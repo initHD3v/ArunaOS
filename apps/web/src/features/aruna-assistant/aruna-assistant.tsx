@@ -1,13 +1,12 @@
 'use client';
 
-import { memo, useCallback, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState, type DragEvent } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/lib/utils';
 import {
   Sparkles,
   Mic,
   Keyboard,
-  LayoutPanelLeft,
   Ellipsis,
   Cloud,
   Calendar,
@@ -19,6 +18,8 @@ import {
   Droplets,
   Wind,
   Loader,
+  Camera,
+  Upload,
 } from 'lucide-react';
 import { useWidgetPanelStore } from '@/features/desktop-widgets/stores/widget-panel.store';
 import { useArunaAssistantStore } from './stores/aruna-assistant-store';
@@ -326,6 +327,20 @@ function BottomActions() {
   const { inputMode, setInputMode, voiceActive, toggleVoice, processInput, processing } =
     useArunaAssistantStore();
 
+  const captureScreenshot = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: { displaySurface: 'monitor' } as MediaTrackConstraints,
+      });
+      const track = stream.getVideoTracks()[0]!;
+      track.stop();
+      stream.getTracks().forEach((t) => t.stop());
+      processInput('[Screenshot captured]');
+    } catch {
+      /* user cancelled or not supported */
+    }
+  }, [processInput]);
+
   const actions = [
     { icon: Mic, label: 'Voice', action: toggleVoice, active: voiceActive },
     {
@@ -334,7 +349,7 @@ function BottomActions() {
       action: () => setInputMode('keyboard'),
       active: inputMode === 'keyboard',
     },
-    { icon: LayoutPanelLeft, label: 'Workspace', active: false, action: () => {} },
+    { icon: Camera, label: 'Screenshot', action: captureScreenshot, active: false },
     { icon: Ellipsis, label: 'More', active: false, action: () => {} },
   ];
 
@@ -406,13 +421,45 @@ function BottomActions() {
 export const ArunaAssistant = memo(function ArunaAssistant() {
   const visible = useWidgetPanelStore((s) => s.visible);
   const isBlocked = useAuthStore((s) => s.isAuthEnabled && (!s.hasSession || s.isLocked));
-  const { collapsed, setCollapsed, position, setPosition, assistantState } =
+  const { collapsed, setCollapsed, position, setPosition, assistantState, processInput } =
     useArunaAssistantStore();
   const settings = useArunaAssistantSettings();
   const panelRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ sx: number; sy: number; ox: number; oy: number } | null>(null);
   const [dragging, setDragging] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
   const lifecycle = useService<LifecycleService>('lifecycle');
+
+  const handleDrop = useCallback(
+    async (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragOver(false);
+      const files = Array.from(e.dataTransfer.files);
+      if (files.length === 0) return;
+      const file = files[0]!;
+      try {
+        const text = await file.text();
+        const preview = text.slice(0, 500);
+        processInput(`[File: ${file.name}]\n${preview}`);
+      } catch {
+        processInput(`Tell me about the file "${file.name}"`);
+      }
+    },
+    [processInput],
+  );
+
+  const handleDragOver = useCallback((e: DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+  }, []);
 
   // Single effect for all lifecycle management: init, lock/unlock, shutdown/sleep/resume
   useEffect(() => {
@@ -676,7 +723,26 @@ export const ArunaAssistant = memo(function ArunaAssistant() {
               bottom: position.y != null ? undefined : 24,
               boxShadow: '0 8px 40px rgba(0,0,0,0.08)',
             }}
+            onDrop={handleDrop}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            role="region"
+            aria-label="Aruna Assistant Panel"
           >
+            {isDragOver && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 z-50 flex items-center justify-center rounded-[32px]"
+                style={{ backgroundColor: 'rgba(93,107,255,0.08)', backdropFilter: 'blur(4px)' }}
+              >
+                <div className="flex flex-col items-center gap-2">
+                  <Upload size={32} className="text-primary/60" />
+                  <span className="text-primary/80 text-sm font-medium">Drop file to analyze</span>
+                </div>
+              </motion.div>
+            )}
             <div
               className="absolute inset-0"
               style={{ backgroundColor: '#FFFFFFE5', backdropFilter: 'blur(36px)' }}

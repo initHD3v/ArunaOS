@@ -1,14 +1,61 @@
-import type { ArunaEngine } from '@arunaos/engine';
+import type { ArunaEngine, EngineContext, SystemNotification } from '@arunaos/engine';
 import type { ArunaCore } from './aruna-core';
 import { useArunaAssistantStore } from '../stores/aruna-assistant-store';
 import { useWeatherStore } from '@/features/weather/weather.store';
 import { useLocationStore } from '@/stores/location.store';
+import { useNotificationStore } from '@/services/notification/notification-store';
+import { useAIContextStore } from '@/stores/ai-context.store';
 
 let _bridgeInitialized = false;
 
 let _cachedInsights: Array<{ type: string; description: string; confidence: number }> = [];
 let _lastTemp: number | null = null;
 let _lastCondition: string | null = null;
+
+/* Cache for engine's memory greeting (async, refreshed periodically) */
+let _cachedGreeting: string | null = null;
+
+/* Notification service reference (set externally by service-provider) */
+let _notificationService: { notify: (type: string, message: string) => void } | null = null;
+export function setNotificationService(svc: { notify: (type: string, message: string) => void }) {
+  _notificationService = svc;
+}
+export function getNotificationService() {
+  return _notificationService;
+}
+
+/* Debounce timer for suggestion refresh */
+let _suggestionDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+function debouncedRefreshSuggestions() {
+  if (_suggestionDebounceTimer) clearTimeout(_suggestionDebounceTimer);
+  _suggestionDebounceTimer = setTimeout(() => {
+    _suggestionDebounceTimer = null;
+    const store = useArunaAssistantStore.getState();
+    if (store?.initialized) store.refreshSuggestions();
+  }, 300);
+}
+
+/* ── helpers ── */
+
+function toEngineTimeOfDay(tod: string): 'pagi' | 'siang' | 'sore' | 'malam' {
+  switch (tod) {
+    case 'morning':
+      return 'pagi';
+    case 'afternoon':
+      return 'siang';
+    case 'evening':
+      return 'sore';
+    case 'night':
+      return 'malam';
+    default: {
+      const h = new Date().getHours();
+      if (h >= 4 && h < 11) return 'pagi';
+      if (h >= 11 && h < 15) return 'siang';
+      if (h >= 15 && h < 19) return 'sore';
+      return 'malam';
+    }
+  }
+}
 
 export function bridgeArunaEngine(engine: ArunaEngine, core: ArunaCore): () => void {
   if (_bridgeInitialized) return () => {};
@@ -95,9 +142,28 @@ export function bridgeArunaEngine(engine: ArunaEngine, core: ArunaCore): () => v
 
     briefHook: (brief) => {
       if (brief) {
+        /* 1. Use cached memory greeting if available (most personalized via engine) */
+        if (_cachedGreeting) {
+          brief.greeting = _cachedGreeting;
+        } else {
+          /* 2. Fallback: synchronously generate template greeting from frontend context */
+          const ctx = core.getCurrentContext();
+          if (ctx) {
+            const engineCtx: EngineContext = {
+              timeOfDay: toEngineTimeOfDay(ctx.time.timeOfDay),
+              date: new Date(),
+              weather: ctx.weather ?? undefined,
+            };
+            const { greeting } = engine.getTemplateEngine().generateGreeting(engineCtx);
+            brief.greeting = greeting;
+          }
+        }
+
+        /* 3. Refresh cache async for next brief */
         engine
           .getMemoryGreeting()
-          .then(({ memoryNote }) => {
+          .then(({ greeting, memoryNote }) => {
+            _cachedGreeting = greeting;
             if (memoryNote) {
               core.remember(`Memory: ${memoryNote}`, 'semantic', { source: 'engine-habit' });
             }
@@ -169,6 +235,21 @@ export function bridgeArunaEngine(engine: ArunaEngine, core: ArunaCore): () => v
   const insightInterval = setInterval(refreshInsights, 15 * 60 * 1000);
   cleanups.push(() => clearInterval(insightInterval));
 
+  /* ── 5b. Refresh memory greeting cache periodically ── */
+
+  const refreshMemoryGreeting = async () => {
+    try {
+      const { greeting } = await engine.getMemoryGreeting();
+      _cachedGreeting = greeting;
+    } catch {
+      /* ignore */
+    }
+  };
+
+  refreshMemoryGreeting();
+  const greetingCacheInterval = setInterval(refreshMemoryGreeting, 30 * 60 * 1000);
+  cleanups.push(() => clearInterval(greetingCacheInterval));
+
   /* ── 6. Scheduler-driven proactivity ── */
 
   /* Morning briefing */
@@ -232,11 +313,45 @@ export function bridgeArunaEngine(engine: ArunaEngine, core: ArunaCore): () => v
     lastRun: 0,
   });
 
-  /* Context-aware event reactions */
+  /* ── 7. Notification Hub bridge ── */
+
+  const nh = engine.getNotificationHub();
+  const unsubNotification = nh.onNotification((notif: SystemNotification) => {
+    /* Forward engine notifications to frontend notification store */
+    const type =
+      notif.priority === 'urgent' ? 'error' : notif.priority === 'high' ? 'warning' : 'info';
+    useNotificationStore.getState().add({
+      id: notif.id,
+      type,
+      message: `${notif.title}: ${notif.body}`,
+      duration: 5000,
+      toast: notif.priority === 'urgent' || notif.priority === 'high',
+      createdAt: Date.now(),
+    });
+  });
+
+  /* Wire AI context store askAI → NotificationHub for proactive follow-up */
+  const origAskAI = useAIContextStore.getState().askAI;
+  useAIContextStore.setState({
+    askAI: (prompt) => {
+      origAskAI(prompt);
+      if (prompt) {
+        nh.push({
+          title: 'AI Query',
+          body: prompt.slice(0, 100),
+          source: 'assistant',
+          priority: 'low',
+        });
+      }
+    },
+  });
+
+  /* ── 8. Context-aware event reactions (debounced) ── */
+
   const onFocusChange = async () => {
     const store = useArunaAssistantStore.getState();
     if (store?.initialized && !store.collapsed) {
-      store.refreshSuggestions();
+      debouncedRefreshSuggestions();
     }
   };
   scheduler.on('focus-change', onFocusChange);
@@ -244,7 +359,7 @@ export function bridgeArunaEngine(engine: ArunaEngine, core: ArunaCore): () => v
   const onAppOpened = async () => {
     const store = useArunaAssistantStore.getState();
     if (store?.initialized && !store.collapsed) {
-      store.refreshSuggestions();
+      debouncedRefreshSuggestions();
     }
   };
   scheduler.on('app-opened', onAppOpened);
@@ -252,11 +367,54 @@ export function bridgeArunaEngine(engine: ArunaEngine, core: ArunaCore): () => v
   const onTaskCompleted = async () => {
     const store = useArunaAssistantStore.getState();
     if (store?.initialized) {
-      store.refreshSuggestions();
+      debouncedRefreshSuggestions();
       store.refreshBrief();
     }
   };
   scheduler.on('task-completed', onTaskCompleted);
+
+  /* ── 9. Proactive notifications via scheduler ── */
+
+  scheduler.registerTask({
+    id: 'proactive-morning-notification',
+    schedule: 'daily-morning',
+    action: async () => {
+      const store = useArunaAssistantStore.getState();
+      if (!store?.initialized) return;
+      const brief = store.brief;
+      if (brief) {
+        nh.push({
+          title: 'Selamat Pagi',
+          body: brief.message || 'Semoga hari ini produktif!',
+          source: 'assistant',
+          priority: 'low',
+        });
+      }
+    },
+    lastRun: 0,
+  });
+
+  scheduler.registerTask({
+    id: 'proactive-idle-notification',
+    schedule: 'every-30min',
+    action: async () => {
+      const store = useArunaAssistantStore.getState();
+      if (!store?.initialized) return;
+      const suggestions = store.suggestions;
+      if (suggestions.length > 0 && _cachedInsights.length > 0) {
+        const top = suggestions[0];
+        if (top && top.title !== 'Daily Brief') {
+          nh.push({
+            title: top.title,
+            body: top.description || 'Ada yang bisa saya bantu?',
+            source: 'assistant',
+            priority: 'normal',
+          });
+        }
+      }
+    },
+    lastRun: 0,
+  });
 
   /* ── Return cleanup ── */
 
@@ -266,6 +424,8 @@ export function bridgeArunaEngine(engine: ArunaEngine, core: ArunaCore): () => v
     scheduler.off('focus-change', onFocusChange);
     scheduler.off('app-opened', onAppOpened);
     scheduler.off('task-completed', onTaskCompleted);
+    unsubNotification();
+    if (_suggestionDebounceTimer) clearTimeout(_suggestionDebounceTimer);
     for (const cleanup of cleanups) cleanup();
   };
 }
