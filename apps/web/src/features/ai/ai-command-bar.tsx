@@ -6,6 +6,7 @@ import { Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useService, useEventBus } from '@/providers/service-provider';
 import type { ModuleWindowService } from '@/services/module-window';
+import { useAIContextStore } from '@/stores/ai-context.store';
 
 interface AICommandBarProps {
   open: boolean;
@@ -19,12 +20,15 @@ export function AICommandBar({ open, onClose }: AICommandBarProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const eventBus = useEventBus();
   const moduleWindow = useService<ModuleWindowService>('moduleWindow');
+  const quickAsk = useAIContextStore((s) => s.quickAsk);
+  const closeQuickAsk = useAIContextStore((s) => s.closeQuickAsk);
 
   useEffect(() => {
     if (open) {
-      setQuery('');
+      if (quickAsk.prompt) setQuery(quickAsk.prompt);
       setMode('input');
       setResult('');
+      if (quickAsk.open) closeQuickAsk();
       setTimeout(() => inputRef.current?.focus(), 50);
     }
   }, [open]);

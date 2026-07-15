@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, Command, Monitor, Settings, Terminal, FileText } from 'lucide-react';
+import { Search, Command, Monitor, Settings, Terminal, FileText, Sparkles } from 'lucide-react';
+import { useAIContextStore } from '@/stores/ai-context.store';
 import type { Searchable } from '@/services/search/search-service';
 
 interface CommandPaletteProps {
@@ -182,10 +183,34 @@ export function CommandPalette({
               </div>
             )}
 
-            {/* Empty state */}
+            {/* AI fallback when no results */}
             {query.trim() && results.length === 0 && (
-              <div className="px-4 py-8 text-center text-xs text-white/25">
-                No results for &ldquo;{query}&rdquo;
+              <div>
+                <button
+                  onClick={() => {
+                    useAIContextStore.getState().askAI(query);
+                    onClose();
+                  }}
+                  className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm transition-colors hover:bg-white/5"
+                >
+                  <div className="bg-primary/10 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg">
+                    <Sparkles size={14} className="text-primary" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate font-medium text-white/80">
+                      Ask AI about &ldquo;{query}&rdquo;
+                    </div>
+                    <div className="truncate text-[11px] text-white/30">
+                      Use AI to answer your question
+                    </div>
+                  </div>
+                  <span className="shrink-0 rounded-md bg-white/5 px-1.5 py-0.5 text-[10px] text-white/25">
+                    AI
+                  </span>
+                </button>
+                <div className="px-4 py-2 text-center text-[10px] text-white/20">
+                  No indexed results for &ldquo;{query}&rdquo;
+                </div>
               </div>
             )}
 

@@ -2,9 +2,16 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { AICommandBar } from './ai-command-bar';
+import { useAIContextStore } from '@/stores/ai-context.store';
 
 export function AICommandBarProvider() {
   const [open, setOpen] = useState(false);
+  const quickAsk = useAIContextStore((s) => s.quickAsk);
+
+  // Open when AI context action triggers
+  useEffect(() => {
+    if (quickAsk.open) setOpen(true);
+  }, [quickAsk.open]);
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {

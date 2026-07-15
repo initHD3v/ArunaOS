@@ -9,6 +9,7 @@ import { useUIStore } from '@/stores/ui-store';
 import { useDesktopStore } from '@/features/desktop/stores/desktop.store';
 import { useWindowStore } from '@/features/window-manager/stores/window.store';
 import { useService } from '@/providers/service-provider';
+import { useAIContextStore } from '@/stores/ai-context.store';
 import type { SettingsService } from '@arunaos/services';
 import type { DesktopIconData } from '@/types';
 
@@ -35,6 +36,8 @@ export default function Home() {
       imagePath: nextType === 'image' && !cfg.imagePath ? '' : cfg.imagePath,
     });
   }, [settingsService]);
+
+  const askAI = useAIContextStore((s) => s.askAI);
 
   const desktopMenuItems = useMemo(
     () => [
@@ -80,8 +83,23 @@ export default function Home() {
           });
         },
       },
+      { id: 'sep5', label: '', action: () => {}, separator: true },
+      { id: 'ai-ask', label: 'Ask AI...', action: () => askAI() },
+      {
+        id: 'ai-tips',
+        label: 'Productivity Tips',
+        action: () => askAI('Give me 3 productivity tips for my current workflow'),
+      },
     ],
-    [addIcon, triggerRefresh, cycleWallpaper, openWindow, desktopIconsHidden, toggleDesktopIcons],
+    [
+      addIcon,
+      triggerRefresh,
+      cycleWallpaper,
+      openWindow,
+      desktopIconsHidden,
+      toggleDesktopIcons,
+      askAI,
+    ],
   );
 
   const handleContextMenu = useCallback(

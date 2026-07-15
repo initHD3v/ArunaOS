@@ -33,6 +33,7 @@ import { LifecycleService } from '@/services/lifecycle/lifecycle-service';
 import { ModuleWindowService } from '@/services/module-window';
 import { setLogger, getLogger } from '@/lib/logger-client';
 import { useAuthStore } from '@/stores/auth.store';
+import { useAIContextStore } from '@/stores/ai-context.store';
 import { getArunaCore } from '@/features/aruna-assistant/engines/aruna-core';
 import { setCoreContainer } from '@/features/aruna-assistant/stores/aruna-assistant-store';
 
@@ -515,6 +516,38 @@ export function ServiceProvider({ children }: { children: ReactNode }) {
             keywords: ['weather', 'forecast', 'climate'],
             action: () => {
               moduleWindowService.openModule('arunaos.weather').catch(() => {});
+            },
+          },
+          {
+            id: 'ai-ask',
+            label: 'Ask AI...',
+            description: 'Ask anything to the AI assistant',
+            category: 'Action',
+            keywords: ['ai', 'assistant', 'ask', 'question', 'help'],
+            action: () => {
+              useAIContextStore.getState().askAI();
+            },
+          },
+          {
+            id: 'ai-chat',
+            label: 'Open AI Chat',
+            description: 'Open full AI chat window',
+            category: 'Action',
+            keywords: ['ai', 'chat', 'conversation', 'assistant'],
+            action: () => {
+              moduleWindowService.openModule('arunaos.ai').catch(() => {});
+            },
+          },
+          {
+            id: 'ai-productivity',
+            label: 'Productivity Tips',
+            description: 'Get AI-powered productivity suggestions',
+            category: 'Action',
+            keywords: ['ai', 'productivity', 'tips', 'suggestions'],
+            action: () => {
+              useAIContextStore
+                .getState()
+                .askAI('Give me productivity tips based on my current workflow');
             },
           },
         ]);

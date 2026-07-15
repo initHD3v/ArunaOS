@@ -29,6 +29,8 @@ import { useFilesStore, type FileItem } from '../stores/files.store';
 import { putBlob, getBlob, deleteBlob } from '@/stores/file-blobs.db';
 import { useNativeFSStore, type NativeEntry } from '../stores/native-fs.store';
 import { getFileCategory, type FileCategory } from '@/features/viewer/utils/file-types';
+import { useAIContextStore } from '@/stores/ai-context.store';
+import { getAIContextActions } from '@/features/ai/ai-context-actions';
 import type { DesktopIconData } from '@/types';
 
 const iconMap: Record<string, React.ElementType> = {
@@ -477,12 +479,26 @@ export const Finder = memo(function Finder() {
         lastClickedRef.current = item.id;
       }
 
+      const aiActions = !isMulti
+        ? getAIContextActions({
+            label: isDesktopItem(item) ? item.title : (item as FileItem).name,
+            type: isDesktopItem(item)
+              ? 'app'
+              : (item as FileItem).type === 'folder'
+                ? 'folder'
+                : 'file',
+          })
+        : [];
+
       if (isDesktopItem(item)) {
         showContextMenu({ x: e.clientX, y: e.clientY }, [
           { id: 'open', label: 'Open', action: () => openItem(item) },
           { id: 'sep1', label: '', action: () => {}, separator: true },
           { id: 'rename', label: 'Rename', action: () => setRenamingIcon(item.id) },
           { id: 'delete', label: 'Delete', action: () => removeDesktopIcon(item.id) },
+          ...(aiActions.length > 0
+            ? [{ id: 'sep-ai', label: '', action: () => {}, separator: true }, ...aiActions]
+            : []),
         ]);
       } else if (isMulti) {
         const count = selectedIds.size;
@@ -554,6 +570,9 @@ export const Finder = memo(function Finder() {
               deleteItem(fi.id);
             },
           },
+          ...(aiActions.length > 0
+            ? [{ id: 'sep-ai', label: '', action: () => {}, separator: true }, ...aiActions]
+            : []),
         ]);
       }
     },
@@ -588,6 +607,16 @@ export const Finder = memo(function Finder() {
           },
         );
       }
+      items.push(
+        { id: 'sep-ai', label: '', action: () => {}, separator: true },
+        { id: 'ai-ask', label: 'Ask AI...', action: () => useAIContextStore.getState().askAI() },
+        {
+          id: 'ai-organize',
+          label: 'Suggest Folder Structure',
+          action: () =>
+            useAIContextStore.getState().askAI('Suggest an organization structure for my files'),
+        },
+      );
       showContextMenu({ x: e.clientX, y: e.clientY }, items);
     },
     [showContextMenu, clearSelection, handleNewFolder, clipboard.count, handleVirtualPaste],
@@ -660,6 +689,13 @@ export const Finder = memo(function Finder() {
         lastClickedRef.current = entry.name;
       }
 
+      const aiActions = !isMulti
+        ? getAIContextActions({
+            label: entry.name,
+            type: entry.type === 'directory' ? 'folder' : 'file',
+          })
+        : [];
+
       if (isMulti) {
         const count = selectedIds.size;
         showContextMenu({ x: e.clientX, y: e.clientY }, [
@@ -701,6 +737,9 @@ export const Finder = memo(function Finder() {
             },
           },
           { id: 'delete', label: 'Delete', action: () => nativeFS.deleteEntry(entry.name) },
+          ...(aiActions.length > 0
+            ? [{ id: 'sep-ai', label: '', action: () => {}, separator: true }, ...aiActions]
+            : []),
         ]);
       }
     },
@@ -733,6 +772,16 @@ export const Finder = memo(function Finder() {
           },
         );
       }
+      items.push(
+        { id: 'sep-ai', label: '', action: () => {}, separator: true },
+        { id: 'ai-ask', label: 'Ask AI...', action: () => useAIContextStore.getState().askAI() },
+        {
+          id: 'ai-organize',
+          label: 'Suggest Folder Structure',
+          action: () =>
+            useAIContextStore.getState().askAI('Suggest an organization structure for my files'),
+        },
+      );
       showContextMenu({ x: e.clientX, y: e.clientY }, items);
     },
     [

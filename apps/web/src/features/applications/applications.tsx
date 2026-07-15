@@ -9,6 +9,7 @@ import type { ModuleWindowService } from '@/services/module-window';
 import { useUIStore } from '@/stores/ui-store';
 import { useDesktopStore } from '@/features/desktop/stores/desktop.store';
 import { useDockStore } from '@/features/dock/stores/dock.store';
+import { useAIContextStore } from '@/stores/ai-context.store';
 import { getAppIdForModule } from '@/services/module-window';
 import { ApplicationDetail } from './application-detail';
 import { Grid3X3, Search } from 'lucide-react';
@@ -96,6 +97,18 @@ export function Applications() {
         },
         { id: 'sep2', label: '', action: () => {}, separator: true },
         { id: 'info', label: 'Info', action: () => setSelected(entryId) },
+        { id: 'sep3', label: '', action: () => {}, separator: true },
+        {
+          id: 'ai-ask',
+          label: `Ask AI about "${entryName}"`,
+          action: () => useAIContextStore.getState().askAI(`Tell me about "${entryName}"`),
+        },
+        {
+          id: 'ai-tips',
+          label: `Usage tips for ${entryName}`,
+          action: () =>
+            useAIContextStore.getState().askAI(`Give me tips and tricks for using "${entryName}"`),
+        },
       ]);
     },
     [showContextMenu, handleOpen, addToDock, addDesktopIcon],
