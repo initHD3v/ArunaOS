@@ -233,33 +233,39 @@ export function bridgeArunaEngine(engine: ArunaEngine, core: ArunaCore): () => v
   });
 
   /* Context-aware event reactions */
-  scheduler.on('focus-change', async () => {
+  const onFocusChange = async () => {
     const store = useArunaAssistantStore.getState();
     if (store?.initialized && !store.collapsed) {
       store.refreshSuggestions();
     }
-  });
+  };
+  scheduler.on('focus-change', onFocusChange);
 
-  scheduler.on('app-opened', async () => {
+  const onAppOpened = async () => {
     const store = useArunaAssistantStore.getState();
     if (store?.initialized && !store.collapsed) {
       store.refreshSuggestions();
     }
-  });
+  };
+  scheduler.on('app-opened', onAppOpened);
 
-  scheduler.on('task-completed', async () => {
+  const onTaskCompleted = async () => {
     const store = useArunaAssistantStore.getState();
     if (store?.initialized) {
       store.refreshSuggestions();
       store.refreshBrief();
     }
-  });
+  };
+  scheduler.on('task-completed', onTaskCompleted);
 
   /* ── Return cleanup ── */
 
   return () => {
     _bridgeInitialized = false;
     core.clearEngineBridge();
+    scheduler.off('focus-change', onFocusChange);
+    scheduler.off('app-opened', onAppOpened);
+    scheduler.off('task-completed', onTaskCompleted);
     for (const cleanup of cleanups) cleanup();
   };
 }

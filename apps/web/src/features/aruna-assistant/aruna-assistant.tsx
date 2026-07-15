@@ -248,9 +248,13 @@ function AISuggestions() {
                   ? Sun
                   : Calendar;
           const actionLabel = actionLabels[s.id] ?? 'Buka';
+          const fnStr = s.action.toString().replace(/\s/g, '');
           const hasAction =
-            s.action.length > 0 &&
-            !/^\s*(async\s+)?\(\s*\)\s*=>\s*(\{\s*\}|\s*)$/.test(s.action.toString());
+            fnStr !== '()=>{}' &&
+            fnStr !== 'async()=>{}' &&
+            fnStr !== 'function(){}' &&
+            fnStr !== 'function(){}' &&
+            !/^\(\)=>(\{\}|undefined|null)$/.test(fnStr);
           return (
             <motion.button
               key={s.id}
@@ -489,6 +493,7 @@ export const ArunaAssistant = memo(function ArunaAssistant() {
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const w = useWeatherStore();
   const weatherTemp = w.hourly.length > 0 ? w.temp : null;
+  /* TODO: wire to notification store when implemented */
   const notificationCount = 0;
   const collapsedDragRef = useRef<{ sx: number; sy: number; ox: number; oy: number } | null>(null);
   const [collapsedDragging, setCollapsedDragging] = useState(false);
@@ -665,10 +670,10 @@ export const ArunaAssistant = memo(function ArunaAssistant() {
             style={{
               width: 420,
               borderRadius: 32,
-              left: position.x || undefined,
-              right: position.x ? undefined : 24,
-              top: position.y || undefined,
-              bottom: position.y ? undefined : 24,
+              left: position.x != null ? position.x : undefined,
+              right: position.x != null ? undefined : 24,
+              top: position.y != null ? position.y : undefined,
+              bottom: position.y != null ? undefined : 24,
               boxShadow: '0 8px 40px rgba(0,0,0,0.08)',
             }}
           >

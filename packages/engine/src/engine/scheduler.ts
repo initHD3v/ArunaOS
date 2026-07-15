@@ -19,10 +19,12 @@ export interface EventHandler {
 export class Scheduler {
   private tasks: ScheduledTask[] = [];
   private handlers: EventHandler[] = [];
-  private intervals: ReturnType<typeof setInterval>[] = [];
+  private intervalIds: ReturnType<typeof setInterval>[] = [];
+  private timeoutIds: ReturnType<typeof setTimeout>[] = [];
   private running = false;
 
   registerTask(task: ScheduledTask): void {
+    if (this.tasks.some((t) => t.id === task.id)) return;
     this.tasks.push(task);
     if (this.running) this.startTask(task);
   }
@@ -31,10 +33,16 @@ export class Scheduler {
     this.handlers.push({ event, handler });
   }
 
+  off(event: SystemEvent, handler: (data: unknown) => void | Promise<void>): void {
+    this.handlers = this.handlers.filter((h) => !(h.event === event && h.handler === handler));
+  }
+
   emit(event: SystemEvent, data?: unknown): void {
     for (const h of this.handlers) {
       if (h.event === event) {
-        h.handler(data);
+        Promise.resolve(h.handler(data)).catch((e) =>
+          console.warn('[Scheduler] event handler failed:', e),
+        );
       }
     }
   }
@@ -50,12 +58,32 @@ export class Scheduler {
     const ms = this.getIntervalMs(task.schedule);
     if (ms <= 0) return;
 
-    const id = setInterval(async () => {
+    if (task.schedule.startsWith('daily-')) {
+      this.scheduleDaily(task);
+    } else {
+      const id = setInterval(async () => {
+        await task.action();
+        task.lastRun = Date.now();
+      }, ms);
+      this.intervalIds.push(id);
+    }
+  }
+
+  private scheduleDaily(task: ScheduledTask): void {
+    const tick = async () => {
       await task.action();
       task.lastRun = Date.now();
-    }, ms);
-
-    this.intervals.push(id);
+      const next = this.getIntervalMs(task.schedule);
+      if (next > 0) {
+        const id = setTimeout(tick, next);
+        this.timeoutIds.push(id);
+      }
+    };
+    const delay = this.getIntervalMs(task.schedule);
+    if (delay > 0) {
+      const id = setTimeout(tick, delay);
+      this.timeoutIds.push(id);
+    }
   }
 
   private getIntervalMs(schedule: CronSchedule): number {
@@ -66,22 +94,13 @@ export class Scheduler {
         return 30 * 60 * 1000;
       case 'every-hour':
         return 60 * 60 * 1000;
-      case 'daily-morning': {
-        const now = new Date();
-        const target = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 6, 0, 0);
-        if (now > target) target.setDate(target.getDate() + 1);
-        return target.getTime() - now.getTime();
-      }
-      case 'daily-midday': {
-        const now = new Date();
-        const target = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12, 0, 0);
-        if (now > target) target.setDate(target.getDate() + 1);
-        return target.getTime() - now.getTime();
-      }
+      case 'daily-morning':
+      case 'daily-midday':
       case 'daily-evening': {
+        const hour = schedule === 'daily-morning' ? 6 : schedule === 'daily-midday' ? 12 : 18;
         const now = new Date();
-        const target = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 18, 0, 0);
-        if (now > target) target.setDate(target.getDate() + 1);
+        const target = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hour, 0, 0);
+        if (now >= target) target.setDate(target.getDate() + 1);
         return target.getTime() - now.getTime();
       }
     }
@@ -89,9 +108,9 @@ export class Scheduler {
 
   stop(): void {
     this.running = false;
-    for (const id of this.intervals) {
-      clearInterval(id);
-    }
-    this.intervals = [];
+    for (const id of this.intervalIds) clearInterval(id);
+    for (const id of this.timeoutIds) clearTimeout(id);
+    this.intervalIds = [];
+    this.timeoutIds = [];
   }
 }

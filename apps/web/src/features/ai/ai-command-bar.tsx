@@ -4,8 +4,7 @@ import { useState, useRef, useEffect, useCallback, type FormEvent } from 'react'
 import { motion, AnimatePresence } from 'motion/react';
 import { Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useService, useEventBus } from '@/providers/service-provider';
-import type { ModuleWindowService } from '@/services/module-window';
+import { useEventBus } from '@/providers/service-provider';
 import { useAIContextStore } from '@/stores/ai-context.store';
 
 interface AICommandBarProps {
@@ -18,20 +17,20 @@ export function AICommandBar({ open, onClose }: AICommandBarProps) {
   const [mode, setMode] = useState<'input' | 'loading' | 'result' | 'error'>('input');
   const [result, setResult] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
   const eventBus = useEventBus();
-  const moduleWindow = useService<ModuleWindowService>('moduleWindow');
   const quickAskPrompt = useAIContextStore((s) => s.quickAsk.prompt);
-  const quickAskOpen = useAIContextStore((s) => s.quickAsk.open);
-  const closeQuickAsk = useAIContextStore((s) => s.closeQuickAsk);
 
   useEffect(() => {
     if (open) {
       if (quickAskPrompt) setQuery(quickAskPrompt);
       setMode('input');
       setResult('');
-      if (quickAskOpen) closeQuickAsk();
       const id = setTimeout(() => inputRef.current?.focus(), 50);
-      return () => clearTimeout(id);
+      return () => {
+        clearTimeout(id);
+        abortRef.current?.abort();
+      };
     }
   }, [open]);
 
@@ -40,6 +39,10 @@ export function AICommandBar({ open, onClose }: AICommandBarProps) {
       e?.preventDefault();
       const trimmed = query.trim();
       if (!trimmed) return;
+
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
 
       setMode('loading');
 
@@ -70,6 +73,7 @@ export function AICommandBar({ open, onClose }: AICommandBarProps) {
         const res = await fetch('/api/ai/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          signal: controller.signal,
           body: JSON.stringify({
             message:
               `Execute the following command: "${trimmed}". ` +
@@ -80,9 +84,11 @@ export function AICommandBar({ open, onClose }: AICommandBarProps) {
           }),
         });
 
+        if (controller.signal.aborted) return;
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
         const data = await res.json();
+        if (controller.signal.aborted) return;
         setResult(data.reply);
         setMode('result');
 
@@ -94,12 +100,13 @@ export function AICommandBar({ open, onClose }: AICommandBarProps) {
           });
         }
       } catch (err: unknown) {
+        if (controller.signal.aborted) return;
         const errMsg = err instanceof Error ? err.message : 'Command failed';
         setResult(errMsg);
         setMode('error');
       }
     },
-    [query, eventBus, moduleWindow],
+    [query, eventBus],
   );
 
   const handleKeyDown = useCallback(

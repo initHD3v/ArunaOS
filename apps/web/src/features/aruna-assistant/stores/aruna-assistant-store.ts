@@ -10,6 +10,8 @@ import type {
 import { getArunaCore } from '../engines/aruna-core';
 
 let _container: { get: (name: string) => unknown } | null = null;
+let _unsubStateChange: (() => void) | null = null;
+let _unsubContextChange: (() => void) | null = null;
 
 export function setCoreContainer(container: { get: (name: string) => unknown }) {
   _container = container;
@@ -78,22 +80,32 @@ export const useArunaAssistantStore = create<ArunaAssistantState>()(
           const suggestions = core.generateSuggestions();
           set({ brief, suggestions });
 
-          core.state.onStateChange((_from, to) => {
+          _unsubStateChange?.();
+          _unsubStateChange = core.state.onStateChange((_from, to) => {
             set({ assistantState: to });
           });
 
-          core.onContextChange(() => {
+          _unsubContextChange?.();
+          _unsubContextChange = core.onContextChange(() => {
             const s = core.generateSuggestions();
             set({ suggestions: s });
           });
         },
 
         destroy: () => {
+          _unsubStateChange?.();
+          _unsubStateChange = null;
+          _unsubContextChange?.();
+          _unsubContextChange = null;
           core.destroy();
           set({ initialized: false });
         },
 
         suspend: () => {
+          _unsubStateChange?.();
+          _unsubStateChange = null;
+          _unsubContextChange?.();
+          _unsubContextChange = null;
           core.destroy();
           set({
             initialized: false,
@@ -113,11 +125,13 @@ export const useArunaAssistantStore = create<ArunaAssistantState>()(
           const suggestions = core.generateSuggestions();
           set({ brief, suggestions });
 
-          core.state.onStateChange((_from, to) => {
+          _unsubStateChange?.();
+          _unsubStateChange = core.state.onStateChange((_from, to) => {
             set({ assistantState: to });
           });
 
-          core.onContextChange(() => {
+          _unsubContextChange?.();
+          _unsubContextChange = core.onContextChange(() => {
             const s = core.generateSuggestions();
             set({ suggestions: s });
           });
