@@ -32,6 +32,17 @@ export class ArunaCore {
   private _initialized = false;
   private _openModule: ((id: string) => Promise<void>) | null = null;
 
+  /* Engine bridge */
+  private _engineBridge: {
+    rememberHook?: (
+      content: string,
+      category: MemoryCategory,
+      metadata?: Record<string, string>,
+    ) => void;
+    suggestionsHook?: (suggestions: Suggestion[]) => Suggestion[] | Promise<Suggestion[]>;
+    briefHook?: (brief: DailyBrief | null) => DailyBrief | null;
+  } | null = null;
+
   /* Expose engines as readonly */
   readonly context: ContextEngine;
   readonly memory: MemoryEngine;
@@ -142,6 +153,24 @@ export class ArunaCore {
     return this.context.current;
   }
 
+  /* ── Engine Bridge ─────────────────────────────────── */
+
+  bridgeEngine(hooks: {
+    rememberHook?: (
+      content: string,
+      category: MemoryCategory,
+      metadata?: Record<string, string>,
+    ) => void;
+    suggestionsHook?: (suggestions: Suggestion[]) => Suggestion[] | Promise<Suggestion[]>;
+    briefHook?: (brief: DailyBrief | null) => DailyBrief | null;
+  }): void {
+    this._engineBridge = hooks;
+  }
+
+  clearEngineBridge(): void {
+    this._engineBridge = null;
+  }
+
   /* ── Mode ──────────────────────────────────────────── */
 
   setMode(mode: OperatingMode) {
@@ -155,12 +184,13 @@ export class ArunaCore {
     if (!ctx) return null;
     const brief = this.personality.generateDailyBrief(ctx);
 
-    this.memory.remember(`Daily brief: ${brief.greeting} — ${brief.message}`, 'episodic', {
+    this.remember(`Daily brief: ${brief.greeting} — ${brief.message}`, 'episodic', {
       date: new Date().toISOString().slice(0, 10),
     });
 
-    this.briefListeners.forEach((fn) => fn(brief));
-    return brief;
+    const hooked = this._engineBridge?.briefHook?.(brief) ?? brief;
+    this.briefListeners.forEach((fn) => fn(hooked));
+    return hooked;
   }
 
   onBrief(fn: (brief: DailyBrief) => void) {
@@ -220,17 +250,17 @@ export class ArunaCore {
     return this.tools.executeIntent(intent.type, intent.entities);
   }
 
-  /* ── Memory ────────────────────────────────────────── */
+  /* ── Suggestions ───────────────────────────────────── */
 
   remember(content: string, category: MemoryCategory, metadata?: Record<string, string>): Memory {
-    return this.memory.remember(content, category, metadata);
+    const mem = this.memory.remember(content, category, metadata);
+    this._engineBridge?.rememberHook?.(content, category, metadata);
+    return mem;
   }
 
   recall(query: MemoryQuery): Memory[] {
     return this.memory.recall(query);
   }
-
-  /* ── Suggestions ───────────────────────────────────── */
 
   generateSuggestions(): Suggestion[] {
     const ctx = this.context.current;
@@ -392,7 +422,10 @@ export class ArunaCore {
       });
     }
 
-    return suggestions.slice(0, 6);
+    const sliced = suggestions.slice(0, 6);
+    const hooked = this._engineBridge?.suggestionsHook?.(sliced);
+    if (hooked instanceof Promise) return sliced;
+    return hooked ?? sliced;
   }
 }
 

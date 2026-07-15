@@ -2,6 +2,8 @@
 
 import { createContext, useContext, useEffect, useState, useRef, type ReactNode } from 'react';
 import { ArunaEngine, type EngineStatus } from '@arunaos/engine';
+import { getArunaCore } from '@/features/aruna-assistant/engines/aruna-core';
+import { bridgeArunaEngine } from '@/features/aruna-assistant/engines/engine-bridge';
 
 interface EngineContextValue {
   engine: ArunaEngine | null;
@@ -26,6 +28,9 @@ export function ArunaEngineProvider({ children }: { children: ReactNode }) {
     engine.onStatusChange(setStatus);
 
     engine.boot().then(() => {
+      /* Bridge to ArunaCore after engine is ready */
+      const core = getArunaCore();
+      bridgeArunaEngine(engine, core);
       engine.activate();
     });
 
