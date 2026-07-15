@@ -84,6 +84,7 @@ export class PersonalityEngine implements ArunaEngine {
 
     return {
       greeting: `${this.getGreeting(tod)}, ${this.username}`,
+      userName: this.username,
       timeOfDay: tod,
       weather: `Cuaca hari ini ${temp}${ctx.weather ? ` di ${ctx.weather.city}` : ''}`,
       calendarSummary: '',

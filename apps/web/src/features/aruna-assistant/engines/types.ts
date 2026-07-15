@@ -128,6 +128,7 @@ export interface DailyBrief {
   pendingTasks: number;
   focusRecommendation: string;
   message: string;
+  userName?: string;
 }
 
 /* ------------------------------------------------------------------ */

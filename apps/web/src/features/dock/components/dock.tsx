@@ -106,7 +106,7 @@ export function Dock() {
         settings: { title: 'Settings', icon: 'settings', size: { width: 720, height: 520 } },
         camera: { title: 'Camera', icon: 'camera', size: { width: 800, height: 600 } },
         astat: { title: 'Activity Monitor', icon: 'activity', size: { width: 800, height: 500 } },
-        ai: { title: 'AI', icon: 'sparkles', size: { width: 640, height: 480 } },
+        ai: { title: 'AI', icon: 'sparkles', size: { width: 800, height: 560 } },
         appstore: { title: 'AppStore', icon: 'grid', size: { width: 900, height: 640 } },
       };
 

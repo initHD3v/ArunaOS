@@ -25,3 +25,6 @@ export { createSystemContext, formatSystemContext } from './context/system-conte
 export { ModuleGenerator } from './module-generator';
 export { AIModuleGenerator } from './ai-generator';
 export type { GeneratorResult, GeneratorOptions } from './module-generator';
+
+// Chat fallback
+export { ChatFallback } from './chat-fallback';

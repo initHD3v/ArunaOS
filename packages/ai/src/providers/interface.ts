@@ -88,7 +88,7 @@ export function buildRequestBody(
   model: string,
   messages: Array<{ role: string; content: string }>,
   systemPrompt?: string,
-  tools?: Array<{ name: string; description: string; parameters: unknown }>,
+  tools?: Array<Record<string, unknown>>,
   stream?: boolean,
   temperature?: number,
   maxTokens?: number,
@@ -181,22 +181,41 @@ export function detectProviders(): Array<{ type: AIProviderType; config: AIProvi
 }
 
 export function convertToolsForProvider(
-  _provider: AIProviderType,
+  provider: AIProviderType,
   tools: import('../types').AITool[],
-): Array<{ name: string; description: string; parameters: unknown }> {
+): Array<Record<string, unknown>> {
+  if (provider === 'anthropic') {
+    return tools.map((tool) => ({
+      name: tool.name,
+      description: tool.description,
+      input_schema: {
+        type: 'object',
+        properties: Object.fromEntries(
+          tool.parameters.map((p) => [
+            p.name,
+            { type: p.type, description: p.description, enum: p.enum },
+          ]),
+        ),
+        required: tool.parameters.filter((p) => p.required).map((p) => p.name),
+      },
+    }));
+  }
+
   return tools.map((tool) => ({
-    name: tool.name,
-    description: tool.description,
     type: 'function',
-    parameters: {
-      type: 'object',
-      properties: Object.fromEntries(
-        tool.parameters.map((p) => [
-          p.name,
-          { type: p.type, description: p.description, enum: p.enum },
-        ]),
-      ),
-      required: tool.parameters.filter((p) => p.required).map((p) => p.name),
+    function: {
+      name: tool.name,
+      description: tool.description,
+      parameters: {
+        type: 'object',
+        properties: Object.fromEntries(
+          tool.parameters.map((p) => [
+            p.name,
+            { type: p.type, description: p.description, enum: p.enum },
+          ]),
+        ),
+        required: tool.parameters.filter((p) => p.required).map((p) => p.name),
+      },
     },
   }));
 }

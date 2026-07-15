@@ -119,6 +119,11 @@ export class AIService {
         return new OpenRouterProvider(cfg);
       case 'ollama':
         return new OllamaProvider(cfg);
+      case 'lmstudio': {
+        const lmBaseUrl = (cfg.baseUrl ?? 'http://127.0.0.1:1234').replace(/\/$/, '');
+        const finalUrl = lmBaseUrl.includes('/v1') ? lmBaseUrl : `${lmBaseUrl}/v1`;
+        return new OpenAIProvider({ ...cfg, baseUrl: finalUrl });
+      }
     }
   }
 

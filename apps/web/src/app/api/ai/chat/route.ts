@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import {
   AIService,
   ChatSession,
+  ChatFallback,
   getDefaultTools,
   type AIProviderType,
   type AIProviderConfig,
@@ -10,6 +11,18 @@ import {
 const aiService = new AIService({
   tools: getDefaultTools(),
 });
+
+const fallback = new ChatFallback();
+
+function hasConfiguredProvider(
+  providerConfig?: { type: AIProviderType } & AIProviderConfig,
+): boolean {
+  if (!providerConfig) return aiService.getAvailableProviders().length > 0;
+  if (providerConfig.apiKey) return true;
+  if (providerConfig.type === 'ollama' || providerConfig.type === 'lmstudio')
+    return !!providerConfig.baseUrl;
+  return false;
+}
 
 function getClientAddress(request: NextRequest): string {
   return request.headers.get('x-forwarded-for') ?? 'anonymous';
@@ -32,21 +45,23 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const providerType = (provider as AIProviderType) ?? providerConfig?.type ?? undefined;
-
-    // Check if provider is configured before creating session
-    if (!providerConfig?.apiKey && !providerConfig?.type) {
-      const hasEnvProvider = aiService.getAvailableProviders().length > 0;
-      if (!hasEnvProvider) {
-        return new Response(
-          JSON.stringify({
-            error:
-              'AI provider not configured. Please add an API key in Settings or set environment variables.',
-          }),
-          { status: 400, headers: { 'Content-Type': 'application/json' } },
-        );
-      }
+    if (!hasConfiguredProvider(providerConfig)) {
+      const reply = fallback.respond(message);
+      return new Response(
+        JSON.stringify({
+          reply: reply.content,
+          sessionId: sessionId ?? `fallback-${Date.now()}`,
+          provider: 'fallback',
+          model: 'keyword',
+        }),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        },
+      );
     }
+
+    const providerType = (provider as AIProviderType) ?? providerConfig?.type ?? undefined;
 
     const sid = sessionId ?? `session-${Date.now()}-${getClientAddress(request)}`;
     const session = new ChatSession(
@@ -64,20 +79,36 @@ export async function POST(request: NextRequest) {
       aiService,
     );
 
-    const response = await session.sendMessage(message);
+    try {
+      const response = await session.sendMessage(message);
 
-    return new Response(
-      JSON.stringify({
-        reply: response.content,
-        sessionId: sid,
-        provider: session.getProvider(),
-        model: session.getModel(),
-      }),
-      {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      },
-    );
+      return new Response(
+        JSON.stringify({
+          reply: response.content,
+          sessionId: sid,
+          provider: session.getProvider(),
+          model: session.getModel(),
+        }),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        },
+      );
+    } catch {
+      const reply = fallback.respond(message);
+      return new Response(
+        JSON.stringify({
+          reply: reply.content,
+          sessionId: sid,
+          provider: 'fallback',
+          model: 'keyword',
+        }),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        },
+      );
+    }
   } catch (err: unknown) {
     const errorMessage = err instanceof Error ? err.message : 'Internal server error';
     return new Response(JSON.stringify({ error: errorMessage }), {
@@ -101,6 +132,8 @@ export async function GET(request: NextRequest) {
     });
   }
 
+  const encoder = new TextEncoder();
+
   let providerConfig: ({ type: AIProviderType } & AIProviderConfig) | undefined;
   if (providerConfigRaw) {
     try {
@@ -110,11 +143,34 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  if (!hasConfiguredProvider(providerConfig)) {
+    const stream = new ReadableStream({
+      async start(controller) {
+        const generator = fallback.respondStream(message);
+        for await (const chunk of generator) {
+          const data = JSON.stringify(chunk);
+          controller.enqueue(encoder.encode(`data: ${data}\n\n`));
+        }
+        controller.enqueue(
+          encoder.encode(`data: {"type":"session","sessionId":"fallback-${Date.now()}"}\n\n`),
+        );
+        controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+        controller.close();
+      },
+    });
+    return new Response(stream, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        Connection: 'keep-alive',
+      },
+    });
+  }
+
   const providerType = (providerRaw as AIProviderType) ?? providerConfig?.type ?? undefined;
 
   const sid = sessionId ?? `session-${Date.now()}-sse`;
 
-  const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {
       try {
@@ -139,11 +195,16 @@ export async function GET(request: NextRequest) {
 
         controller.enqueue(encoder.encode(`data: {"type":"session","sessionId":"${sid}"}\n\n`));
         controller.enqueue(encoder.encode('data: [DONE]\n\n'));
-      } catch (err: unknown) {
-        const errorMessage = err instanceof Error ? err.message : 'Stream error';
+      } catch {
+        const fallbackGen = fallback.respondStream(message);
+        for await (const chunk of fallbackGen) {
+          const data = JSON.stringify(chunk);
+          controller.enqueue(encoder.encode(`data: ${data}\n\n`));
+        }
         controller.enqueue(
-          encoder.encode(`data: ${JSON.stringify({ type: 'error', content: errorMessage })}\n\n`),
+          encoder.encode(`data: {"type":"session","sessionId":"fallback-${Date.now()}"}\n\n`),
         );
+        controller.enqueue(encoder.encode('data: [DONE]\n\n'));
       } finally {
         controller.close();
       }

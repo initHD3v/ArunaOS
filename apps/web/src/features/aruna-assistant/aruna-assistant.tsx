@@ -13,6 +13,7 @@ import {
   Mail,
   MessageSquare,
   ChevronRight,
+  ChevronDown,
   Clock,
   Sun,
   Droplets,
@@ -55,8 +56,6 @@ const contextIcons = [
 function Header() {
   const brief = useArunaAssistantStore((s) => s.brief);
   const showWeather = useArunaAssistantSettings((s) => s.showWeather);
-  const greeting = brief?.greeting ?? 'Good Morning';
-  const name = greeting.includes(',') ? greeting.split(',')[1]?.trim() : '';
   const timeOfDay = brief?.timeOfDay ?? 'morning';
   const now = new Date();
   const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -99,7 +98,7 @@ function Header() {
           className="mt-0.5 text-[28px] font-semibold tracking-tight"
           style={{ color: '#111111' }}
         >
-          {name || 'User'}
+          {brief?.userName || 'User'}
         </span>
         <div className="mt-0.5 flex items-center gap-1.5 text-[12px]" style={{ color: '#707070' }}>
           <span>{days[now.getDay()]}</span>
@@ -164,6 +163,7 @@ function PersonalityMessage() {
 }
 
 function ContextSummary() {
+  const [open, setOpen] = useState(false);
   const ctx = useArunaAssistantStore((s) => s.brief);
   const items = contextIcons.map((c) => {
     let value: string | null = null;
@@ -174,42 +174,55 @@ function ContextSummary() {
   if (!hasData) return null;
   return (
     <div className="flex flex-col gap-2">
-      <span
-        className="text-[11px] font-medium uppercase tracking-[0.06em]"
-        style={{ color: '#707070' }}
-      >
-        Context
-      </span>
-      <div className="grid grid-cols-5 gap-2">
-        {items.map((c) => (
-          <div
-            key={c.key}
-            className="flex flex-col items-center gap-1 rounded-xl px-2 py-2.5"
-            style={{ backgroundColor: '#F7F8FA' }}
-          >
+      <button onClick={() => setOpen((v) => !v)} className="flex items-center gap-1 text-left">
+        <ChevronDown
+          size={10}
+          style={{
+            color: '#707070',
+            transform: open ? 'rotate(0deg)' : 'rotate(-90deg)',
+            transition: 'transform 0.2s',
+          }}
+        />
+        <span
+          className="text-[11px] font-medium uppercase tracking-[0.06em]"
+          style={{ color: '#707070' }}
+        >
+          Context
+        </span>
+      </button>
+      {open && (
+        <div className="grid grid-cols-5 gap-2">
+          {items.map((c) => (
             <div
-              className="flex h-7 w-7 items-center justify-center rounded-full"
-              style={{ backgroundColor: `${c.color}15` }}
+              key={c.key}
+              className="flex flex-col items-center gap-1 rounded-xl px-2 py-2.5"
+              style={{ backgroundColor: '#F7F8FA' }}
             >
-              <c.icon size={12} style={{ color: c.color }} />
+              <div
+                className="flex h-7 w-7 items-center justify-center rounded-full"
+                style={{ backgroundColor: `${c.color}15` }}
+              >
+                <c.icon size={12} style={{ color: c.color }} />
+              </div>
+              <span
+                className="text-center text-[10px] font-medium leading-tight"
+                style={{ color: c.value ? '#111111' : '#B0B0B0' }}
+              >
+                {c.value || '--'}
+              </span>
+              <span className="text-[8px]" style={{ color: '#707070' }}>
+                {c.label}
+              </span>
             </div>
-            <span
-              className="text-center text-[10px] font-medium leading-tight"
-              style={{ color: c.value ? '#111111' : '#B0B0B0' }}
-            >
-              {c.value || '--'}
-            </span>
-            <span className="text-[8px]" style={{ color: '#707070' }}>
-              {c.label}
-            </span>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
 function AISuggestions() {
+  const [open, setOpen] = useState(false);
   const suggestions = useArunaAssistantStore((s) => s.suggestions);
   if (suggestions.length === 0) return null;
 
@@ -232,83 +245,98 @@ function AISuggestions() {
 
   return (
     <div className="flex flex-col gap-2">
-      <span
-        className="text-[11px] font-medium uppercase tracking-[0.06em]"
-        style={{ color: '#707070' }}
-      >
-        Suggested for You
-      </span>
-      <div className="flex flex-col gap-1.5">
-        {suggestions.map((s) => {
-          const color = suggestionColors[s.icon] ?? '#5D6BFF';
-          const Icon =
-            s.icon === 'sparkles'
-              ? Sparkles
-              : s.icon === 'mail'
-                ? Mail
-                : s.icon === 'sun'
-                  ? Sun
-                  : Calendar;
-          const actionLabel = actionLabels[s.id] ?? 'Buka';
-          const fnStr = s.action.toString().replace(/\s/g, '');
-          const hasAction =
-            fnStr !== '()=>{}' &&
-            fnStr !== 'async()=>{}' &&
-            fnStr !== 'function(){}' &&
-            fnStr !== 'function(){}' &&
-            !/^\(\)=>(\{\}|undefined|null)$/.test(fnStr);
-          return (
-            <motion.button
-              key={s.id}
-              whileHover={{ scale: 1.01 }}
-              whileTap={{ scale: 0.99 }}
-              onClick={s.action}
-              className="group flex items-center gap-3 rounded-xl px-4 py-2.5 text-left transition-colors"
-              style={{ backgroundColor: '#F7F8FA' }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLElement).style.backgroundColor = '#F0F1F3';
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLElement).style.backgroundColor = '#F7F8FA';
-              }}
-            >
-              <div
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
-                style={{ backgroundColor: `${color}15` }}
+      <button onClick={() => setOpen((v) => !v)} className="flex items-center gap-1 text-left">
+        <ChevronDown
+          size={10}
+          style={{
+            color: '#707070',
+            transform: open ? 'rotate(0deg)' : 'rotate(-90deg)',
+            transition: 'transform 0.2s',
+          }}
+        />
+        <span
+          className="text-[11px] font-medium uppercase tracking-[0.06em]"
+          style={{ color: '#707070' }}
+        >
+          Suggested for You
+        </span>
+      </button>
+      {open && (
+        <div className="flex flex-col gap-1.5">
+          {suggestions.map((s) => {
+            const color = suggestionColors[s.icon] ?? '#5D6BFF';
+            const Icon =
+              s.icon === 'sparkles'
+                ? Sparkles
+                : s.icon === 'mail'
+                  ? Mail
+                  : s.icon === 'sun'
+                    ? Sun
+                    : Calendar;
+            const actionLabel = actionLabels[s.id] ?? 'Buka';
+            const fnStr = s.action.toString().replace(/\s/g, '');
+            const hasAction =
+              fnStr !== '()=>{}' &&
+              fnStr !== 'async()=>{}' &&
+              fnStr !== 'function(){}' &&
+              fnStr !== 'function(){}' &&
+              !/^\(\)=>(\{\}|undefined|null)$/.test(fnStr);
+            return (
+              <motion.button
+                key={s.id}
+                whileHover={{ scale: 1.01 }}
+                whileTap={{ scale: 0.99 }}
+                onClick={s.action}
+                className="group flex items-center gap-3 rounded-xl px-4 py-2.5 text-left transition-colors"
+                style={{ backgroundColor: '#F7F8FA' }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLElement).style.backgroundColor = '#F0F1F3';
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLElement).style.backgroundColor = '#F7F8FA';
+                }}
               >
-                <Icon size={14} style={{ color }} />
-              </div>
-              <div className="min-w-0 flex-1 text-left">
-                <div className="text-[13px] font-medium" style={{ color: '#111111' }}>
-                  {s.title}
+                <div
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
+                  style={{ backgroundColor: `${color}15` }}
+                >
+                  <Icon size={14} style={{ color }} />
                 </div>
-                <div className="text-[11px]" style={{ color: '#707070' }}>
-                  {s.description}
-                </div>
-              </div>
-              {hasAction ? (
-                <div className="flex items-center gap-1.5">
-                  <div
-                    className="rounded-lg px-2 py-1 text-[9px] font-medium opacity-0 transition-opacity group-hover:opacity-100"
-                    style={{ backgroundColor: `${color}15`, color }}
-                  >
-                    {actionLabel}
+                <div className="min-w-0 flex-1 text-left">
+                  <div className="text-[13px] font-medium" style={{ color: '#111111' }}>
+                    {s.title}
                   </div>
+                  <div className="text-[11px]" style={{ color: '#707070' }}>
+                    {s.description}
+                  </div>
+                </div>
+                {hasAction ? (
+                  <div className="flex items-center gap-1.5">
+                    <div
+                      className="rounded-lg px-2 py-1 text-[9px] font-medium opacity-0 transition-opacity group-hover:opacity-100"
+                      style={{ backgroundColor: `${color}15`, color }}
+                    >
+                      {actionLabel}
+                    </div>
+                    <div
+                      className="flex items-center gap-1 text-[10px]"
+                      style={{ color: '#707070' }}
+                    >
+                      <Clock size={10} />
+                      {s.estimatedTime}
+                    </div>
+                  </div>
+                ) : (
                   <div className="flex items-center gap-1 text-[10px]" style={{ color: '#707070' }}>
                     <Clock size={10} />
                     {s.estimatedTime}
                   </div>
-                </div>
-              ) : (
-                <div className="flex items-center gap-1 text-[10px]" style={{ color: '#707070' }}>
-                  <Clock size={10} />
-                  {s.estimatedTime}
-                </div>
-              )}
-            </motion.button>
-          );
-        })}
-      </div>
+                )}
+              </motion.button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

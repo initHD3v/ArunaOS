@@ -467,6 +467,7 @@ describe('engine-bridge', () => {
     /* Should fall back to synchronous template engine greeting when cache is empty */
     expect(firstResult).toBe(brief);
     expect(firstResult.greeting).not.toBe('Good Morning, User');
+    expect(firstResult.greeting).toMatch(/^Selamat pagi/);
 
     /* After the async getMemoryGreeting resolves, subsequent calls should use cached value */
     await vi.waitFor(() => {
