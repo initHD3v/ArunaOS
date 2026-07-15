@@ -529,12 +529,10 @@ export const ArunaAssistant = memo(function ArunaAssistant() {
               idleTimerRef.current = setTimeout(() => setIdle(true), 3000);
             }}
             className={cn(
-              'fixed z-[9999] flex h-14 w-14 items-center justify-center rounded-full shadow-lg backdrop-blur-xl transition-shadow duration-300',
-              collapsedDragging ? 'cursor-grabbing shadow-xl' : 'cursor-grab',
+              'fixed z-[9999] flex h-16 w-16 items-center justify-center transition-shadow duration-300',
+              collapsedDragging ? 'cursor-grabbing' : 'cursor-grab',
             )}
             style={{
-              backgroundColor: idle ? 'rgba(255,255,255,0.3)' : '#FFFFFFE0',
-              boxShadow: idle ? '0 2px 10px rgba(0,0,0,0.04)' : '0 4px 20px rgba(0,0,0,0.08)',
               left: position.x || undefined,
               right: position.x ? undefined : 24,
               top: position.y || undefined,
@@ -544,16 +542,16 @@ export const ArunaAssistant = memo(function ArunaAssistant() {
             <motion.div
               animate={{
                 scale: idle ? [1, 1.03, 1] : [1, 1.08, 1],
-                opacity: idle ? 0.6 : 1,
+                opacity: idle ? 0.5 : 1,
               }}
               transition={{ duration: idle ? 4 : 3, repeat: Infinity, ease: 'easeInOut' }}
-              className="flex h-7 w-7 items-center justify-center"
+              className="flex h-12 w-12 items-center justify-center"
             >
               <img
                 src="/logo.png"
                 alt="ArunaOS"
-                className="h-7 w-7"
-                style={{ filter: idle ? 'grayscale(0.5) opacity(0.6)' : 'none' }}
+                className="h-12 w-12"
+                style={{ filter: idle ? 'grayscale(0.5) opacity(0.5)' : 'none' }}
               />
             </motion.div>
           </motion.div>
