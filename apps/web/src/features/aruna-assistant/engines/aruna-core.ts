@@ -32,6 +32,10 @@ export class ArunaCore {
   private _initialized = false;
   private _openModule: ((id: string) => Promise<void>) | null = null;
 
+  private _safeOpenModule(id: string): void {
+    this._openModule?.(id).catch((e) => console.warn('[ArunaCore] openModule failed:', id, e));
+  }
+
   /* Engine bridge */
   private _engineBridge: {
     rememberHook?: (
@@ -96,7 +100,13 @@ export class ArunaCore {
 
     // Register context listener BEFORE engine init so it catches initial snapshot
     this.context.onContextChange((ctx) => {
-      this.contextListeners.forEach((fn) => fn(ctx));
+      for (const fn of this.contextListeners) {
+        try {
+          fn(ctx);
+        } catch {
+          /* isolate listener failure */
+        }
+      }
 
       this.memory.remember(
         `System context: ${ctx.time.timeOfDay}, weather: ${ctx.weather?.condition ?? 'unknown'}`,
@@ -110,8 +120,16 @@ export class ArunaCore {
       });
     });
 
-    for (const engine of this.engines.values()) {
-      await engine.init();
+    const initErrors: Array<{ name: string; error: unknown }> = [];
+    for (const [name, engine] of this.engines) {
+      try {
+        await engine.init();
+      } catch (e) {
+        initErrors.push({ name, error: e });
+      }
+    }
+    if (initErrors.length > 0) {
+      console.warn('[ArunaCore] Some engines failed to init:', initErrors);
     }
     if (container) {
       this.tools.connect(container);
@@ -130,9 +148,17 @@ export class ArunaCore {
   }
 
   destroy() {
-    this.state.reset();
-    for (const engine of this.engines.values()) {
-      engine.destroy();
+    try {
+      this.state.reset();
+    } catch {
+      /* ignore */
+    }
+    for (const [name, engine] of this.engines) {
+      try {
+        engine.destroy();
+      } catch (e) {
+        console.warn('[ArunaCore] Engine destroy failed:', name, e);
+      }
     }
     this.contextListeners = [];
     this.briefListeners = [];
@@ -189,7 +215,13 @@ export class ArunaCore {
     });
 
     const hooked = this._engineBridge?.briefHook?.(brief) ?? brief;
-    this.briefListeners.forEach((fn) => fn(hooked));
+    for (const fn of this.briefListeners) {
+      try {
+        fn(hooked);
+      } catch {
+        /* isolate listener failure */
+      }
+    }
     return hooked;
   }
 
@@ -287,7 +319,9 @@ export class ArunaCore {
       title: 'Daily Brief',
       description: ctx ? `${timeOfDay} overview — ${ctx.time.date}` : 'Start your day',
       estimatedTime: '~1m',
-      action: () => this.generateBrief(),
+      action: () => {
+        this.generateBrief();
+      },
     });
 
     if (hasFocusWork) {
@@ -297,7 +331,7 @@ export class ArunaCore {
         title: 'Continue Work',
         description: 'You were working on this recently',
         estimatedTime: '~2h',
-        action: () => this._openModule?.('arunaos.files'),
+        action: () => this._safeOpenModule('arunaos.files'),
       });
     }
 
@@ -309,7 +343,7 @@ export class ArunaCore {
         ? `${weather.temp}° ${weather.condition}${isRainy ? ' — bawa payung!' : isCold ? ' — cuaca dingin' : ''}`
         : "Today's forecast",
       estimatedTime: '~1m',
-      action: () => this._openModule?.('arunaos.weather'),
+      action: () => this._safeOpenModule('arunaos.weather'),
     });
 
     if (timeOfDay === 'morning' && hour >= 4 && hour < 9) {
@@ -347,7 +381,7 @@ export class ArunaCore {
         title: 'Sesi Fokus Sore',
         description: 'Selesaikan tugas utama sebelum hari berganti',
         estimatedTime: '~1h',
-        action: () => this._openModule?.('arunaos.files'),
+        action: () => this._safeOpenModule('arunaos.files'),
       });
     }
 
@@ -416,7 +450,7 @@ export class ArunaCore {
         description: `Your most used module (${topModule.usageCount}x)`,
         estimatedTime: '~1m',
         action: () =>
-          this._openModule?.(
+          this._safeOpenModule(
             topModule.id.startsWith('arunaos.') ? topModule.id : `arunaos.${topModule.id}`,
           ),
       });
@@ -424,7 +458,10 @@ export class ArunaCore {
 
     const sliced = suggestions.slice(0, 6);
     const hooked = this._engineBridge?.suggestionsHook?.(sliced);
-    if (hooked instanceof Promise) return sliced;
+    if (hooked instanceof Promise) {
+      hooked.catch((e) => console.warn('[ArunaCore] suggestionsHook promise failed:', e));
+      return sliced;
+    }
     return hooked ?? sliced;
   }
 }
@@ -437,4 +474,11 @@ export function getArunaCore(): ArunaCore {
     _instance = new ArunaCore();
   }
   return _instance;
+}
+
+export function resetArunaCore(): void {
+  if (_instance) {
+    _instance.destroy();
+    _instance = null;
+  }
 }

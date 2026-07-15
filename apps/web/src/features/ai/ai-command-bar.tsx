@@ -20,16 +20,18 @@ export function AICommandBar({ open, onClose }: AICommandBarProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const eventBus = useEventBus();
   const moduleWindow = useService<ModuleWindowService>('moduleWindow');
-  const quickAsk = useAIContextStore((s) => s.quickAsk);
+  const quickAskPrompt = useAIContextStore((s) => s.quickAsk.prompt);
+  const quickAskOpen = useAIContextStore((s) => s.quickAsk.open);
   const closeQuickAsk = useAIContextStore((s) => s.closeQuickAsk);
 
   useEffect(() => {
     if (open) {
-      if (quickAsk.prompt) setQuery(quickAsk.prompt);
+      if (quickAskPrompt) setQuery(quickAskPrompt);
       setMode('input');
       setResult('');
-      if (quickAsk.open) closeQuickAsk();
-      setTimeout(() => inputRef.current?.focus(), 50);
+      if (quickAskOpen) closeQuickAsk();
+      const id = setTimeout(() => inputRef.current?.focus(), 50);
+      return () => clearTimeout(id);
     }
   }, [open]);
 

@@ -1,27 +1,43 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useArunaEngine } from '@/features/engine/engine-context';
-import { Brain, Activity, Calendar, TrendingUp, Zap } from 'lucide-react';
+import { Brain, Activity, Calendar, TrendingUp, Zap, AlertCircle } from 'lucide-react';
 
 export function MemoryViewer() {
   const { engine, ready } = useArunaEngine();
   const [insights, setInsights] = useState<string[]>([]);
   const [sessionCount, setSessionCount] = useState(0);
   const [topMood, setTopMood] = useState('-');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const cancelledRef = useRef(false);
 
   useEffect(() => {
     if (!engine || !ready) return;
+    cancelledRef.current = false;
+    setLoading(true);
+    setError(null);
+
     engine
       .getInsights()
       .then((result) => {
-        setInsights(result.filter((i) => i.confidence > 0.4).map((i) => i.description));
+        if (!cancelledRef.current) {
+          setInsights(result.filter((i) => i.confidence > 0.4).map((i) => i.description));
+        }
       })
-      .catch(() => {});
+      .catch((e) => {
+        if (!cancelledRef.current) {
+          console.warn('[MemoryViewer] Failed to load insights:', e);
+          setError('Gagal memuat insight');
+        }
+      });
+
     engine
       .getMemoryStore()
       .getRecentSessions(30)
       .then((sessions) => {
+        if (cancelledRef.current) return;
         setSessionCount(sessions.length);
         const moods = sessions.filter((s) => s.mood);
         if (moods.length > 0) {
@@ -33,7 +49,19 @@ export function MemoryViewer() {
           if (top) setTopMood(top[0]);
         }
       })
-      .catch(() => {});
+      .catch((e) => {
+        if (!cancelledRef.current) {
+          console.warn('[MemoryViewer] Failed to load sessions:', e);
+          if (!error) setError('Gagal memuat sesi');
+        }
+      })
+      .finally(() => {
+        if (!cancelledRef.current) setLoading(false);
+      });
+
+    return () => {
+      cancelledRef.current = true;
+    };
   }, [engine, ready]);
 
   return (
@@ -43,22 +71,31 @@ export function MemoryViewer() {
         <span className="text-foreground/80 text-xs font-medium">Memory & Learning</span>
       </div>
 
+      {error && (
+        <div className="border-danger/20 bg-danger/5 flex items-center gap-2 rounded-xl border p-2">
+          <AlertCircle size={12} className="text-danger shrink-0" />
+          <span className="text-danger/70 text-[10px]">{error}</span>
+        </div>
+      )}
+
       <div className="grid grid-cols-3 gap-2">
         <div className="border-border/20 flex flex-col items-center gap-1 rounded-xl border p-2.5">
           <Activity size={12} className="text-primary/60" />
           <span className="text-foreground text-sm font-semibold tabular-nums">
-            {engine ? (ready ? 'Aktif' : 'Booting') : '-'}
+            {loading ? '...' : engine ? (ready ? 'Aktif' : 'Booting') : '-'}
           </span>
           <span className="text-foreground/30 text-[9px]">Status</span>
         </div>
         <div className="border-border/20 flex flex-col items-center gap-1 rounded-xl border p-2.5">
           <Calendar size={12} className="text-primary/60" />
-          <span className="text-foreground text-sm font-semibold tabular-nums">{sessionCount}</span>
+          <span className="text-foreground text-sm font-semibold tabular-nums">
+            {loading ? '...' : sessionCount}
+          </span>
           <span className="text-foreground/30 text-[9px]">Sesi</span>
         </div>
         <div className="border-border/20 flex flex-col items-center gap-1 rounded-xl border p-2.5">
           <TrendingUp size={12} className="text-primary/60" />
-          <span className="text-foreground text-sm font-semibold">{topMood}</span>
+          <span className="text-foreground text-sm font-semibold">{loading ? '...' : topMood}</span>
           <span className="text-foreground/30 text-[9px]">Mood</span>
         </div>
       </div>

@@ -248,7 +248,9 @@ function AISuggestions() {
                   ? Sun
                   : Calendar;
           const actionLabel = actionLabels[s.id] ?? 'Buka';
-          const hasAction = s.action.toString() !== '() => {}' && s.action.toString() !== '()=>{}';
+          const hasAction =
+            s.action.length > 0 &&
+            !/^\s*(async\s+)?\(\s*\)\s*=>\s*(\{\s*\}|\s*)$/.test(s.action.toString());
           return (
             <motion.button
               key={s.id}
@@ -425,14 +427,14 @@ export const ArunaAssistant = memo(function ArunaAssistant() {
       useArunaAssistantStore.getState().restore();
     };
 
-    const unsubShutdown = lifecycle.onShutdown(onSuspend);
-    const unsubSleep = lifecycle.onSleep(onSuspend);
-    const unsubResume = lifecycle.onResume(onRestore);
+    const unsubShutdown = lifecycle?.onShutdown?.(onSuspend);
+    const unsubSleep = lifecycle?.onSleep?.(onSuspend);
+    const unsubResume = lifecycle?.onResume?.(onRestore);
 
     return () => {
-      unsubShutdown();
-      unsubSleep();
-      unsubResume();
+      unsubShutdown?.();
+      unsubSleep?.();
+      unsubResume?.();
     };
   }, [
     isBlocked,
@@ -589,10 +591,10 @@ export const ArunaAssistant = memo(function ArunaAssistant() {
               collapsedDragging ? 'cursor-grabbing' : 'cursor-grab',
             )}
             style={{
-              left: position.x || undefined,
-              right: position.x ? undefined : 24,
-              top: position.y || undefined,
-              bottom: position.y ? undefined : 24,
+              left: position.x != null ? position.x : undefined,
+              right: position.x != null ? undefined : 24,
+              top: position.y != null ? position.y : undefined,
+              bottom: position.y != null ? undefined : 24,
             }}
           >
             <motion.div

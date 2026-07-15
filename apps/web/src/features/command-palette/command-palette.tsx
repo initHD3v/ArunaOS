@@ -40,7 +40,8 @@ export function CommandPalette({
     if (open) {
       setQuery('');
       setSelectedIdx(0);
-      setTimeout(() => inputRef.current?.focus(), 50);
+      const id = setTimeout(() => inputRef.current?.focus(), 50);
+      return () => clearTimeout(id);
     }
   }, [open]);
 
@@ -60,6 +61,7 @@ export function CommandPalette({
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
+      if (results.length === 0) return;
       switch (e.key) {
         case 'ArrowDown':
           e.preventDefault();
