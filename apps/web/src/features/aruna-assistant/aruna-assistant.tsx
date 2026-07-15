@@ -547,8 +547,14 @@ export const ArunaAssistant = memo(function ArunaAssistant() {
                 opacity: idle ? 0.6 : 1,
               }}
               transition={{ duration: idle ? 4 : 3, repeat: Infinity, ease: 'easeInOut' }}
+              className="flex h-7 w-7 items-center justify-center"
             >
-              <Sparkles size={20} style={{ color: idle ? '#5D6BFF60' : '#5D6BFF' }} />
+              <img
+                src="/logo.png"
+                alt="ArunaOS"
+                className="h-7 w-7"
+                style={{ filter: idle ? 'grayscale(0.5) opacity(0.6)' : 'none' }}
+              />
             </motion.div>
           </motion.div>
         )}
