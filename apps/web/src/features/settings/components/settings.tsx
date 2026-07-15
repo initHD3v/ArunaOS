@@ -11,6 +11,7 @@ import type { ShortcutService } from '@/services/shortcut/shortcut-service';
 import { OSTour } from './os-tour';
 import { AISettingsPanel } from './ai-settings';
 import { DockPanel } from './dock-settings';
+import { AssistantPanel } from './assistant-settings';
 import { loadAccount, saveAccount, type AccountData } from './account-data';
 import {
   Sun,
@@ -37,10 +38,19 @@ import {
   Wifi,
   Clock,
   Terminal,
+  Bot,
 } from 'lucide-react';
 
 type SettingsTab =
-  'account' | 'general' | 'appearance' | 'keyboard' | 'security' | 'ai' | 'dock' | 'about';
+  | 'account'
+  | 'general'
+  | 'appearance'
+  | 'keyboard'
+  | 'security'
+  | 'ai'
+  | 'assistant'
+  | 'dock'
+  | 'about';
 
 const tabs: { id: SettingsTab; label: string; icon: React.ElementType }[] = [
   { id: 'account', label: 'Account', icon: User },
@@ -49,6 +59,7 @@ const tabs: { id: SettingsTab; label: string; icon: React.ElementType }[] = [
   { id: 'keyboard', label: 'Keyboard', icon: Keyboard },
   { id: 'security', label: 'Security', icon: Lock },
   { id: 'ai', label: 'AI', icon: Sparkles },
+  { id: 'assistant', label: 'Assistant', icon: Bot },
   { id: 'dock', label: 'Dock', icon: PanelBottom },
   { id: 'about', label: 'About', icon: Monitor },
 ];
@@ -1031,6 +1042,7 @@ const panelComponents: Record<SettingsTab, React.ElementType> = {
   keyboard: KeyboardPanel,
   security: SecurityPanel,
   ai: AISettingsPanel,
+  assistant: AssistantPanel,
   dock: DockPanel,
   about: AboutPanel,
 };

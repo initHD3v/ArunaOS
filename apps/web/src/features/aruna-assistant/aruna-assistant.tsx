@@ -22,6 +22,10 @@ import {
 } from 'lucide-react';
 import { useWidgetPanelStore } from '@/features/desktop-widgets/stores/widget-panel.store';
 import { useArunaAssistantStore } from './stores/aruna-assistant-store';
+import {
+  useArunaAssistantSettings,
+  BUTTON_SIZE_MAP,
+} from './stores/aruna-assistant-settings.store';
 import { useAuthStore } from '@/stores/auth.store';
 import { useService } from '@/providers/service-provider';
 import type { LifecycleService } from '@/services/lifecycle/lifecycle-service';
@@ -46,6 +50,7 @@ const contextIcons = [
 
 function Header() {
   const brief = useArunaAssistantStore((s) => s.brief);
+  const showWeather = useArunaAssistantSettings((s) => s.showWeather);
   const greeting = brief?.greeting ?? 'Good Morning';
   const name = greeting.includes(',') ? greeting.split(',')[1]?.trim() : '';
   const timeOfDay = brief?.timeOfDay ?? 'morning';
@@ -98,14 +103,14 @@ function Header() {
           <span>{now.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}</span>
         </div>
       </div>
-      {w.loading && w.hourly.length === 0 ? (
+      {showWeather && w.loading && w.hourly.length === 0 ? (
         <div className="flex flex-col items-center gap-0.5">
           <Loader size={14} className="text-foreground/30 animate-spin" />
           <span className="text-[8px]" style={{ color: '#707070' }}>
             loading
           </span>
         </div>
-      ) : w.hourly.length > 0 ? (
+      ) : showWeather && w.hourly.length > 0 ? (
         <div className="flex flex-col items-center gap-0.5">
           <span className="text-[22px] leading-none">{CONDITION_EMOJI[w.condition]}</span>
           <div className="flex items-baseline gap-0.5">
@@ -127,7 +132,7 @@ function Header() {
             </span>
           </div>
         </div>
-      ) : brief?.weather ? (
+      ) : showWeather && brief?.weather ? (
         <div className="flex flex-col items-center gap-0.5">
           <span className="text-[22px] leading-none">☀️</span>
           <span className="text-[15px] font-medium" style={{ color: '#111111' }}>
@@ -367,6 +372,7 @@ export const ArunaAssistant = memo(function ArunaAssistant() {
   const visible = useWidgetPanelStore((s) => s.visible);
   const isBlocked = useAuthStore((s) => s.isAuthEnabled && (!s.hasSession || s.isLocked));
   const { collapsed, setCollapsed, position, setPosition } = useArunaAssistantStore();
+  const settings = useArunaAssistantSettings();
   const panelRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ sx: number; sy: number; ox: number; oy: number } | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -377,6 +383,8 @@ export const ArunaAssistant = memo(function ArunaAssistant() {
     const store = useArunaAssistantStore.getState();
 
     if (!store.initialized && !isBlocked) {
+      if (settings.startCollapsed) store.setCollapsed(true);
+      if (!settings.rememberPosition) store.setPosition({ x: 0, y: 0 });
       store.restore();
     }
 
@@ -396,16 +404,24 @@ export const ArunaAssistant = memo(function ArunaAssistant() {
       unsubSleep();
       unsubResume();
     };
-  }, [isBlocked, lifecycle, setCollapsed, setPosition]);
+  }, [
+    isBlocked,
+    lifecycle,
+    setCollapsed,
+    setPosition,
+    settings.startCollapsed,
+    settings.rememberPosition,
+  ]);
 
   // ESC to collapse
   useEffect(() => {
+    if (!settings.collapseOnEscape) return;
     function handler(e: KeyboardEvent) {
       if (e.key === 'Escape' && !collapsed) setCollapsed(true);
     }
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [collapsed, setCollapsed]);
+  }, [collapsed, setCollapsed, settings.collapseOnEscape]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
@@ -443,8 +459,8 @@ export const ArunaAssistant = memo(function ArunaAssistant() {
   const [collapsedDragging, setCollapsedDragging] = useState(false);
 
   useEffect(() => {
-    if (collapsed && !collapsedDragging) {
-      idleTimerRef.current = setTimeout(() => setIdle(true), 3000);
+    if (collapsed && !collapsedDragging && settings.idleTimeout > 0) {
+      idleTimerRef.current = setTimeout(() => setIdle(true), settings.idleTimeout * 1000);
     } else {
       setIdle(false);
       if (idleTimerRef.current) {
@@ -458,7 +474,11 @@ export const ArunaAssistant = memo(function ArunaAssistant() {
         idleTimerRef.current = null;
       }
     };
-  }, [collapsed, collapsedDragging]);
+  }, [collapsed, collapsedDragging, settings.idleTimeout]);
+
+  const size = BUTTON_SIZE_MAP[settings.buttonSize];
+  const containerSize = size?.container ?? 'h-20 w-20';
+  const logoSizes = size?.logo ?? 'h-11 w-11';
 
   const handleCollapsedPointerDown = useCallback((e: React.MouseEvent) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -508,7 +528,7 @@ export const ArunaAssistant = memo(function ArunaAssistant() {
             initial={{ scale: 0, opacity: 0 }}
             animate={{
               scale: 1,
-              opacity: idle ? 0.25 : 1,
+              opacity: idle ? settings.idleOpacity : 1,
             }}
             exit={{ scale: 0, opacity: 0 }}
             transition={{
@@ -526,10 +546,13 @@ export const ArunaAssistant = memo(function ArunaAssistant() {
               setIdle(false);
             }}
             onMouseLeave={() => {
-              idleTimerRef.current = setTimeout(() => setIdle(true), 3000);
+              if (settings.idleTimeout > 0) {
+                idleTimerRef.current = setTimeout(() => setIdle(true), settings.idleTimeout * 1000);
+              }
             }}
             className={cn(
-              'fixed z-[9999] flex h-20 w-20 items-center justify-center',
+              'fixed z-[9999] flex items-center justify-center',
+              containerSize,
               collapsedDragging ? 'cursor-grabbing' : 'cursor-grab',
             )}
             style={{
@@ -544,22 +567,25 @@ export const ArunaAssistant = memo(function ArunaAssistant() {
                 scale: idle ? [1, 1.02, 1] : [1, 1.07, 1],
               }}
               transition={{ duration: idle ? 4 : 2.5, repeat: Infinity, ease: 'easeInOut' }}
-              className="relative flex h-14 w-14 items-center justify-center"
+              className="relative flex items-center justify-center"
+              style={{ width: `calc(${logoSizes} + 20px)`, height: `calc(${logoSizes} + 20px)` }}
             >
               <motion.div
-                animate={{ opacity: idle ? 0.3 : 0.6 }}
-                transition={{ duration: 0.8 }}
-                className="absolute -inset-3 rounded-full bg-gradient-to-br from-violet-500/10 via-purple-500/5 to-transparent blur-xl"
+                animate={{ opacity: idle ? 0.4 : 0.9 }}
+                transition={{ duration: 0.6 }}
+                className="absolute inset-0 rounded-full bg-black/5 shadow-xl backdrop-blur-2xl"
               />
-              <div className="absolute inset-0 rounded-full ring-1 ring-violet-400/20" />
+              <motion.div
+                animate={{ opacity: idle ? 0.2 : 0.5 }}
+                transition={{ duration: 0.6 }}
+                className="absolute -inset-2 rounded-full bg-gradient-to-br from-violet-500/15 to-transparent blur-2xl"
+              />
               <img
                 src="/logo.png"
                 alt="ArunaOS"
-                className="relative h-10 w-10 drop-shadow-[0_0_12px_rgba(139,92,246,0.3)]"
+                className={cn('relative', logoSizes)}
                 style={{
-                  filter: idle
-                    ? 'grayscale(0.3) brightness(0.6) drop-shadow(0 0 6px rgba(139,92,246,0.15))'
-                    : 'drop-shadow(0 0 12px rgba(139,92,246,0.3))',
+                  filter: idle ? 'grayscale(0.2) brightness(0.7)' : 'none',
                 }}
               />
             </motion.div>
@@ -615,8 +641,8 @@ export const ArunaAssistant = memo(function ArunaAssistant() {
             >
               <Header />
               <PersonalityMessage />
-              <ContextSummary />
-              <AISuggestions />
+              {settings.showContextSummary && <ContextSummary />}
+              {settings.showSuggestions && <AISuggestions />}
               <ConversationPreview />
               <BottomActions />
             </div>
