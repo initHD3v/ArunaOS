@@ -754,27 +754,13 @@ function KeyboardPanel() {
 }
 
 function SecurityPanel() {
-  const {
-    username,
-    setUsername,
-    isAuthEnabled,
-    enableAuth,
-    disableAuth,
-    setPassword,
-    login,
-    lock,
-  } = useAuthStore();
-  const [localUsername, setLocalUsername] = useState(username);
+  const { isAuthEnabled, enableAuth, disableAuth, setPassword, login, lock } = useAuthStore();
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const handleEnable = useCallback(async () => {
-    if (!localUsername.trim()) {
-      setMsg({ type: 'error', text: 'Please enter a username.' });
-      return;
-    }
     if (!newPassword) {
       setMsg({ type: 'error', text: 'Please set a password.' });
       return;
@@ -783,7 +769,6 @@ function SecurityPanel() {
       setMsg({ type: 'error', text: 'Passwords do not match.' });
       return;
     }
-    setUsername(localUsername.trim());
     await setPassword(newPassword);
     enableAuth();
     setMsg({
@@ -793,7 +778,7 @@ function SecurityPanel() {
     setCurrentPassword('');
     setNewPassword('');
     setConfirmPassword('');
-  }, [localUsername, newPassword, confirmPassword, setUsername, setPassword, enableAuth]);
+  }, [newPassword, confirmPassword, setPassword, enableAuth]);
 
   const handleDisable = useCallback(async () => {
     if (currentPassword) {
@@ -839,21 +824,6 @@ function SecurityPanel() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h3 className="text-foreground mb-3 text-sm font-semibold">User Account</h3>
-        <div className="bg-muted/30 border-border/20 space-y-4 rounded-xl border p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-foreground text-sm">Username</span>
-            <input
-              type="text"
-              value={localUsername}
-              onChange={(e) => setLocalUsername(e.target.value)}
-              className="bg-muted border-border/40 focus:border-primary/50 focus:ring-primary/20 w-48 rounded-lg border px-3 py-1.5 text-sm outline-none transition-colors focus:ring-2"
-            />
-          </div>
-        </div>
-      </div>
-
       <div>
         <h3 className="text-foreground mb-3 text-sm font-semibold">Authentication</h3>
         <div className="bg-muted/30 border-border/20 space-y-4 rounded-xl border p-4">

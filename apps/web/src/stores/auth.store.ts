@@ -11,13 +11,11 @@ async function hashPassword(password: string): Promise<string> {
 }
 
 interface AuthState {
-  username: string;
   passwordHash: string;
   isAuthEnabled: boolean;
   isLocked: boolean;
   hasSession: boolean;
 
-  setUsername: (name: string) => void;
   setPassword: (password: string) => Promise<void>;
   enableAuth: () => void;
   disableAuth: () => void;
@@ -29,13 +27,10 @@ interface AuthState {
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
-      username: 'User',
       passwordHash: '',
       isAuthEnabled: false,
       isLocked: false,
       hasSession: false,
-
-      setUsername: (name) => set({ username: name }),
 
       setPassword: async (password) => {
         const h = await hashPassword(password);
@@ -63,7 +58,6 @@ export const useAuthStore = create<AuthState>()(
     {
       name: 'arunaos-auth',
       partialize: (state) => ({
-        username: state.username,
         passwordHash: state.passwordHash,
         isAuthEnabled: state.isAuthEnabled,
         isLocked: state.isLocked,

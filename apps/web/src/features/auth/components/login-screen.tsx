@@ -76,7 +76,7 @@ const floatingOrbs = [
 ];
 
 export const LoginScreen = memo(function LoginScreen() {
-  const { username, login } = useAuthStore();
+  const { login } = useAuthStore();
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
@@ -86,6 +86,7 @@ export const LoginScreen = memo(function LoginScreen() {
 
   const account = loadAccount();
   const avatar = account.avatar || '🧑';
+  const displayName = account.displayName || account.username || 'User';
   const isImage = avatar.startsWith('data:') || avatar.startsWith('http');
 
   useEffect(() => {
@@ -203,7 +204,7 @@ export const LoginScreen = memo(function LoginScreen() {
                 <span className="text-3xl">{avatar}</span>
               )}
             </div>
-            <span className="text-base font-medium text-white/80">{username}</span>
+            <span className="text-base font-medium text-white/80">{displayName}</span>
           </motion.div>
 
           {/* Password */}
