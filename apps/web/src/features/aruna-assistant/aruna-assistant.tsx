@@ -34,6 +34,7 @@ import { useService } from '@/providers/service-provider';
 import type { LifecycleService } from '@/services/lifecycle/lifecycle-service';
 import { useWeatherStore, CONDITION_EMOJI } from '@/features/weather/weather.store';
 import { useLocationStore } from '@/stores/location.store';
+import { useNotificationStore } from '@/services/notification/notification-store';
 
 /* ------------------------------------------------------------------ */
 /*  Context Summary items                                              */
@@ -332,12 +333,30 @@ function BottomActions() {
       const stream = await navigator.mediaDevices.getDisplayMedia({
         video: { displaySurface: 'monitor' } as MediaTrackConstraints,
       });
-      const track = stream.getVideoTracks()[0]!;
-      track.stop();
+      const video = document.createElement('video');
+      video.srcObject = stream;
+      await video.play();
+
+      const maxDim = 800;
+      let w = video.videoWidth;
+      let h = video.videoHeight;
+      if (w > maxDim) {
+        h = Math.round(h * (maxDim / w));
+        w = maxDim;
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      canvas.getContext('2d')!.drawImage(video, 0, 0, w, h);
+
+      video.srcObject = null;
       stream.getTracks().forEach((t) => t.stop());
-      processInput('[Screenshot captured]');
+
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.4);
+      processInput(`[Screenshot: ${dataUrl}]`);
     } catch {
-      /* user cancelled or not supported */
+      processInput('[Screenshot: failed to capture]');
     }
   }, [processInput]);
 
@@ -540,8 +559,7 @@ export const ArunaAssistant = memo(function ArunaAssistant() {
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const w = useWeatherStore();
   const weatherTemp = w.hourly.length > 0 ? w.temp : null;
-  /* TODO: wire to notification store when implemented */
-  const notificationCount = 0;
+  const notificationCount = useNotificationStore((s) => s.queue.filter((n) => n.toast).length);
   const collapsedDragRef = useRef<{ sx: number; sy: number; ox: number; oy: number } | null>(null);
   const [collapsedDragging, setCollapsedDragging] = useState(false);
 

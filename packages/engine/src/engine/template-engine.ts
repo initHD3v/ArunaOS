@@ -74,6 +74,25 @@ function getSeed(ctx: EngineContext): number {
   return day + month * 31;
 }
 
+const RAIN_CONDITIONS = ['rain', 'drizzle', 'thunderstorm', 'sleet'];
+const SNOW_CONDITIONS = ['snow', 'heavy_snow'];
+const CLOUDY_CONDITIONS = ['cloudy', 'overcast', 'foggy'];
+
+function isRainy(condition: string): boolean {
+  const c = condition.toLowerCase();
+  return RAIN_CONDITIONS.some((x) => c.includes(x));
+}
+
+function isSnowy(condition: string): boolean {
+  const c = condition.toLowerCase();
+  return SNOW_CONDITIONS.some((x) => c.includes(x));
+}
+
+function isCloudy(condition: string): boolean {
+  const c = condition.toLowerCase();
+  return CLOUDY_CONDITIONS.some((x) => c.includes(x));
+}
+
 function pick<T>(arr: T[], seed: number): T {
   return arr[seed % arr.length] ?? arr[0]!;
 }
@@ -89,12 +108,17 @@ export class TemplateEngine {
 
     // Personalize with weather
     if (ctx.weather) {
+      const cond = ctx.weather.condition;
       if (ctx.weather.temp > 33) {
         greeting += ' Cuaca cukup panas hari ini, jaga hidrasi!';
       } else if (ctx.weather.temp < 25) {
         greeting += ' Cuaca sejuk, cocok untuk bekerja produktif.';
-      } else if (ctx.weather.condition.toLowerCase().includes('rain')) {
+      } else if (isRainy(cond)) {
         greeting += ' Hujan di luar, saat yang tepat untuk fokus pada pekerjaan indoor.';
+      } else if (isSnowy(cond)) {
+        greeting += ' Salju di luar, pastikan kamu tetap hangat!';
+      } else if (isCloudy(cond)) {
+        greeting += ' Cuaca mendung, waktu yang cocok untuk deep work.';
       }
     }
 
@@ -140,7 +164,7 @@ export class TemplateEngine {
       }
     }
 
-    if (ctx.weather && ctx.weather.condition.toLowerCase().includes('rain')) {
+    if (ctx.weather && isRainy(ctx.weather.condition)) {
       return 'Hujan di luar. Saat yang tepat untuk mengerjakan tugas yang butuh konsentrasi tinggi.';
     }
 

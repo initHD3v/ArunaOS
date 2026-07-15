@@ -24,6 +24,9 @@ export function getNotificationService() {
   return _notificationService;
 }
 
+/* Last user activity timestamp (for idle detection) */
+let _lastActivityAt = Date.now();
+
 /* Debounce timer for suggestion refresh */
 let _suggestionDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 function debouncedRefreshSuggestions() {
@@ -178,6 +181,7 @@ export function bridgeArunaEngine(engine: ArunaEngine, core: ArunaCore): () => v
 
   const originalObserve = core.learner.observeActivity.bind(core.learner);
   core.learner.observeActivity = (type, data) => {
+    _lastActivityAt = Date.now();
     originalObserve(type, data);
 
     /* Replicate relevant observations to engine subsystems */
@@ -400,6 +404,9 @@ export function bridgeArunaEngine(engine: ArunaEngine, core: ArunaCore): () => v
     action: async () => {
       const store = useArunaAssistantStore.getState();
       if (!store?.initialized) return;
+      /* Only notify if user has been inactive for at least 10 minutes */
+      const idleDuration = Date.now() - _lastActivityAt;
+      if (idleDuration < 10 * 60 * 1000) return;
       const suggestions = store.suggestions;
       if (suggestions.length > 0 && _cachedInsights.length > 0) {
         const top = suggestions[0];
@@ -427,5 +434,6 @@ export function bridgeArunaEngine(engine: ArunaEngine, core: ArunaCore): () => v
     unsubNotification();
     if (_suggestionDebounceTimer) clearTimeout(_suggestionDebounceTimer);
     for (const cleanup of cleanups) cleanup();
+    useAIContextStore.setState({ askAI: origAskAI });
   };
 }

@@ -309,8 +309,8 @@ export class ArunaCore {
     const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
     const weather = ctx?.weather;
     const condition = weather?.condition?.toLowerCase() ?? '';
-    const isRainy =
-      condition.includes('rain') || condition.includes('drizzle') || condition.includes('thunder');
+    const RAIN_KW = ['rain', 'drizzle', 'thunder', 'sleet'];
+    const isRainy = RAIN_KW.some((kw) => condition.includes(kw));
     const isCold = (weather?.temp ?? 25) < 20;
 
     suggestions.push({

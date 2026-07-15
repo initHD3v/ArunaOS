@@ -19,21 +19,24 @@ vi.mock('../stores/aruna-assistant-store', () => ({
   useArunaAssistantStore: { getState: () => mockAssistantState() },
 }));
 
+const mockNotifAdd = vi.fn();
 /* Mock Zustand stores used by engine-bridge notification features */
 vi.mock('@/services/notification/notification-store', () => ({
   useNotificationStore: {
     getState: () => ({
-      add: vi.fn(),
+      add: mockNotifAdd,
     }),
   },
 }));
 
+const mockAskAI = vi.fn();
+const mockSetState = vi.fn();
 vi.mock('@/stores/ai-context.store', () => ({
   useAIContextStore: {
     getState: () => ({
-      askAI: vi.fn(),
+      askAI: mockAskAI,
     }),
-    setState: vi.fn(),
+    setState: mockSetState,
   },
 }));
 
@@ -103,12 +106,10 @@ describe('engine-bridge', () => {
       getHabitLearner: vi.fn().mockReturnValue(mockHabitLearner),
       getScheduler: vi.fn().mockReturnValue(mockScheduler),
       getTemplateEngine: vi.fn().mockReturnValue(mockTemplateEngine),
-      getMemoryGreeting: vi
-        .fn()
-        .mockResolvedValue({
-          greeting: 'Selamat pagi! Ini dari memori.',
-          memoryNote: 'Kemarin kamu menyelesaikan 3 tugas.',
-        }),
+      getMemoryGreeting: vi.fn().mockResolvedValue({
+        greeting: 'Selamat pagi! Ini dari memori.',
+        memoryNote: 'Kemarin kamu menyelesaikan 3 tugas.',
+      }),
       getWindowObserver: vi.fn().mockReturnValue(mockWindowObserver),
       getNotificationHub: vi.fn().mockReturnValue(mockNotificationHub),
     };
@@ -191,7 +192,10 @@ describe('engine-bridge', () => {
 
     bridgeArunaEngine(mockEngine as unknown as ArunaEngine, mockCore as unknown as ArunaCore);
 
-    const ctxAgg = callMock(mockEngine, 'getContextAggregator');
+    const ctxAgg = callMock<{ setWeather: ReturnType<typeof vi.fn> }>(
+      mockEngine,
+      'getContextAggregator',
+    );
     expect(ctxAgg.setWeather).toHaveBeenCalledWith(28, 'Cerah', 'Jakarta');
   });
 
@@ -315,16 +319,169 @@ describe('engine-bridge', () => {
     bridgeArunaEngine(mockEngine as unknown as ArunaEngine, mockCore as unknown as ArunaCore);
 
     /* Trigger observeActivity through the patched method */
-    const observeActivity = (mockCore as Record<string, unknown>).learner as {
-      observeActivity: ReturnType<typeof vi.fn>;
-    };
+    const observeActivityFn = (
+      (mockCore as Record<string, unknown>).learner as Record<string, unknown>
+    ).observeActivity as (type: string, data: Record<string, unknown>) => void;
 
     /* module-open event */
-    observeActivity.observeActivity('module-open', { moduleId: 'arunaos.files' });
+    observeActivityFn('module-open', { moduleId: 'arunaos.files' });
     const ms = callMock(mockEngine, 'getMemoryStore') as { getAppUsage: ReturnType<typeof vi.fn> };
     expect(ms.getAppUsage).toHaveBeenCalledWith('arunaos.files', expect.any(String));
 
     const scheduler2 = callMock(mockEngine, 'getScheduler') as { emit: ReturnType<typeof vi.fn> };
     expect(scheduler2.emit).toHaveBeenCalledWith('app-opened', { appId: 'arunaos.files' });
+  });
+
+  it('forwards engine notifications to frontend notification store', async () => {
+    const { bridgeArunaEngine } = await import('./engine-bridge');
+
+    bridgeArunaEngine(mockEngine as unknown as ArunaEngine, mockCore as unknown as ArunaCore);
+
+    /* Get the callback registered with onNotification */
+    const nh = callMock(mockEngine, 'getNotificationHub') as {
+      onNotification: ReturnType<typeof vi.fn>;
+      push: ReturnType<typeof vi.fn>;
+    };
+    expect(nh.onNotification).toHaveBeenCalledOnce();
+
+    /* The callback was registered; simulate an engine notification */
+    const registeredCallback = nh.onNotification.mock.calls[0]?.[0] as (n: {
+      id: string;
+      title: string;
+      body: string;
+      priority: string;
+      source: string;
+      timestamp: number;
+      read: boolean;
+    }) => void;
+    expect(registeredCallback).toBeInstanceOf(Function);
+
+    registeredCallback({
+      id: 'test-1',
+      title: 'Test',
+      body: 'Body test',
+      priority: 'high',
+      source: 'assistant',
+      timestamp: Date.now(),
+      read: false,
+    });
+
+    expect(mockNotifAdd).toHaveBeenCalledOnce();
+    expect(mockNotifAdd).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'test-1',
+        type: 'warning',
+        message: 'Test: Body test',
+        toast: true,
+      }),
+    );
+  });
+
+  it('registers proactive scheduler tasks', async () => {
+    const { bridgeArunaEngine } = await import('./engine-bridge');
+
+    bridgeArunaEngine(mockEngine as unknown as ArunaEngine, mockCore as unknown as ArunaCore);
+
+    const scheduler = callMock(mockEngine, 'getScheduler') as {
+      registerTask: ReturnType<typeof vi.fn>;
+    };
+
+    /* Should have registered at least: morning brief, midday check, evening reflection,
+       suggestion refresh, proactive morning notification, proactive idle notification */
+    const registeredIds = scheduler.registerTask.mock.calls.map(
+      (c: unknown[]) => (c[0] as { id: string }).id,
+    );
+    expect(registeredIds).toContain('proactive-morning-notification');
+    expect(registeredIds).toContain('proactive-idle-notification');
+    expect(registeredIds).toContain('assistant-morning-brief');
+    expect(registeredIds).toContain('assistant-midday-check');
+    expect(registeredIds).toContain('assistant-evening-reflection');
+    expect(registeredIds).toContain('assistant-suggestion-refresh');
+  });
+
+  it('asks AI prompt is wrapped to push notification hub entry', async () => {
+    const { bridgeArunaEngine } = await import('./engine-bridge');
+
+    bridgeArunaEngine(mockEngine as unknown as ArunaEngine, mockCore as unknown as ArunaCore);
+
+    /* Check that setState was called with wrapped askAI */
+    expect(mockSetState).toHaveBeenCalledOnce();
+    const newState = mockSetState.mock.calls[0]?.[0] as { askAI: (p: string) => void };
+    expect(newState.askAI).toBeDefined();
+
+    /* Simulate askAI call with prompt */
+    newState.askAI('What is the weather?');
+
+    /* Original askAI should have been called */
+    expect(mockAskAI).toHaveBeenCalledWith('What is the weather?');
+
+    /* NotificationHub should have been pushed */
+    const nh2 = callMock(mockEngine, 'getNotificationHub') as { push: ReturnType<typeof vi.fn> };
+    expect(nh2.push).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'AI Query',
+        body: 'What is the weather?',
+        source: 'assistant',
+      }),
+    );
+  });
+
+  it('restores original askAI on cleanup', async () => {
+    const { bridgeArunaEngine } = await import('./engine-bridge');
+
+    const cleanup = bridgeArunaEngine(
+      mockEngine as unknown as ArunaEngine,
+      mockCore as unknown as ArunaCore,
+    );
+
+    cleanup();
+
+    /* setState should be called again to restore original askAI */
+    const restoreCalls = mockSetState.mock.calls.filter(
+      (c: unknown[]) => (c[0] as Record<string, unknown>)?.askAI === mockAskAI,
+    );
+    expect(restoreCalls.length).toBe(1);
+  });
+
+  it('briefHook sets greeting from cached value', async () => {
+    const { bridgeArunaEngine } = await import('./engine-bridge');
+
+    bridgeArunaEngine(mockEngine as unknown as ArunaEngine, mockCore as unknown as ArunaCore);
+
+    const hook = capturedHooks.briefHook as (brief: DailyBrief) => DailyBrief;
+    expect(hook).toBeDefined();
+
+    /* First call — no cache yet, falls back to synchronous template greeting */
+    const brief: DailyBrief = {
+      greeting: 'Good Morning, User',
+      timeOfDay: 'morning',
+      weather: 'Cuaca hari ini 28° Cerah di Jakarta',
+      calendarSummary: '',
+      emailSummary: '',
+      pendingTasks: 0,
+      focusRecommendation: 'Fokus pada prioritas utama',
+      message: 'Pagi yang baik',
+    };
+
+    const firstResult = hook(brief);
+    /* Should fall back to synchronous template engine greeting when cache is empty */
+    expect(firstResult).toBe(brief);
+    expect(firstResult.greeting).not.toBe('Good Morning, User');
+
+    /* After the async getMemoryGreeting resolves, subsequent calls should use cached value */
+    await vi.waitFor(() => {
+      const secondBrief: DailyBrief = {
+        greeting: 'Good Morning, User',
+        timeOfDay: 'morning',
+        weather: 'Cuaca hari ini 28° Cerah di Jakarta',
+        calendarSummary: '',
+        emailSummary: '',
+        pendingTasks: 0,
+        focusRecommendation: 'Fokus pada prioritas utama',
+        message: 'Pagi yang baik',
+      };
+      const secondResult = hook(secondBrief);
+      expect(secondResult.greeting).toBe('Selamat pagi! Ini dari memori.');
+    });
   });
 });
