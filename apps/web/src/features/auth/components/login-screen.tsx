@@ -2,7 +2,7 @@
 
 import { memo, useCallback, useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Lock, AlertCircle, CheckCircle, Clock } from 'lucide-react';
+import { Lock, AlertCircle, CheckCircle, Clock, KeyRound } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth.store';
 import { loadAccount } from '@/features/settings/components/account-data';
@@ -76,11 +76,13 @@ const floatingOrbs = [
 ];
 
 export const LoginScreen = memo(function LoginScreen() {
-  const { login } = useAuthStore();
+  const { login, disableAuth } = useAuthStore();
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [attempts, setAttempts] = useState(0);
+  const [resetDone, setResetDone] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const now = useTime();
 
@@ -102,8 +104,10 @@ export const LoginScreen = memo(function LoginScreen() {
       try {
         const ok = await login(password);
         if (ok) {
+          setAttempts(0);
           setSuccess(true);
         } else {
+          setAttempts((p) => p + 1);
           setError('Wrong password. Try again.');
           setPassword('');
           setLoading(false);
@@ -114,6 +118,13 @@ export const LoginScreen = memo(function LoginScreen() {
     },
     [password, login],
   );
+
+  const handleReset = useCallback(() => {
+    disableAuth();
+    setResetDone(true);
+    setError('');
+    setPassword('');
+  }, [disableAuth]);
 
   return (
     <motion.div
@@ -241,7 +252,27 @@ export const LoginScreen = memo(function LoginScreen() {
             </div>
 
             <AnimatePresence>
-              {success && (
+              {resetDone && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="flex flex-col items-center gap-2"
+                >
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="flex items-center gap-1.5 text-xs text-green-400"
+                  >
+                    <CheckCircle size={12} />
+                    Password has been reset
+                  </motion.div>
+                  <p className="max-w-52 text-center text-[11px] text-white/40">
+                    Set a new password in Settings → Security
+                  </p>
+                </motion.div>
+              )}
+              {!resetDone && success && (
                 <motion.div
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
@@ -252,7 +283,7 @@ export const LoginScreen = memo(function LoginScreen() {
                   Unlocked
                 </motion.div>
               )}
-              {error && (
+              {!resetDone && error && (
                 <motion.div
                   initial={{ opacity: 0, y: -4 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -270,6 +301,19 @@ export const LoginScreen = memo(function LoginScreen() {
                 <div className="h-3 w-3 animate-spin rounded-full border border-white/20 border-t-white/60" />
                 Verifying...
               </div>
+            )}
+
+            {!resetDone && attempts >= 3 && (
+              <motion.button
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                type="button"
+                onClick={handleReset}
+                className="flex items-center gap-1.5 text-xs text-white/30 transition-colors hover:text-white/60"
+              >
+                <KeyRound size={12} />
+                Lupa Password?
+              </motion.button>
             )}
           </motion.form>
         </motion.div>
