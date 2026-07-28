@@ -165,14 +165,17 @@ export class AIService {
 
     if (providerType === 'ollama' || providerType === 'lmstudio') {
       parts.push(
-        `Available tools (describe their capabilities, do NOT output JSON tool calls): ` +
+        `Available tools (only use when the user asks for a system action): ` +
           `- get_system_info: Get system state information ` +
-          `- open_app(appId): Open an application ` +
+          `- open_app(appId): Open an application by ID (e.g., "arunaos.weather") ` +
           `- search(query, category): Search for content ` +
           `- get_system_context: Get current system context ` +
-          `- notify(title, message, type): Send a notification ` +
-          `- execute_command(command, params): Execute a system command ` +
-          `- generate_module(name, description, capabilities): Generate a module`,
+          `- notify(title, message, type): Send a desktop notification ` +
+          `- execute_command(command, params): Execute a system action ` +
+          `- generate_module(name, description, capabilities): Generate a module\n` +
+          `When the user asks you to DO something (open an app, check weather, search, etc.), ` +
+          `output a JSON tool call on its own line like {"name":"tool_name","args":{...}} ` +
+          `and then briefly explain what you did. For normal conversation, just respond naturally.`,
       );
     }
 
