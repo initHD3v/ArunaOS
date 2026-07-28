@@ -324,8 +324,13 @@ export class AIService {
     );
 
     if (toolResults.length > 0) {
+      const followUpMessages: AIMessage[] = [...req.messages];
+      if (cleanedContent) {
+        followUpMessages.push({ role: 'assistant' as const, content: cleanedContent });
+      }
+      followUpMessages.push(...toolResults);
       const followUp = await provider.complete({
-        messages: [...req.messages, { role: 'assistant', content: cleanedContent }, ...toolResults],
+        messages: followUpMessages,
         systemPrompt,
         temperature: req.temperature,
       });
@@ -385,8 +390,13 @@ export class AIService {
         };
       }
 
+      const followUpMessages: AIMessage[] = [...req.messages];
+      if (cleanedContent) {
+        followUpMessages.push({ role: 'assistant' as const, content: cleanedContent });
+      }
+      followUpMessages.push(...toolResults);
       const followUpStream = provider.completeStream({
-        messages: [...req.messages, { role: 'assistant', content: cleanedContent }, ...toolResults],
+        messages: followUpMessages,
         systemPrompt,
         temperature: req.temperature,
       });
