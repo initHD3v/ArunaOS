@@ -37,6 +37,11 @@ import { useAIContextStore } from '@/stores/ai-context.store';
 import { getArunaCore } from '@/features/aruna-assistant/engines/aruna-core';
 import { setCoreContainer } from '@/features/aruna-assistant/stores/aruna-assistant-store';
 
+interface SettingsAccess {
+  get(key: string): unknown;
+  set(key: string, value: unknown): Promise<void>;
+}
+
 interface ServiceContextValue {
   container: ServiceContainer;
   eventBus: EventBus;
@@ -305,12 +310,8 @@ export function ServiceProvider({ children }: { children: ReactNode }) {
             delete: (key: string) => storage.delete(key),
           },
           settings: {
-            get: (k: string) => (settings as unknown as Record<string, unknown>).get(k),
-            set: (k: string, v: unknown) =>
-              (settings as unknown as { set: (key: string, val: unknown) => Promise<void> }).set(
-                k,
-                v,
-              ),
+            get: (k: string) => (settings as unknown as SettingsAccess).get(k),
+            set: (k: string, v: unknown) => (settings as unknown as SettingsAccess).set(k, v),
           },
           theme: {
             getMode: () => theme.getMode(),
