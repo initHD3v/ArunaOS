@@ -148,7 +148,7 @@ export class AIService {
     this.systemPrompt = prompt;
   }
 
-  private buildSystemPrompt(customPrompt?: string): string {
+  private buildSystemPrompt(customPrompt?: string, providerType?: AIProviderType): string {
     const parts: string[] = [];
 
     if (customPrompt ?? this.systemPrompt) {
@@ -159,13 +159,22 @@ export class AIService {
       `You are the ArunaOS AI — the brain, heart, and soul of this operating system. ` +
         `You help users with tasks, answer questions, control the system, and generate modules. ` +
         `You are running in a web-based operating system. ` +
-        `You can execute system tools to interact with the OS. ` +
-        `\n\nIMPORTANT: Respond in natural language. Do NOT output JSON unless you are calling a tool. ` +
-        'When you need to call a tool, output ONLY a valid JSON object on its own line with exactly ' +
-        '{"name":"tool_name","args":{...}} — never wrap it in markdown or sentences.' +
-        `\nBe concise, helpful, and knowledgeable. ` +
+        `Be concise, helpful, and knowledgeable. ` +
         `Current time: ${new Date().toISOString()}`,
     );
+
+    if (providerType === 'ollama' || providerType === 'lmstudio') {
+      parts.push(
+        `Available tools (describe their capabilities, do NOT output JSON tool calls): ` +
+          `- get_system_info: Get system state information ` +
+          `- open_app(appId): Open an application ` +
+          `- search(query, category): Search for content ` +
+          `- get_system_context: Get current system context ` +
+          `- notify(title, message, type): Send a notification ` +
+          `- execute_command(command, params): Execute a system command ` +
+          `- generate_module(name, description, capabilities): Generate a module`,
+      );
+    }
 
     return parts.join('\n\n');
   }
@@ -233,7 +242,7 @@ export class AIService {
     providerType?: AIProviderType,
   ): Promise<AICompletionResponse> {
     const provider = this.getProviderForRequest(req, providerType);
-    const systemPrompt = this.buildSystemPrompt(req.systemPrompt);
+    const systemPrompt = this.buildSystemPrompt(req.systemPrompt, req.providerConfig?.type);
 
     const contextTools = this.tools.getAll();
     const allTools = [...(req.tools ?? []), ...contextTools];
@@ -241,10 +250,13 @@ export class AIService {
     const cleanReq = { ...req };
     delete (cleanReq as Record<string, unknown>).providerConfig;
 
+    const isLocalModel =
+      req.providerConfig?.type === 'ollama' || req.providerConfig?.type === 'lmstudio';
+
     const response = await provider.complete({
       ...cleanReq,
       systemPrompt,
-      tools: allTools.length > 0 ? allTools : undefined,
+      tools: !isLocalModel && allTools.length > 0 ? allTools : undefined,
     });
 
     // Process any tool calls
@@ -266,7 +278,7 @@ export class AIService {
     providerType?: AIProviderType,
   ): AsyncGenerator<AIStreamChunk> {
     const provider = this.getProviderForRequest(req, providerType);
-    const systemPrompt = this.buildSystemPrompt(req.systemPrompt);
+    const systemPrompt = this.buildSystemPrompt(req.systemPrompt, req.providerConfig?.type);
 
     const contextTools = this.tools.getAll();
     const allTools = [...(req.tools ?? []), ...contextTools];
@@ -274,10 +286,13 @@ export class AIService {
     const cleanReq = { ...req };
     delete (cleanReq as Record<string, unknown>).providerConfig;
 
+    const isLocalModel =
+      req.providerConfig?.type === 'ollama' || req.providerConfig?.type === 'lmstudio';
+
     const stream = provider.completeStream({
       ...cleanReq,
       systemPrompt,
-      tools: allTools.length > 0 ? allTools : undefined,
+      tools: !isLocalModel && allTools.length > 0 ? allTools : undefined,
     });
 
     let fullContent = '';

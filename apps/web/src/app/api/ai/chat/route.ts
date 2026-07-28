@@ -73,7 +73,6 @@ export async function POST(request: NextRequest) {
           'You help users with tasks, answer questions, control the system, and generate modules. ' +
           'You are running in a web-based operating system. You can execute system tools. ' +
           'Be concise, helpful, and knowledgeable.',
-        tools: getDefaultTools(),
         provider: providerType,
         providerConfig: providerConfig?.type ? providerConfig : undefined,
       },
@@ -180,7 +179,6 @@ export async function GET(request: NextRequest) {
             id: sid,
             systemPrompt:
               'You are the ArunaOS AI — the brain, heart, and soul of this operating system.',
-            tools: getDefaultTools(),
             provider: providerType,
             providerConfig: providerConfig?.type ? providerConfig : undefined,
           },
