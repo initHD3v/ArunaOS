@@ -13,6 +13,7 @@ import { useIdleTimer } from '@/hooks/use-idle-timer';
 import { useIsMobile } from '@/hooks/use-media-query';
 import { ScreensaverOverlay } from '@/features/menu-bar/components/screensaver-overlay';
 import { ToastContainer } from '@/services/notification/components/notification-ui';
+import { ModelDownloadNotification } from '@/services/notification/components/model-download-notification';
 import { ModalRenderer } from '@/services/modal/modal-service';
 import { CommandPaletteProvider } from '@/features/command-palette/command-palette-provider';
 import { AICommandBarProvider } from '@/features/ai/ai-command-bar-provider';
@@ -72,6 +73,7 @@ export function DesktopShell({ children }: { children: ReactNode }) {
         <Overlay />
         {showingScreensaver && <ScreensaverOverlay />}
         <ToastContainer />
+        <ModelDownloadNotification />
         <ModalRenderer />
         <CommandPaletteProvider />
         <AICommandBarProvider />

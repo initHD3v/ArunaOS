@@ -35,7 +35,17 @@ function ToastItem({ n, onDismiss }: { n: Notification; onDismiss: (id: string) 
       )}
     >
       <Icon size={16} className="text-foreground/70 mt-0.5 shrink-0" />
-      <p className="text-foreground/80 min-w-0 text-xs leading-relaxed">{n.message}</p>
+      <div className="min-w-0 flex-1">
+        <p className="text-foreground/80 text-xs leading-relaxed">{n.message}</p>
+        {n.progress !== undefined && (
+          <div className="bg-foreground/10 mt-1.5 h-1 w-full overflow-hidden rounded-full">
+            <div
+              className="h-full rounded-full bg-current transition-all duration-500 ease-out"
+              style={{ width: `${n.progress}%` }}
+            />
+          </div>
+        )}
+      </div>
       {n.action && (
         <button
           onClick={n.action.handler}

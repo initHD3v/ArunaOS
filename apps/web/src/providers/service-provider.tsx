@@ -342,33 +342,6 @@ export function ServiceProvider({ children }: { children: ReactNode }) {
           const { createFilesAPI } = await import('@modules/arunaos.files/api');
           return { api: createFilesAPI() };
         });
-        moduleLoader.registerFactory('arunaos.settings', async () => {
-          return { api: {} };
-        });
-        moduleLoader.registerFactory('arunaos.astat', async () => {
-          return { api: {} };
-        });
-        moduleLoader.registerFactory('arunaos.camera', async () => {
-          return { api: {} };
-        });
-        moduleLoader.registerFactory('arunaos.ai', async () => {
-          return { api: {} };
-        });
-        moduleLoader.registerFactory('arunaos.devtools', async () => {
-          return { api: {} };
-        });
-        moduleLoader.registerFactory('arunaos.installer', async () => {
-          return { api: {} };
-        });
-        moduleLoader.registerFactory('arunaos.appstore', async () => {
-          return { api: {} };
-        });
-        moduleLoader.registerFactory('arunaos.weather', async () => {
-          return { api: {} };
-        });
-        moduleLoader.registerFactory('arunaos.applications', async () => {
-          return { api: {} };
-        });
 
         // Index search items for modules
         search.indexItems('modules', [

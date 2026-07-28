@@ -30,15 +30,6 @@ export class ModuleStore {
     this.registry = registry;
     this.bus = bus;
     this.isLoadedFn = isLoaded;
-
-    // React to status changes
-    this.bus.on('module:statusChange', () => {
-      this.notify();
-    });
-
-    this.bus.on('module:registered', () => {
-      this.notify();
-    });
   }
 
   private getState(): ModuleStoreState {

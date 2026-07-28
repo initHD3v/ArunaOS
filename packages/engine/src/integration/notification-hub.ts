@@ -8,6 +8,7 @@ export interface SystemNotification {
   priority: NotificationPriority;
   timestamp: number;
   read: boolean;
+  sourceAction?: string;
 }
 
 export type NotificationListener = (notification: SystemNotification) => void;

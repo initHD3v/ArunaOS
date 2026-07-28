@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { WindowData, WindowState, Position, Size } from '@/types';
+import { MENUBAR_HEIGHT } from '@/constants/layout';
 
 interface SavedState {
   position: Position;
@@ -105,7 +106,6 @@ export const useWindowStore = create<WindowStore>()(
             };
           }
 
-          const MENUBAR_HEIGHT = 44;
           const vw = window.innerWidth;
           const vh = window.innerHeight;
           return {

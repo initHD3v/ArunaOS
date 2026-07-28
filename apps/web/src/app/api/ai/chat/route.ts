@@ -21,6 +21,7 @@ function hasConfiguredProvider(
   if (providerConfig.apiKey) return true;
   if (providerConfig.type === 'ollama' || providerConfig.type === 'lmstudio')
     return !!providerConfig.baseUrl;
+  if (providerConfig.type === 'native') return true;
   return false;
 }
 

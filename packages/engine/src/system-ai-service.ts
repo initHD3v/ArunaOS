@@ -281,8 +281,15 @@ export class ArunaEngine {
     body: string,
     source: string,
     priority?: 'low' | 'normal' | 'high' | 'urgent',
+    sourceAction?: string,
   ): SystemNotification {
-    return this.notificationHub.push({ title, body, source, priority: priority ?? 'normal' });
+    return this.notificationHub.push({
+      title,
+      body,
+      source,
+      priority: priority ?? 'normal',
+      sourceAction,
+    });
   }
 
   registerCapability(capability: ModuleCapability): void {

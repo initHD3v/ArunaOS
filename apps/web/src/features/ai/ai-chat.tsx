@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { ChatMessages } from './components/chat-messages';
 import { ChatInput } from './components/chat-input';
 import { AIChatSettingsPanel } from './components/ai-chat-settings-panel';
+import { ModelDownloadProgress } from './components/model-download-progress';
 import {
   PanelLeftClose,
   PanelLeft,
@@ -106,6 +107,7 @@ export function AIChat() {
   const [sessions, setSessions] = useState<ChatSessionData[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [modelLoading, setModelLoading] = useState(false);
   const [provider, setProvider] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -263,6 +265,49 @@ export function AIChat() {
       const abortController = new AbortController();
       abortRef.current = abortController;
 
+      if (provider === 'native') {
+        const currentMessages = sessions.find((s) => s.id === activeSessionId)?.messages ?? [];
+        const allMessages = [...currentMessages, userMsg]
+          .filter((m) => m.role !== 'error')
+          .map((m) => ({ role: m.role as 'user' | 'assistant' | 'tool', content: m.content }));
+
+        try {
+          setModelLoading(true);
+          const { NativeModelProvider } = await import('@arunaos/ai/providers/native');
+          const model = new NativeModelProvider(providerCfg ?? undefined);
+
+          const result = await model.complete({
+            messages: allMessages,
+            systemPrompt:
+              'You are the ArunaOS AI — running locally in the browser. Be concise and helpful.',
+          });
+          setModelLoading(false);
+
+          const replyMsg: ChatMessage = {
+            role: 'assistant',
+            content: result.message.content,
+            id: `assistant-${Date.now()}`,
+          };
+          updateSession(activeSessionId, (s) => ({
+            ...s,
+            messages: [...s.messages, replyMsg],
+            updatedAt: Date.now(),
+          }));
+        } catch (nativeErr: unknown) {
+          setModelLoading(false);
+          const msg = nativeErr instanceof Error ? nativeErr.message : 'Native model error';
+          const errMsg: ChatMessage = { role: 'error', content: msg, id: `error-${Date.now()}` };
+          updateSession(activeSessionId, (s) => ({
+            ...s,
+            messages: [...s.messages, errMsg],
+            updatedAt: Date.now(),
+          }));
+        } finally {
+          setIsLoading(false);
+        }
+        return;
+      }
+
       try {
         const params = new URLSearchParams({ message: content });
         if (sessionIdRef.current) params.set('sessionId', sessionIdRef.current);
@@ -418,7 +463,7 @@ export function AIChat() {
         abortRef.current = null;
       }
     },
-    [activeSessionId, provider, updateSession, ensureTitle],
+    [activeSessionId, provider, updateSession, ensureTitle, sessions],
   );
 
   return (
@@ -507,6 +552,9 @@ export function AIChat() {
           </button>
         </div>
       </div>
+
+      {/* Model download progress */}
+      {modelLoading && <ModelDownloadProgress />}
 
       {/* No-provider banner */}
       {!provider && (

@@ -345,6 +345,7 @@ export function bridgeArunaEngine(engine: ArunaEngine, core: ArunaCore): () => v
           body: prompt.slice(0, 100),
           source: 'assistant',
           priority: 'low',
+          sourceAction: 'arunaos.ai',
         });
       }
     },
@@ -392,6 +393,7 @@ export function bridgeArunaEngine(engine: ArunaEngine, core: ArunaCore): () => v
           body: brief.message || 'Semoga hari ini produktif!',
           source: 'assistant',
           priority: 'low',
+          sourceAction: 'arunaos.ai',
         });
       }
     },
@@ -416,6 +418,7 @@ export function bridgeArunaEngine(engine: ArunaEngine, core: ArunaCore): () => v
             body: top.description || 'Ada yang bisa saya bantu?',
             source: 'assistant',
             priority: 'normal',
+            sourceAction: 'arunaos.ai',
           });
         }
       }

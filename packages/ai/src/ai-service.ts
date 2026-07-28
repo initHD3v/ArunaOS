@@ -124,6 +124,8 @@ export class AIService {
         const finalUrl = lmBaseUrl.includes('/v1') ? lmBaseUrl : `${lmBaseUrl}/v1`;
         return new OpenAIProvider({ ...cfg, baseUrl: finalUrl });
       }
+      case 'native':
+        throw new Error('Native provider can only be used client-side');
     }
   }
 

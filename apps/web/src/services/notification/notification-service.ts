@@ -72,6 +72,11 @@ export class NotificationService {
     return this.notify('error', message, options);
   }
 
+  updateProgress(id: string, progress: number, message?: string): void {
+    useNotificationStore.getState().updateProgress(id, progress, message);
+    this.bus.emit('notification:updated', { id, progress, message });
+  }
+
   dismiss(id: string): void {
     useNotificationStore.getState().dismiss(id);
     this.bus.emit('notification:dismissed', { id });

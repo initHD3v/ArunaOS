@@ -4,6 +4,7 @@ import { memo, useCallback, useEffect, useRef } from 'react';
 import { DesktopIcon } from '@/features/desktop-icons/components/desktop-icon';
 import { useDesktopStore } from '@/features/desktop/stores/desktop.store';
 import { useWindowStore } from '@/features/window-manager/stores/window.store';
+import { MENUBAR_HEIGHT, APP_PAD } from '@/constants/layout';
 import { useService } from '@/providers/service-provider';
 import type { ModuleWindowService } from '@/services/module-window';
 import { getAppIdForModule } from '@/services/module-window';
@@ -15,8 +16,7 @@ import type { DesktopIconData } from '@/types';
 function createWindowFromIcon(data: DesktopIconData) {
   const vw = window.innerWidth;
   const vh = window.innerHeight;
-  const APP_PAD = 8;
-  const MENUBAR_HEIGHT = 44;
+
   const D_W = 960;
   const D_H = 640;
   const id = `window-${data.id}-${Date.now()}`;

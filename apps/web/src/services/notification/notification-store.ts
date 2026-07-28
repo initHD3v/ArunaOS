@@ -11,6 +11,7 @@ export interface Notification {
   duration: number;
   toast: boolean;
   createdAt: number;
+  progress?: number;
   action?: { label: string; handler: () => void };
 }
 
@@ -19,6 +20,7 @@ interface NotificationStore {
   add: (n: Notification) => void;
   dismiss: (id: string) => void;
   dismissAll: () => void;
+  updateProgress: (id: string, progress: number, message?: string) => void;
 }
 
 export const useNotificationStore = create<NotificationStore>((set) => ({
@@ -41,4 +43,11 @@ export const useNotificationStore = create<NotificationStore>((set) => ({
     })),
 
   dismissAll: () => set({ queue: [] }),
+
+  updateProgress: (id, progress, message) =>
+    set((state) => ({
+      queue: state.queue.map((n) =>
+        n.id === id ? { ...n, progress, ...(message !== undefined ? { message } : {}) } : n,
+      ),
+    })),
 }));

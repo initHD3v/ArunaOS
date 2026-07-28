@@ -9,10 +9,12 @@ import {
   CheckCircle,
   ChevronDown,
   Loader2,
+  Download,
   X,
   Wifi,
 } from 'lucide-react';
 import { TestConnectionModal, type TestStep } from './test-connection-modal';
+import { ModelDownloadModal } from './model-download-modal';
 
 const PROVIDER_META: Record<
   string,
@@ -48,6 +50,12 @@ const PROVIDER_META: Record<
     defaultModel: '',
     getApiKeyUrl: '',
   },
+  native: {
+    label: 'Native (Browser)',
+    defaultBaseUrl: '',
+    defaultModel: 'Qwen2.5-0.5B',
+    getApiKeyUrl: '',
+  },
 };
 
 const PROVIDER_ORDER: (keyof typeof PROVIDER_META)[] = [
@@ -56,6 +64,7 @@ const PROVIDER_ORDER: (keyof typeof PROVIDER_META)[] = [
   'openrouter',
   'ollama',
   'lmstudio',
+  'native',
 ];
 
 const PROVIDER_HELP: Record<string, string> = {
@@ -64,6 +73,7 @@ const PROVIDER_HELP: Record<string, string> = {
   openrouter: 'Use OpenRouter to access many models through a single API.',
   ollama: 'Run models locally with Ollama. No API key needed.',
   lmstudio: 'Run local models via LM Studio. No API key needed.',
+  native: 'Run AI directly in your browser. No server or API key needed.',
 };
 
 function loadSingleConfig() {
@@ -130,6 +140,8 @@ export function AIChatSettingsPanel({ onClose }: AIChatSettingsPanelProps) {
   const [testModalOpen, setTestModalOpen] = useState(false);
   const [testResult, setTestResult] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
   const [testLatency, setTestLatency] = useState('');
+  const [modelDownloadOpen, setModelDownloadOpen] = useState(false);
+  const [modelDownloading, setModelDownloading] = useState(false);
 
   useEffect(() => {
     const cfg = loadSingleConfig();
@@ -137,7 +149,9 @@ export function AIChatSettingsPanel({ onClose }: AIChatSettingsPanelProps) {
     setApiKey(cfg.apiKey);
     setBaseUrl(cfg.baseUrl);
     setModel(cfg.model);
-    setShowKey(cfg.provider === 'ollama' || cfg.provider === 'lmstudio');
+    setShowKey(
+      cfg.provider === 'ollama' || cfg.provider === 'lmstudio' || cfg.provider === 'native',
+    );
   }, []);
 
   const meta = PROVIDER_META[provider];
@@ -239,6 +253,21 @@ export function AIChatSettingsPanel({ onClose }: AIChatSettingsPanelProps) {
     }
   }, [provider, baseUrl, apiKey, model]);
 
+  const downloadModel = useCallback(async () => {
+    if (modelDownloading) return;
+    setModelDownloading(true);
+    setModelDownloadOpen(true);
+    try {
+      const { NativeModelProvider } = await import('@arunaos/ai/providers/native');
+      const modelProvider = new NativeModelProvider();
+      await modelProvider.load();
+    } catch {
+      // error handled via progress event
+    } finally {
+      setModelDownloading(false);
+    }
+  }, [modelDownloading]);
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -304,7 +333,7 @@ export function AIChatSettingsPanel({ onClose }: AIChatSettingsPanelProps) {
                           setProviderOpen(false);
                           setBaseUrl(m?.defaultBaseUrl ?? '');
                           setModel(m?.defaultModel ?? '');
-                          setShowKey(type === 'ollama' || type === 'lmstudio');
+                          setShowKey(type === 'ollama' || type === 'lmstudio' || type === 'native');
                           setAvailableModels([]);
                           setTestResult('idle');
                         }}
@@ -327,131 +356,202 @@ export function AIChatSettingsPanel({ onClose }: AIChatSettingsPanelProps) {
           </p>
         </div>
 
-        {/* API Key */}
-        <div>
-          <label className="text-foreground/50 mb-1.5 block text-[10px] font-semibold uppercase tracking-wider">
-            API Key
-          </label>
-          <div className="relative">
-            <input
-              type="text"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={
-                provider === 'ollama' || provider === 'lmstudio'
-                  ? 'Leave empty if not required'
-                  : 'Paste your API key...'
-              }
-              style={!showKey ? ({ WebkitTextSecurity: 'disc' } as React.CSSProperties) : undefined}
-              className="border-border/20 bg-muted text-foreground placeholder:text-foreground/30 focus:border-primary/50 w-full rounded-lg border px-2.5 py-2 pr-8 text-xs outline-none transition-colors"
-            />
-            <button
-              onClick={() => setShowKey(!showKey)}
-              className="text-foreground/40 hover:text-foreground absolute right-2 top-1/2 -translate-y-1/2 transition-colors"
-              title={showKey ? 'Hide' : 'Show'}
-            >
-              {showKey ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-            </button>
-          </div>
-          {meta && provider !== 'ollama' && provider !== 'lmstudio' && (
-            <a
-              href={meta.getApiKeyUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-primary/70 hover:text-primary mt-1 inline-flex items-center gap-1 text-[10px] transition-colors"
-            >
-              <ExternalLink className="h-2.5 w-2.5" /> Get API key
-            </a>
-          )}
-        </div>
-
-        {/* Model — hanya muncul jika test sukses dan ada models */}
-        {availableModels.length > 0 && (
-          <div>
-            <label className="text-foreground/50 mb-1.5 block text-[10px] font-semibold uppercase tracking-wider">
-              Model
-            </label>
-            <div className="relative">
-              <select
-                value={model}
-                onChange={(e) => setModel(e.target.value)}
-                className="border-border/20 bg-muted text-foreground focus:border-primary/50 w-full appearance-none rounded-lg border px-2.5 py-2 pr-7 text-xs outline-none transition-colors"
-              >
-                {availableModels.map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="text-foreground/40 pointer-events-none absolute right-2 top-1/2 h-3 w-3 -translate-y-1/2" />
-            </div>
-          </div>
-        )}
-
-        {/* Test Connection Button */}
-        <div>
-          <button
-            onClick={testConnection}
-            disabled={testResult === 'testing'}
-            className={cn(
-              'flex w-full items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium transition-all',
-              testResult === 'success'
-                ? 'border-green-500/30 bg-green-500/5 text-green-600'
-                : testResult === 'error'
-                  ? 'border-red-500/30 bg-red-500/5 text-red-600'
-                  : 'border-border/20 bg-muted text-foreground hover:bg-muted/80',
-            )}
-          >
-            {testResult === 'testing' ? (
-              <>
-                <Loader2 className="h-3 w-3 animate-spin" /> Testing...
-              </>
-            ) : testResult === 'success' ? (
-              <>
-                <CheckCircle className="h-3 w-3" /> Connected
-              </>
-            ) : testResult === 'error' ? (
-              <>
-                <X className="h-3 w-3" /> Failed — Click to retry
-              </>
-            ) : (
-              <>
-                <Wifi className="h-3 w-3" /> Test Connection
-              </>
-            )}
-          </button>
-        </div>
-
-        {/* Advanced */}
-        <div>
-          <button
-            onClick={() => setShowAdvanced(!showAdvanced)}
-            className="text-foreground/40 hover:text-foreground inline-flex items-center gap-1 text-[10px] transition-colors"
-          >
-            <ChevronDown
-              className={cn('h-2.5 w-2.5 transition-transform', showAdvanced && 'rotate-180')}
-            />
-            Advanced
-          </button>
-          {showAdvanced && (
-            <div className="mt-2">
-              <label className="text-foreground/50 mb-1 block text-[10px] font-medium">
-                Base URL
+        {provider === 'native' ? (
+          <>
+            {/* Native model info */}
+            <div>
+              <label className="text-foreground/50 mb-1.5 block text-[10px] font-semibold uppercase tracking-wider">
+                Model
               </label>
-              <input
-                type="text"
-                value={baseUrl}
-                onChange={(e) => setBaseUrl(e.target.value)}
-                className="border-border/20 bg-muted text-foreground focus:border-primary/50 w-full rounded-lg border px-2.5 py-2 text-xs outline-none transition-colors"
-              />
-              <p className="text-foreground/30 mt-0.5 text-[10px]">
-                Default:{' '}
-                <code className="bg-muted rounded px-1 py-0.5">{meta?.defaultBaseUrl}</code>
+              <div className="bg-muted/50 flex items-center gap-2.5 rounded-lg px-3 py-3">
+                <svg
+                  className="text-foreground/40 h-5 w-5 shrink-0"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <rect x="4" y="4" width="16" height="16" rx="2" />
+                  <path d="M9 9h6v6H9z" />
+                  <path d="M15 9l3-3" />
+                </svg>
+                <div className="flex-1">
+                  <p className="text-foreground/70 text-xs font-medium">
+                    Qwen2.5-0.5B-Instruct (ONNX)
+                  </p>
+                  <p className="text-foreground/40 mt-0.5 text-[10px] leading-relaxed">
+                    Runs entirely in your browser. No server needed.
+                    {typeof navigator !== 'undefined' &&
+                      'deviceMemory' in navigator &&
+                      (navigator as Navigator & { deviceMemory: number }).deviceMemory < 4 && (
+                        <span className="mt-0.5 block text-amber-500/80">
+                          Low memory — will use SmolLM2-360M.
+                        </span>
+                      )}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Download button */}
+            <div>
+              <button
+                onClick={downloadModel}
+                disabled={modelDownloading}
+                className="border-primary/20 bg-primary/5 text-primary hover:bg-primary/10 flex w-full items-center justify-center gap-1.5 rounded-lg border px-3 py-2.5 text-xs font-medium transition-all disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {modelDownloading ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> Downloading...
+                  </>
+                ) : (
+                  <>
+                    <Download className="h-3.5 w-3.5" /> Download Model
+                  </>
+                )}
+              </button>
+              <p className="text-foreground/30 mt-1.5 text-center text-[10px]">
+                ~300MB download. Cached after first load.
               </p>
             </div>
-          )}
-        </div>
+          </>
+        ) : (
+          <>
+            {/* API Key */}
+            <div>
+              <label className="text-foreground/50 mb-1.5 block text-[10px] font-semibold uppercase tracking-wider">
+                API Key
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder={
+                    provider === 'ollama' || provider === 'lmstudio'
+                      ? 'Leave empty if not required'
+                      : 'Paste your API key...'
+                  }
+                  style={
+                    !showKey ? ({ WebkitTextSecurity: 'disc' } as React.CSSProperties) : undefined
+                  }
+                  className="border-border/20 bg-muted text-foreground placeholder:text-foreground/30 focus:border-primary/50 w-full rounded-lg border px-2.5 py-2 pr-8 text-xs outline-none transition-colors"
+                />
+                <button
+                  onClick={() => setShowKey(!showKey)}
+                  className="text-foreground/40 hover:text-foreground absolute right-2 top-1/2 -translate-y-1/2 transition-colors"
+                  title={showKey ? 'Hide' : 'Show'}
+                >
+                  {showKey ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                </button>
+              </div>
+              {meta && provider !== 'ollama' && provider !== 'lmstudio' && (
+                <a
+                  href={meta.getApiKeyUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary/70 hover:text-primary mt-1 inline-flex items-center gap-1 text-[10px] transition-colors"
+                >
+                  <ExternalLink className="h-2.5 w-2.5" /> Get API key
+                </a>
+              )}
+            </div>
+
+            {/* Model — hanya muncul jika test sukses dan ada models */}
+            {availableModels.length > 0 && (
+              <div>
+                <label className="text-foreground/50 mb-1.5 block text-[10px] font-semibold uppercase tracking-wider">
+                  Model
+                </label>
+                <div className="relative">
+                  <select
+                    value={model}
+                    onChange={(e) => setModel(e.target.value)}
+                    className="border-border/20 bg-muted text-foreground focus:border-primary/50 w-full appearance-none rounded-lg border px-2.5 py-2 pr-7 text-xs outline-none transition-colors"
+                  >
+                    {availableModels.map((m) => (
+                      <option key={m} value={m}>
+                        {m}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="text-foreground/40 pointer-events-none absolute right-2 top-1/2 h-3 w-3 -translate-y-1/2" />
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {provider !== 'native' && (
+          <>
+            {/* Test Connection Button */}
+            <div>
+              <button
+                onClick={testConnection}
+                disabled={testResult === 'testing'}
+                className={cn(
+                  'flex w-full items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium transition-all',
+                  testResult === 'success'
+                    ? 'border-green-500/30 bg-green-500/5 text-green-600'
+                    : testResult === 'error'
+                      ? 'border-red-500/30 bg-red-500/5 text-red-600'
+                      : 'border-border/20 bg-muted text-foreground hover:bg-muted/80',
+                )}
+              >
+                {testResult === 'testing' ? (
+                  <>
+                    <Loader2 className="h-3 w-3 animate-spin" /> Testing...
+                  </>
+                ) : testResult === 'success' ? (
+                  <>
+                    <CheckCircle className="h-3 w-3" /> Connected
+                  </>
+                ) : testResult === 'error' ? (
+                  <>
+                    <X className="h-3 w-3" /> Failed — Click to retry
+                  </>
+                ) : (
+                  <>
+                    <Wifi className="h-3 w-3" /> Test Connection
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Advanced */}
+            <div>
+              <button
+                onClick={() => setShowAdvanced(!showAdvanced)}
+                className="text-foreground/40 hover:text-foreground inline-flex items-center gap-1 text-[10px] transition-colors"
+              >
+                <ChevronDown
+                  className={cn('h-2.5 w-2.5 transition-transform', showAdvanced && 'rotate-180')}
+                />
+                Advanced
+              </button>
+              {showAdvanced && (
+                <div className="mt-2">
+                  <label className="text-foreground/50 mb-1 block text-[10px] font-medium">
+                    Base URL
+                  </label>
+                  <input
+                    type="text"
+                    value={baseUrl}
+                    onChange={(e) => setBaseUrl(e.target.value)}
+                    className="border-border/20 bg-muted text-foreground focus:border-primary/50 w-full rounded-lg border px-2.5 py-2 text-xs outline-none transition-colors"
+                  />
+                  <p className="text-foreground/30 mt-0.5 text-[10px]">
+                    Default:{' '}
+                    <code className="bg-muted rounded px-1 py-0.5">{meta?.defaultBaseUrl}</code>
+                  </p>
+                </div>
+              )}
+            </div>
+          </>
+        )}
       </div>
 
       {/* Save */}
@@ -459,7 +559,11 @@ export function AIChatSettingsPanel({ onClose }: AIChatSettingsPanelProps) {
         <button
           onClick={handleSave}
           disabled={
-            testResult === 'idle' && !hasKey && provider !== 'ollama' && provider !== 'lmstudio'
+            testResult === 'idle' &&
+            !hasKey &&
+            provider !== 'ollama' &&
+            provider !== 'lmstudio' &&
+            provider !== 'native'
           }
           className={cn(
             'flex w-full items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-all',
@@ -485,6 +589,8 @@ export function AIChatSettingsPanel({ onClose }: AIChatSettingsPanelProps) {
         latency={testLatency}
         onClose={() => setTestModalOpen(false)}
       />
+
+      <ModelDownloadModal open={modelDownloadOpen} onClose={() => setModelDownloadOpen(false)} />
     </div>
   );
 }

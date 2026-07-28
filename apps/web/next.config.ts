@@ -1,4 +1,5 @@
 import type { NextConfig } from 'next';
+import { join } from 'path';
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
@@ -18,6 +19,26 @@ const nextConfig: NextConfig = {
     '@arunaos/registry-api',
     '@arunaos/config',
   ],
+  webpack: (config) => {
+    config.resolve = config.resolve ?? {};
+    config.resolve.fallback = {
+      ...config.resolve.fallback,
+      fs: false,
+      path: false,
+      crypto: false,
+    };
+
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const webpackPkg = require('webpack');
+    const shim = join(__dirname, 'scripts/empty-shim.js');
+    config.plugins = config.plugins ?? [];
+    config.plugins.push(
+      new webpackPkg.NormalModuleReplacementPlugin(/onnxruntime-node/, shim),
+      new webpackPkg.NormalModuleReplacementPlugin(/sharp/, shim),
+    );
+
+    return config;
+  },
 };
 
 export default nextConfig;

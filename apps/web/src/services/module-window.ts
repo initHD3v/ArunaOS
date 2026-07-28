@@ -1,5 +1,6 @@
 import { useWindowStore } from '@/features/window-manager/stores/window.store';
 import type { ModuleRegistry, ModuleLoader } from '@arunaos/runtime';
+import { MENUBAR_HEIGHT, APP_PAD } from '@/constants/layout';
 
 // Map full module IDs to short appIds used by the window system
 export const MODULE_APP_ID_MAP: Record<string, string> = {
@@ -51,8 +52,6 @@ export class ModuleWindowService {
     const dHeight = winConfig.defaultHeight ?? 480;
     const vw = window.innerWidth;
     const vh = window.innerHeight;
-    const APP_PAD = 8;
-    const MENUBAR_HEIGHT = 44;
 
     // Always clamp to viewport — same behaviour on all devices
     const winWidth = Math.min(dWidth, vw - APP_PAD * 2);

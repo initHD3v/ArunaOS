@@ -61,7 +61,8 @@ export interface AICompletionResponse {
   };
 }
 
-export type AIProviderType = 'openai' | 'anthropic' | 'openrouter' | 'ollama' | 'lmstudio';
+export type AIProviderType =
+  'openai' | 'anthropic' | 'openrouter' | 'ollama' | 'lmstudio' | 'native';
 
 export interface AIProviderConfig {
   apiKey?: string;
