@@ -16,6 +16,8 @@ import {
   MessageSquare,
   Sparkles,
   WifiOff,
+  ClipboardCopy,
+  Check,
 } from 'lucide-react';
 
 interface ChatMessage {
@@ -224,6 +226,32 @@ export function AIChat() {
     a.download = `chat-${activeSession.id.slice(0, 12)}.json`;
     a.click();
     URL.revokeObjectURL(url);
+  }, [activeSession]);
+
+  const [copyAllCopied, setCopyAllCopied] = useState(false);
+
+  const copyAllChat = useCallback(() => {
+    if (!activeSession || activeSession.messages.length === 0) return;
+    const text = activeSession.messages
+      .map((m) => {
+        const label =
+          m.role === 'user'
+            ? 'User'
+            : m.role === 'assistant'
+              ? 'Assistant'
+              : m.role === 'error'
+                ? 'Error'
+                : 'Tool';
+        return `[${label}]\n${m.content}`;
+      })
+      .join('\n\n');
+    navigator.clipboard
+      .writeText(text)
+      .then(() => {
+        setCopyAllCopied(true);
+        setTimeout(() => setCopyAllCopied(false), 1500);
+      })
+      .catch(() => {});
   }, [activeSession]);
 
   const ensureTitle = useCallback(
@@ -511,6 +539,19 @@ export function AIChat() {
             title="Export chat"
           >
             <Download className="h-4 w-4" />
+          </button>
+
+          <button
+            onClick={copyAllChat}
+            disabled={!activeSession || messages.length === 0}
+            className="text-foreground/50 hover:text-foreground hover:bg-muted disabled:text-foreground/20 rounded-md p-1.5 transition-colors disabled:cursor-not-allowed"
+            title="Copy entire conversation"
+          >
+            {copyAllCopied ? (
+              <Check className="h-4 w-4 text-green-500" />
+            ) : (
+              <ClipboardCopy className="h-4 w-4" />
+            )}
           </button>
         </div>
 

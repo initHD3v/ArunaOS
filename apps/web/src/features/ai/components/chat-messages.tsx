@@ -1,7 +1,8 @@
 'use client';
 
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState, useCallback } from 'react';
 import { cn } from '@/lib/utils';
+import { Copy, Check } from 'lucide-react';
 
 interface ChatMessage {
   role: 'user' | 'assistant' | 'tool' | 'error';
@@ -30,6 +31,17 @@ function MessageBubble({ message }: { message: ChatMessage }) {
   const isUser = message.role === 'user';
   const isTool = message.role === 'tool';
   const isError = message.role === 'error';
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = useCallback(() => {
+    navigator.clipboard
+      .writeText(message.content)
+      .then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+      })
+      .catch(() => {});
+  }, [message.content]);
 
   const baseClasses = cn(
     'max-w-[80%] rounded-lg px-4 py-2 text-sm leading-relaxed whitespace-pre-wrap break-words',
@@ -54,14 +66,28 @@ function MessageBubble({ message }: { message: ChatMessage }) {
   }
 
   return (
-    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
-      <div
-        className={cn(
-          baseClasses,
-          isUser ? 'bg-primary/20 text-primary-foreground' : 'bg-muted text-foreground',
-        )}
-      >
-        {message.content}
+    <div className={`group flex ${isUser ? 'justify-end' : 'justify-start'}`}>
+      <div className="relative max-w-[80%]">
+        <div
+          className={cn(
+            baseClasses,
+            'pr-8',
+            isUser ? 'bg-primary/20 text-primary-foreground' : 'bg-muted text-foreground',
+          )}
+        >
+          {message.content}
+        </div>
+        <button
+          onClick={handleCopy}
+          className="text-foreground/30 hover:text-foreground/60 absolute right-1.5 top-2 opacity-0 transition-opacity group-hover:opacity-100"
+          title="Copy message"
+        >
+          {copied ? (
+            <Check className="h-3.5 w-3.5 text-green-500" />
+          ) : (
+            <Copy className="h-3.5 w-3.5" />
+          )}
+        </button>
       </div>
     </div>
   );
