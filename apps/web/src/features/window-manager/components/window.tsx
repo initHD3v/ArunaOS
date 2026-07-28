@@ -24,25 +24,13 @@ interface WindowProps {
   data: WindowData;
 }
 
-function getPos(e: MouseEvent | TouchEvent | React.MouseEvent | React.TouchEvent) {
+function getPointerPosition(
+  e: MouseEvent | TouchEvent | React.MouseEvent | React.TouchEvent,
+  mode: 'current' | 'start' | 'end' = 'current',
+) {
   if ('touches' in e) {
-    const t = e.touches[0] ?? e.changedTouches[0];
-    return { x: t?.clientX ?? 0, y: t?.clientY ?? 0 };
-  }
-  return { x: e.clientX, y: e.clientY };
-}
-
-function getStartPos(e: MouseEvent | TouchEvent | React.MouseEvent | React.TouchEvent) {
-  if ('touches' in e) {
-    const t = e.touches[0];
-    return { x: t?.clientX ?? 0, y: t?.clientY ?? 0 };
-  }
-  return { x: e.clientX, y: e.clientY };
-}
-
-function getEndPos(e: MouseEvent | TouchEvent | React.MouseEvent | React.TouchEvent) {
-  if ('touches' in e) {
-    const t = e.changedTouches[0];
+    const list = mode === 'end' ? e.changedTouches : e.touches;
+    const t = list[0];
     return { x: t?.clientX ?? 0, y: t?.clientY ?? 0 };
   }
   return { x: e.clientX, y: e.clientY };
@@ -70,7 +58,7 @@ export const Window = memo(function Window({ data }: WindowProps) {
       const el = winRef.current;
       if (!el) return;
 
-      const start = getStartPos(e);
+      const start = getPointerPosition(e, 'start');
       const offsetX = start.x - data.position.x;
       const offsetY = start.y - data.position.y;
       let isDragging = false;
@@ -78,7 +66,7 @@ export const Window = memo(function Window({ data }: WindowProps) {
       const startY = start.y;
 
       const onMove = (ev: MouseEvent | TouchEvent) => {
-        const pos = getPos(ev);
+        const pos = getPointerPosition(ev);
 
         if (!isDragging) {
           if (Math.abs(pos.x - startX) < 4 && Math.abs(pos.y - startY) < 4) return;
@@ -97,7 +85,7 @@ export const Window = memo(function Window({ data }: WindowProps) {
       const onUp = (ev: MouseEvent | TouchEvent) => {
         cancelAnimationFrame(rafId.current);
         if (isDragging) {
-          const end = getEndPos(ev);
+          const end = getPointerPosition(ev, 'end');
           const clampedX = Math.max(0, end.x - offsetX);
           const clampedY = Math.max(MENUBAR_HEIGHT, end.y - offsetY);
           moveWindow(data.id, { x: clampedX, y: clampedY });
@@ -185,19 +173,19 @@ export const Window = memo(function Window({ data }: WindowProps) {
       const el = winRef.current;
       if (!el) return;
 
-      const start = getStartPos(e);
+      const start = getPointerPosition(e, 'start');
       const startW = data.size.width;
       const startH = data.size.height;
 
       const onMove = (ev: MouseEvent | TouchEvent) => {
-        const pos = getPos(ev);
+        const pos = getPointerPosition(ev);
         const { width, height } = clampSize(startW + pos.x - start.x, startH + pos.y - start.y);
         el.style.width = `${width}px`;
         el.style.height = `${height}px`;
       };
 
       const onUp = (ev: MouseEvent | TouchEvent) => {
-        const end = getEndPos(ev);
+        const end = getPointerPosition(ev, 'end');
         el.style.width = '';
         el.style.height = '';
         resizeWindow(data.id, clampSize(startW + end.x - start.x, startH + end.y - start.y));
@@ -220,17 +208,17 @@ export const Window = memo(function Window({ data }: WindowProps) {
       e.stopPropagation();
       const el = winRef.current;
       if (!el) return;
-      const start = getStartPos(e);
+      const start = getPointerPosition(e, 'start');
       const startH = data.size.height;
 
       const onMove = (ev: MouseEvent | TouchEvent) => {
-        const pos = getPos(ev);
+        const pos = getPointerPosition(ev);
         const { height } = clampSize(data.size.width, startH + pos.y - start.y);
         el.style.height = `${height}px`;
       };
 
       const onUp = (ev: MouseEvent | TouchEvent) => {
-        const end = getEndPos(ev);
+        const end = getPointerPosition(ev, 'end');
         el.style.height = '';
         resizeWindow(data.id, clampSize(data.size.width, startH + end.y - start.y));
         document.removeEventListener('mousemove', onMove);
@@ -252,17 +240,17 @@ export const Window = memo(function Window({ data }: WindowProps) {
       e.stopPropagation();
       const el = winRef.current;
       if (!el) return;
-      const start = getStartPos(e);
+      const start = getPointerPosition(e, 'start');
       const startW = data.size.width;
 
       const onMove = (ev: MouseEvent | TouchEvent) => {
-        const pos = getPos(ev);
+        const pos = getPointerPosition(ev);
         const { width } = clampSize(startW + pos.x - start.x, data.size.height);
         el.style.width = `${width}px`;
       };
 
       const onUp = (ev: MouseEvent | TouchEvent) => {
-        const end = getEndPos(ev);
+        const end = getPointerPosition(ev, 'end');
         el.style.width = '';
         resizeWindow(data.id, clampSize(startW + end.x - start.x, data.size.height));
         document.removeEventListener('mousemove', onMove);
@@ -300,6 +288,9 @@ export const Window = memo(function Window({ data }: WindowProps) {
       transition={{ duration: 0.15, ease: 'easeOut' }}
       onMouseDown={() => focusWindow(data.id)}
       onTouchStart={() => focusWindow(data.id)}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') closeWindow(data.id);
+      }}
       style={{
         left: data.position.x,
         top: data.position.y,
@@ -420,6 +411,8 @@ export const Window = memo(function Window({ data }: WindowProps) {
             onMouseDown={handleResizeStart}
             onTouchStart={handleResizeStart}
             className="absolute bottom-0 right-0 z-10 h-6 w-6 cursor-se-resize"
+            aria-label="Resize from corner"
+            role="presentation"
           >
             <div className="border-foreground/20 absolute bottom-0.5 right-0.5 h-2.5 w-2.5 rounded-br-sm border-b-2 border-r-2" />
           </div>
@@ -427,11 +420,15 @@ export const Window = memo(function Window({ data }: WindowProps) {
             onMouseDown={handleBottomResize}
             onTouchStart={handleBottomResize}
             className="absolute bottom-0 left-0 right-4 h-2 cursor-s-resize rounded-b-xl transition-colors hover:bg-blue-500/5"
+            aria-label="Resize from bottom"
+            role="presentation"
           />
           <div
             onMouseDown={handleRightResize}
             onTouchStart={handleRightResize}
             className="absolute bottom-4 right-0 top-0 w-2 cursor-e-resize rounded-r-xl transition-colors hover:bg-blue-500/5"
+            aria-label="Resize from right"
+            role="presentation"
           />
         </>
       )}

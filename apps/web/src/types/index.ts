@@ -46,7 +46,7 @@ export interface SelectionRect {
 export interface ContextMenuItem {
   id: string;
   label: string;
-  action: () => void;
+  action?: () => void;
   separator?: boolean;
 }
 

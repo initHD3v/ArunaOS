@@ -39,20 +39,23 @@ export function ContextMenu() {
     >
       {items.map((item) => (
         <div key={item.id}>
-          {item.separator && <div className="border-border/30 mx-2 my-1 border-t" />}
-          <button
-            onClick={() => {
-              try {
-                item.action();
-              } finally {
-                hideContextMenu();
-              }
-            }}
-            className="text-foreground/70 hover:bg-muted hover:text-foreground w-full px-3 py-1.5 text-left text-sm transition-colors"
-            role="menuitem"
-          >
-            {item.label}
-          </button>
+          {item.separator ? (
+            <div className="border-border/30 mx-2 my-1 border-t" />
+          ) : (
+            <button
+              onClick={() => {
+                try {
+                  item.action?.();
+                } finally {
+                  hideContextMenu();
+                }
+              }}
+              className="text-foreground/70 hover:bg-muted hover:text-foreground w-full px-3 py-1.5 text-left text-sm transition-colors"
+              role="menuitem"
+            >
+              {item.label}
+            </button>
+          )}
         </div>
       ))}
     </div>,

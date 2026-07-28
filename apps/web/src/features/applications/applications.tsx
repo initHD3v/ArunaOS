@@ -70,7 +70,7 @@ export function Applications() {
       const mappedAppId = getAppIdForModule(entryId);
       showContextMenu({ x: e.clientX, y: e.clientY }, [
         { id: 'open', label: 'Open', action: () => handleOpen(entryId) },
-        { id: 'sep1', label: '', action: () => {}, separator: true },
+        { id: 'sep1', label: '', separator: true },
         {
           id: 'add-dock',
           label: 'Add to Dock',
@@ -95,9 +95,9 @@ export function Applications() {
               position: 0,
             }),
         },
-        { id: 'sep2', label: '', action: () => {}, separator: true },
+        { id: 'sep2', label: '', separator: true },
         { id: 'info', label: 'Info', action: () => setSelected(entryId) },
-        { id: 'sep3', label: '', action: () => {}, separator: true },
+        { id: 'sep3', label: '', separator: true },
         {
           id: 'ai-ask',
           label: `Ask AI about "${entryName}"`,

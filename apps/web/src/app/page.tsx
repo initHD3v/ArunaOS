@@ -56,15 +56,15 @@ export default function Home() {
           addIcon(newIcon);
         },
       },
-      { id: 'sep1', label: '', action: () => {}, separator: true },
+      { id: 'sep1', label: '', separator: true },
       {
         id: 'view',
         label: desktopIconsHidden ? 'Tampilkan Icons' : 'Sembunyikan Icons',
         action: toggleDesktopIcons,
       },
-      { id: 'sep2', label: '', action: () => {}, separator: true },
+      { id: 'sep2', label: '', separator: true },
       { id: 'refresh', label: 'Refresh', action: triggerRefresh },
-      { id: 'sep3', label: '', action: () => {}, separator: true },
+      { id: 'sep3', label: '', separator: true },
       { id: 'wallpaper', label: 'Change Wallpaper', action: cycleWallpaper },
       { id: 'sep4', label: '', action: () => {}, separator: true },
       {
@@ -83,7 +83,7 @@ export default function Home() {
           });
         },
       },
-      { id: 'sep5', label: '', action: () => {}, separator: true },
+      { id: 'sep5', label: '', separator: true },
       { id: 'ai-ask', label: 'Ask AI...', action: () => askAI() },
       {
         id: 'ai-tips',

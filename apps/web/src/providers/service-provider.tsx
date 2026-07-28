@@ -305,9 +305,9 @@ export function ServiceProvider({ children }: { children: ReactNode }) {
             delete: (key: string) => storage.delete(key),
           },
           settings: {
-            get: (k: string) => (settings as unknown as { get(key: string): unknown }).get(k),
+            get: (k: string) => (settings as unknown as Record<string, unknown>).get(k),
             set: (k: string, v: unknown) =>
-              (settings as unknown as { set(key: string, value: unknown): Promise<void> }).set(
+              (settings as unknown as { set: (key: string, val: unknown) => Promise<void> }).set(
                 k,
                 v,
               ),

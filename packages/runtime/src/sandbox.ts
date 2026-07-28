@@ -42,6 +42,7 @@ export class ModuleSandbox {
       message: Parameters<SystemAPI['notify']>[1],
       options?: Parameters<SystemAPI['notify']>[2],
     ): string => {
+      if (!check('notification')) throw new Error('Permission denied: notification');
       return api.notify(type, message, options);
     };
 

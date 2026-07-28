@@ -29,6 +29,7 @@ const CONSOLE_METHOD: Record<LogLevel, 'log' | 'info' | 'warn' | 'error'> = {
   error: 'error',
 };
 
+/* eslint-disable no-console */
 export class Logger {
   private level: LogLevel = 'debug';
   private buffer: LogEntry[] = [];
@@ -77,10 +78,8 @@ export class Logger {
     if (this.isDev) {
       const style = DEV_STYLES[level];
       const prefix = `%c[${level.toUpperCase()}] [${module}]`;
-      // eslint-disable-next-line no-console
       console[CONSOLE_METHOD[level]](prefix, style, message);
       if (data !== undefined) {
-        // eslint-disable-next-line no-console
         console[CONSOLE_METHOD[level]]('  └─', data);
       }
     }

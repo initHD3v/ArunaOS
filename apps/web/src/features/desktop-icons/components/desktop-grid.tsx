@@ -76,7 +76,7 @@ export const DesktopGrid = memo(function DesktopGrid() {
       showContextMenu({ x: e.clientX, y: e.clientY }, [
         { id: 'open', label: 'Open', action: () => handleOpenIcon(icon) },
         { id: 'rename', label: 'Rename', action: () => setRenamingIcon(icon.id) },
-        { id: 'sep1', label: '', action: () => {}, separator: true },
+        { id: 'sep1', label: '', separator: true },
         { id: 'delete', label: 'Delete', action: () => removeIcon(icon.id) },
       ]);
     },

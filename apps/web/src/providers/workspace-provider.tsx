@@ -6,13 +6,14 @@ import { useWindowStore } from '@/features/window-manager/stores/window.store';
 
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
-    const syncActiveWindow = () => {
-      const focusedId = useWindowStore.getState().focusedWindowId;
-      if (focusedId) {
-        useWorkspaceStore.getState().setActiveWindow(focusedId);
-      }
-    };
-    const unsub = useWindowStore.subscribe(() => syncActiveWindow());
+    const unsub = useWindowStore.subscribe(
+      (state) => state.focusedWindowId,
+      (focusedId) => {
+        if (focusedId) {
+          useWorkspaceStore.getState().setActiveWindow(focusedId);
+        }
+      },
+    );
     return () => unsub();
   }, []);
 
