@@ -11,6 +11,7 @@
   },
   "devDependencies": {
     "@arunaos/types": "workspace:*",
+    "@types/node": "^22.0.0",
     "@vitest/coverage-v8": "^4.1.10",
     "css-mediaquery": "^0.1.2",
     "fake-indexeddb": "^6.2.5",
