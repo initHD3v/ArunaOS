@@ -21,6 +21,7 @@ import {
   MapPin,
   MapPinOff,
   Loader,
+  RefreshCw,
   ChevronRight,
   ChevronDown,
   Droplets,
@@ -496,7 +497,14 @@ function Section({
 }
 
 function LocationToggle() {
-  const { enabled, city, loading, error, toggleEnabled } = useLocationStore();
+  const { enabled, city, loading, error, toggleEnabled, refreshLocation } = useLocationStore();
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await refreshLocation();
+    setRefreshing(false);
+  };
 
   return (
     <div className="flex items-center justify-between">
@@ -513,29 +521,41 @@ function LocationToggle() {
           {error && <p className="text-danger/60 text-[8px]">{error}</p>}
         </div>
       </div>
-      <button
-        onClick={toggleEnabled}
-        disabled={loading}
-        className={cn(
-          'relative h-5 w-9 rounded-full transition-colors',
-          enabled ? 'bg-primary' : 'bg-foreground/20',
-          loading && 'opacity-50',
+      <div className="flex items-center gap-1">
+        {enabled && (
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="text-foreground/30 hover:text-foreground rounded p-1 transition-colors disabled:opacity-40"
+            title="Perbarui lokasi"
+          >
+            <RefreshCw size={10} className={refreshing ? 'animate-spin' : ''} />
+          </button>
         )}
-      >
-        {loading ? (
-          <Loader
-            size={8}
-            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 animate-spin text-white"
-          />
-        ) : (
-          <span
-            className={cn(
-              'absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform',
-              enabled ? 'translate-x-[18px]' : 'translate-x-0.5',
-            )}
-          />
-        )}
-      </button>
+        <button
+          onClick={toggleEnabled}
+          disabled={loading}
+          className={cn(
+            'relative h-5 w-9 rounded-full transition-colors',
+            enabled ? 'bg-primary' : 'bg-foreground/20',
+            loading && 'opacity-50',
+          )}
+        >
+          {loading ? (
+            <Loader
+              size={8}
+              className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 animate-spin text-white"
+            />
+          ) : (
+            <span
+              className={cn(
+                'absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform',
+                enabled ? 'translate-x-[18px]' : 'translate-x-0.5',
+              )}
+            />
+          )}
+        </button>
+      </div>
     </div>
   );
 }
