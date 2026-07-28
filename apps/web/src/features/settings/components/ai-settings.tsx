@@ -217,6 +217,11 @@ export function AISettingsPanel() {
       const data = await res.json();
       setSessionId(data.sessionId);
       localStorage.setItem('ai-session-id', data.sessionId);
+      localStorage.setItem(
+        'ai-active-provider',
+        providersPayload.find((c) => c.apiKey)?.type ?? '',
+      );
+      window.dispatchEvent(new Event('ai-provider-config-changed'));
       setSaveStatus('saved');
     } catch (err: unknown) {
       setSaveStatus('error');

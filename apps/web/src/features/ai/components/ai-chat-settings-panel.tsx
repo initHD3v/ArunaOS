@@ -88,7 +88,11 @@ function loadSingleConfig() {
         model?: string;
       }>;
       if (Array.isArray(parsed)) {
-        const cfg = parsed.find((c) => c.apiKey) ?? parsed[0];
+        // Try active provider first
+        const activeType = localStorage.getItem('ai-active-provider');
+        let cfg = activeType ? parsed.find((c) => c.type === activeType) : null;
+        // Fallback to first with apiKey, then first with baseUrl, then first
+        if (!cfg) cfg = parsed.find((c) => c.apiKey) ?? parsed.find((c) => c.baseUrl) ?? parsed[0];
         if (cfg) {
           const m = PROVIDER_META[cfg.type];
           return {
@@ -119,6 +123,7 @@ function saveSingleConfig(data: {
       : { type, apiKey: '', baseUrl: m.defaultBaseUrl, model: m.defaultModel };
   });
   localStorage.setItem('ai-provider-configs', JSON.stringify(configs));
+  localStorage.setItem('ai-active-provider', data.provider);
   window.dispatchEvent(new Event('ai-provider-config-changed'));
 }
 

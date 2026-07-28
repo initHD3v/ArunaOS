@@ -37,6 +37,7 @@ interface ChatSessionData {
 const SESSIONS_KEY = 'ai-chat-sessions';
 const ACTIVE_KEY = 'ai-chat-active-session';
 const PROVIDER_CONFIG_KEY = 'ai-provider-configs';
+const ACTIVE_PROVIDER_KEY = 'ai-active-provider';
 
 function loadSessions(): ChatSessionData[] {
   try {
@@ -68,6 +69,10 @@ function generateId(): string {
   return `session-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function isLocalProvider(type: string): boolean {
+  return type === 'ollama' || type === 'lmstudio' || type === 'native';
+}
+
 function getProviderConfig(
   provider: string,
 ): { type: string; apiKey: string; baseUrl: string; model: string } | null {
@@ -81,10 +86,12 @@ function getProviderConfig(
       model?: string;
     }>;
     const match = configs.find((c) => c.type === provider);
-    if (!match || !match.apiKey) return null;
+    if (!match) return null;
+    // Local providers don't need apiKey; remote providers require it
+    if (!isLocalProvider(provider) && !match.apiKey) return null;
     return {
       type: match.type,
-      apiKey: match.apiKey,
+      apiKey: match.apiKey ?? '',
       baseUrl: match.baseUrl ?? '',
       model: match.model ?? '',
     };
@@ -93,13 +100,24 @@ function getProviderConfig(
   }
 }
 
-function getAnyConfiguredProvider(): string | null {
+function loadActiveProvider(): string | null {
   try {
+    // First try explicit active provider key
+    const active = localStorage.getItem(ACTIVE_PROVIDER_KEY);
+    if (active) return active;
+    // Fallback: find first provider with apiKey or non-empty baseUrl
     const raw = localStorage.getItem(PROVIDER_CONFIG_KEY);
     if (!raw) return null;
-    const configs = JSON.parse(raw) as Array<{ type: string; apiKey?: string }>;
-    const first = configs.find((c) => c.apiKey && c.apiKey.length > 0);
-    return first?.type ?? null;
+    const configs = JSON.parse(raw) as Array<{
+      type: string;
+      apiKey?: string;
+      baseUrl?: string;
+    }>;
+    const remote = configs.find((c) => c.apiKey && c.apiKey.length > 0);
+    if (remote) return remote.type;
+    const local = configs.find((c) => isLocalProvider(c.type) && c.baseUrl && c.baseUrl.length > 0);
+    if (local) return local.type;
+    return null;
   } catch {
     return null;
   }
@@ -137,11 +155,14 @@ export function AIChat() {
     }
   }, []);
 
-  // Listen for provider config changes from settings
+  // Load active provider on mount + listen for config changes
   useEffect(() => {
+    const configured = loadActiveProvider();
+    setProvider(configured);
+
     const handler = () => {
-      const configured = getAnyConfiguredProvider();
-      setProvider(configured);
+      const updated = loadActiveProvider();
+      setProvider(updated);
     };
     window.addEventListener('ai-provider-config-changed', handler);
     return () => window.removeEventListener('ai-provider-config-changed', handler);
