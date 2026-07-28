@@ -2,7 +2,7 @@
 
 import { memo, useCallback, useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Lock, AlertCircle, CheckCircle, Clock, KeyRound } from 'lucide-react';
+import { Lock, AlertCircle, CheckCircle, Clock, KeyRound, Eye, EyeOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth.store';
 import { loadAccount } from '@/features/settings/components/account-data';
@@ -76,13 +76,19 @@ const floatingOrbs = [
 ];
 
 export const LoginScreen = memo(function LoginScreen() {
-  const { login, disableAuth } = useAuthStore();
-  const [password, setPassword] = useState('');
+  const { login, setPassword } = useAuthStore();
+  const [password, setPassword_] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
   const [attempts, setAttempts] = useState(0);
-  const [resetDone, setResetDone] = useState(false);
+  const [showReset, setShowReset] = useState(false);
+
+  const [newPass, setNewPass] = useState('');
+  const [confirmPass, setConfirmPass] = useState('');
+  const [showNewPass, setShowNewPass] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+
   const inputRef = useRef<HTMLInputElement>(null);
   const now = useTime();
 
@@ -109,7 +115,7 @@ export const LoginScreen = memo(function LoginScreen() {
         } else {
           setAttempts((p) => p + 1);
           setError('Wrong password. Try again.');
-          setPassword('');
+          setPassword_('');
           setLoading(false);
         }
       } finally {
@@ -119,12 +125,45 @@ export const LoginScreen = memo(function LoginScreen() {
     [password, login],
   );
 
-  const handleReset = useCallback(() => {
-    disableAuth();
-    setResetDone(true);
+  const handleResetSubmit = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!newPass || newPass.length < 4) {
+        setError('Password must be at least 4 characters');
+        return;
+      }
+      if (newPass !== confirmPass) {
+        setError('Passwords do not match');
+        return;
+      }
+      setError('');
+      setLoading(true);
+      try {
+        await setPassword(newPass);
+        const ok = await login(newPass);
+        if (ok) {
+          setAttempts(0);
+          setSuccess(true);
+        }
+      } finally {
+        setLoading(false);
+      }
+    },
+    [newPass, confirmPass, login, setPassword],
+  );
+
+  const handleShowReset = useCallback(() => {
+    setShowReset(true);
     setError('');
-    setPassword('');
-  }, [disableAuth]);
+    setPassword_('');
+  }, []);
+
+  const handleBackToLogin = useCallback(() => {
+    setShowReset(false);
+    setError('');
+    setNewPass('');
+    setConfirmPass('');
+  }, []);
 
   return (
     <motion.div
@@ -218,104 +257,197 @@ export const LoginScreen = memo(function LoginScreen() {
             <span className="text-base font-medium text-white/80">{displayName}</span>
           </motion.div>
 
-          {/* Password */}
-          <motion.form
-            initial={{ y: 10, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.3 }}
-            onSubmit={handleSubmit}
-            className="flex flex-col items-center gap-3"
-          >
-            <div className="relative">
-              <Lock
-                size={14}
-                className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-white/20"
-              />
-              <input
-                ref={inputRef}
-                type="password"
-                placeholder="Password"
-                value={password}
-                onChange={(e) => {
-                  setPassword(e.target.value);
-                  if (error) setError('');
-                }}
-                className={cn(
-                  'h-10 w-60 rounded-xl border bg-white/[0.06] px-9 text-sm text-white/90 outline-none backdrop-blur-sm transition-all',
-                  'placeholder:text-white/20',
-                  'border-white/[0.08] focus:border-white/20 focus:ring-2 focus:ring-white/[0.06]',
-                  error && 'border-red-400/30',
-                )}
-                autoFocus
-                autoComplete="current-password"
-              />
-            </div>
+          {/* Login / Reset form */}
+          {showReset ? (
+            <motion.form
+              key="reset"
+              initial={{ y: 10, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: -10, opacity: 0 }}
+              onSubmit={handleResetSubmit}
+              className="flex flex-col items-center gap-3"
+            >
+              <span className="text-xs font-medium text-white/50">Reset Password</span>
 
-            <AnimatePresence>
-              {resetDone && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="flex flex-col items-center gap-2"
+              <div className="relative">
+                <Lock
+                  size={14}
+                  className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-white/20"
+                />
+                <input
+                  type={showNewPass ? 'text' : 'password'}
+                  placeholder="New password"
+                  value={newPass}
+                  onChange={(e) => {
+                    setNewPass(e.target.value);
+                    if (error) setError('');
+                  }}
+                  className="h-10 w-60 rounded-xl border border-white/[0.08] bg-white/[0.06] px-9 text-sm text-white/90 outline-none backdrop-blur-sm transition-all placeholder:text-white/20 focus:border-white/20 focus:ring-2 focus:ring-white/[0.06]"
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowNewPass(!showNewPass)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/20 transition-colors hover:text-white/40"
+                  tabIndex={-1}
                 >
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="flex items-center gap-1.5 text-xs text-green-400"
-                  >
-                    <CheckCircle size={12} />
-                    Password has been reset
-                  </motion.div>
-                  <p className="max-w-52 text-center text-[11px] text-white/40">
-                    Set a new password in Settings → Security
-                  </p>
-                </motion.div>
-              )}
-              {!resetDone && success && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="flex items-center gap-1.5 text-xs text-green-400"
+                  {showNewPass ? <EyeOff size={14} /> : <Eye size={14} />}
+                </button>
+              </div>
+
+              <div className="relative">
+                <Lock
+                  size={14}
+                  className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-white/20"
+                />
+                <input
+                  type={showConfirm ? 'text' : 'password'}
+                  placeholder="Confirm password"
+                  value={confirmPass}
+                  onChange={(e) => {
+                    setConfirmPass(e.target.value);
+                    if (error) setError('');
+                  }}
+                  className="h-10 w-60 rounded-xl border border-white/[0.08] bg-white/[0.06] px-9 text-sm text-white/90 outline-none backdrop-blur-sm transition-all placeholder:text-white/20 focus:border-white/20 focus:ring-2 focus:ring-white/[0.06]"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirm(!showConfirm)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/20 transition-colors hover:text-white/40"
+                  tabIndex={-1}
                 >
-                  <CheckCircle size={12} />
-                  Unlocked
-                </motion.div>
-              )}
-              {!resetDone && error && (
+                  {showConfirm ? <EyeOff size={14} /> : <Eye size={14} />}
+                </button>
+              </div>
+
+              {!success && error && (
                 <motion.div
                   initial={{ opacity: 0, y: -4 }}
                   animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -4 }}
                   className="flex items-center gap-1.5 text-xs text-red-400"
                 >
                   <AlertCircle size={12} />
                   {error}
                 </motion.div>
               )}
-            </AnimatePresence>
 
-            {loading && (
-              <div className="flex items-center gap-1.5 text-xs text-white/30">
-                <div className="h-3 w-3 animate-spin rounded-full border border-white/20 border-t-white/60" />
-                Verifying...
+              {success && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="flex items-center gap-1.5 text-xs text-green-400"
+                >
+                  <CheckCircle size={12} />
+                  Password changed
+                </motion.div>
+              )}
+
+              {loading && (
+                <div className="flex items-center gap-1.5 text-xs text-white/30">
+                  <div className="h-3 w-3 animate-spin rounded-full border border-white/20 border-t-white/60" />
+                  Resetting...
+                </div>
+              )}
+
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleBackToLogin}
+                  className="rounded-lg px-3 py-1.5 text-xs text-white/30 transition-colors hover:text-white/60"
+                >
+                  Back
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading || success}
+                  className="rounded-lg bg-white/10 px-3 py-1.5 text-xs font-medium text-white/80 transition-colors hover:bg-white/15 disabled:opacity-40"
+                >
+                  Reset Password
+                </button>
               </div>
-            )}
+            </motion.form>
+          ) : (
+            <motion.form
+              key="login"
+              initial={{ y: 10, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: -10, opacity: 0 }}
+              onSubmit={handleSubmit}
+              className="flex flex-col items-center gap-3"
+            >
+              <div className="relative">
+                <Lock
+                  size={14}
+                  className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-white/20"
+                />
+                <input
+                  ref={inputRef}
+                  type="password"
+                  placeholder="Password"
+                  value={password}
+                  onChange={(e) => {
+                    setPassword_(e.target.value);
+                    if (error) setError('');
+                  }}
+                  className={cn(
+                    'h-10 w-60 rounded-xl border bg-white/[0.06] px-9 text-sm text-white/90 outline-none backdrop-blur-sm transition-all',
+                    'placeholder:text-white/20',
+                    'border-white/[0.08] focus:border-white/20 focus:ring-2 focus:ring-white/[0.06]',
+                    error && 'border-red-400/30',
+                  )}
+                  autoFocus
+                  autoComplete="current-password"
+                />
+              </div>
 
-            {!resetDone && attempts >= 3 && (
-              <motion.button
-                initial={{ opacity: 0, y: 4 }}
-                animate={{ opacity: 1, y: 0 }}
-                type="button"
-                onClick={handleReset}
-                className="flex items-center gap-1.5 text-xs text-white/30 transition-colors hover:text-white/60"
-              >
-                <KeyRound size={12} />
-                Lupa Password?
-              </motion.button>
-            )}
-          </motion.form>
+              <AnimatePresence mode="wait">
+                {success && (
+                  <motion.div
+                    key="success"
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="flex items-center gap-1.5 text-xs text-green-400"
+                  >
+                    <CheckCircle size={12} />
+                    Unlocked
+                  </motion.div>
+                )}
+                {!success && error && (
+                  <motion.div
+                    key="error"
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -4 }}
+                    className="flex items-center gap-1.5 text-xs text-red-400"
+                  >
+                    <AlertCircle size={12} />
+                    {error}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {loading && (
+                <div className="flex items-center gap-1.5 text-xs text-white/30">
+                  <div className="h-3 w-3 animate-spin rounded-full border border-white/20 border-t-white/60" />
+                  Verifying...
+                </div>
+              )}
+
+              {attempts >= 3 && (
+                <motion.button
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  type="button"
+                  onClick={handleShowReset}
+                  className="flex items-center gap-1.5 text-xs text-white/30 transition-colors hover:text-white/60"
+                >
+                  <KeyRound size={12} />
+                  Lupa Password?
+                </motion.button>
+              )}
+            </motion.form>
+          )}
         </motion.div>
       </div>
     </motion.div>
