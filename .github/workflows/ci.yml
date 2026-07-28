@@ -16,9 +16,8 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-          corepack: true
 
-      - run: pnpm install --frozen-lockfile
+      - run: corepack enable && pnpm install --frozen-lockfile
 
       - run: pnpm lint
 
