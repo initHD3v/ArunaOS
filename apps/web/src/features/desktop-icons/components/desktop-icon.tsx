@@ -3,6 +3,7 @@
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import type { DesktopIconData } from '@/types';
 import { getIcon } from '@/lib/icon-mapping';
+import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-media-query';
 
 interface DesktopIconProps {
@@ -75,13 +76,18 @@ export const DesktopIcon = memo(function DesktopIcon({
         e.preventDefault();
         handleClick();
       }}
-      className={`flex ${outerWidth} cursor-default flex-col items-center gap-1.5 rounded-xl p-2 transition-colors duration-100 hover:bg-white/5 ${
-        isSelected ? 'bg-primary/15 ring-primary/30 ring-1' : ''
-      } `}
+      className={cn(
+        'flex cursor-default flex-col items-center gap-1.5 rounded-xl p-2 transition-colors duration-100 hover:bg-white/5',
+        outerWidth,
+        isSelected && 'bg-primary/15 ring-primary/30 ring-1',
+      )}
       aria-label={data.title}
     >
       <div
-        className={`flex ${iconContainerSize} items-center justify-center rounded-xl bg-white/10 backdrop-blur-sm transition-transform duration-100 active:scale-95`}
+        className={cn(
+          'flex items-center justify-center rounded-xl bg-white/10 backdrop-blur-sm transition-transform duration-100 active:scale-95',
+          iconContainerSize,
+        )}
       >
         <Icon size={iconSize} className="text-foreground/80" strokeWidth={1.5} />
       </div>

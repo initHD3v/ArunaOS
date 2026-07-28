@@ -27,7 +27,9 @@ export function Dock() {
   const removeFromDock = useDockStore((s) => s.removeFromDock);
 
   const [openMenuApp, setOpenMenuApp] = useState<string | null>(null);
-  const [contextItem, setContextItem] = useState<DockItem | null>(null);
+  const [contextItem, setContextItem] = useState<{ item: DockItem; x: number; y: number } | null>(
+    null,
+  );
   const menuRef = useRef<HTMLDivElement>(null);
   const contextRef = useRef<HTMLDivElement>(null);
   const dockRef = useRef<HTMLDivElement>(null);
@@ -160,7 +162,7 @@ export function Dock() {
   const handleContextMenu = useCallback((e: React.MouseEvent, item: DockItem) => {
     e.preventDefault();
     e.stopPropagation();
-    setContextItem(item);
+    setContextItem({ item, x: e.clientX, y: e.clientY });
   }, []);
 
   const handleDragStart = useCallback((idx: number) => {
@@ -367,21 +369,13 @@ export function Dock() {
             exit={{ opacity: 0, scale: 0.95 }}
             className="bg-card/95 border-border/30 fixed z-[9999] min-w-40 rounded-xl border p-1.5 shadow-xl shadow-black/10 backdrop-blur-2xl"
             style={{
-              left:
-                settings.position === 'left'
-                  ? 80
-                  : settings.position === 'right'
-                    ? undefined
-                    : '50%',
-              top: settings.position === 'bottom' ? undefined : '50%',
-              bottom: settings.position === 'bottom' ? 80 : undefined,
-              right: settings.position === 'right' ? 80 : undefined,
-              transform: settings.position === 'bottom' ? 'translateX(-50%)' : 'translateY(-50%)',
+              left: contextItem.x,
+              top: contextItem.y,
             }}
           >
             <button
               onClick={() => {
-                removeFromDock(contextItem.id);
+                removeFromDock(contextItem.item.id);
                 setContextItem(null);
               }}
               className="flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-xs text-red-400 transition-colors hover:bg-red-500/10"
