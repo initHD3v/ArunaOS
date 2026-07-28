@@ -83,8 +83,8 @@ export const useAuthStore = create<AuthState>()(
         set({ isAuthEnabled: false, credential: null, isLocked: false, hasSession: false }),
 
       login: async (password) => {
-        const { credential } = get();
-        if (!credential) return true;
+        const { credential, isAuthEnabled } = get();
+        if (!credential) return !isAuthEnabled;
         const salt = hexToBytes(credential.salt);
         const hash = await deriveKey(password, salt);
         const ok = hash === credential.hash;
@@ -102,6 +102,7 @@ export const useAuthStore = create<AuthState>()(
         credential: state.credential,
         isAuthEnabled: state.isAuthEnabled,
         isLocked: state.isLocked,
+        hasSession: state.hasSession,
       }),
     },
   ),

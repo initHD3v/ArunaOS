@@ -7,13 +7,14 @@ import { LoginScreen } from './login-screen';
 
 export function AuthGate({ children }: { children: React.ReactNode }) {
   const { isAuthEnabled, isLocked, hasSession } = useAuthStore();
-  const [mounted, setMounted] = useState(false);
+  const [hydrated, setHydrated] = useState(useAuthStore.persist.hasHydrated());
 
   useEffect(() => {
-    setMounted(true);
+    const unsub = useAuthStore.persist.onFinishHydration(() => setHydrated(true));
+    return () => unsub();
   }, []);
 
-  if (!mounted) {
+  if (!hydrated) {
     return <div className="bg-background fixed inset-0" />;
   }
 
