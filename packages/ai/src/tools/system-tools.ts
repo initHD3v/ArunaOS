@@ -1,5 +1,89 @@
 import type { AITool, AIToolResult } from '../types';
 
+async function resolveLocation(): Promise<{ lat: number; lon: number; city: string } | null> {
+  try {
+    const res = await fetch('https://ipapi.co/json/', { signal: AbortSignal.timeout(5000) });
+    if (!res.ok) return null;
+    const d = await res.json();
+    if (d.latitude != null && d.longitude != null) {
+      return {
+        lat: d.latitude,
+        lon: d.longitude,
+        city: d.city ?? d.region ?? d.country_name ?? 'Unknown',
+      };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+async function resolveCityName(lat: number, lon: number): Promise<string | null> {
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=id`,
+      {
+        headers: { 'User-Agent': 'arunaOS/1.0' },
+        signal: AbortSignal.timeout(5000),
+      },
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    const addr = data.address;
+    const city = addr?.city || addr?.town || addr?.village || addr?.county || addr?.state;
+    if (city) return addr?.country ? `${city}, ${addr.country}` : city;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+const WMO_LABELS: Record<number, string> = {
+  0: 'Cerah',
+  1: 'Cerah Berawan',
+  2: 'Berawan Sebagian',
+  3: 'Berawan',
+  45: 'Berkabut',
+  48: 'Berkabut',
+  51: 'Gerimis Ringan',
+  53: 'Gerimis Sedang',
+  55: 'Gerimis Deras',
+  56: 'Gerimis Beku Ringan',
+  57: 'Gerimis Beku Deras',
+  61: 'Hujan Ringan',
+  63: 'Hujan Sedang',
+  65: 'Hujan Deras',
+  66: 'Hujan Beku Ringan',
+  67: 'Hujan Beku Deras',
+  71: 'Salju Ringan',
+  73: 'Salju Sedang',
+  75: 'Salju Deras',
+  77: 'Butiran Salju',
+  80: 'Hujan Lokal Ringan',
+  81: 'Hujan Lokal Sedang',
+  82: 'Hujan Lokal Deras',
+  85: 'Salju Lokal Ringan',
+  86: 'Salju Lokal Deras',
+  95: 'Badai Petir',
+  96: 'Badai Petir dengan Hujan Es',
+  99: 'Badai Petir dengan Hujan Es Deras',
+};
+
+function weatherCondition(code: number): string {
+  return WMO_LABELS[code] ?? 'Tidak diketahui';
+}
+
+function weatherEmoji(code: number): string {
+  if (code === 0) return '\u2600\uFE0F';
+  if (code <= 3) return '\u26C5';
+  if (code <= 48) return '\uD83C\uDF2B';
+  if (code <= 57) return '\uD83C\uDF26';
+  if (code <= 67) return '\uD83C\uDF27';
+  if (code <= 77) return '\u2744\uFE0F';
+  if (code <= 86) return '\uD83C\uDF26';
+  return '\u26C8';
+}
+
 export function createSystemInfoTool(): AITool {
   return {
     id: 'get_system_info',
@@ -23,6 +107,30 @@ export function createSystemInfoTool(): AITool {
   };
 }
 
+const MODULE_REGISTRY: Record<string, { name: string; description: string }> = {
+  'arunaos.files': {
+    name: 'File Manager',
+    description: 'Browse, manage, and organize files and folders',
+  },
+  'arunaos.settings': { name: 'Settings', description: 'System settings and configuration' },
+  'arunaos.weather': { name: 'Weather', description: 'Real-time weather information and forecast' },
+  'arunaos.camera': {
+    name: 'Camera',
+    description: 'Take photos and record videos using the device camera',
+  },
+  'arunaos.ai': { name: 'AI Chat', description: 'Chat with the ArunaOS AI assistant' },
+  'arunaos.devtools': {
+    name: 'Developer Tools',
+    description: 'Developer utilities and debugging tools',
+  },
+  'arunaos.installer': { name: 'Installer', description: 'Install and manage system packages' },
+  'arunaos.appstore': { name: 'App Store', description: 'Browse and install applications' },
+  'arunaos.applications': {
+    name: 'Applications',
+    description: 'Browse all installed applications',
+  },
+};
+
 export function createOpenAppTool(): AITool {
   return {
     id: 'open_app',
@@ -43,9 +151,239 @@ export function createOpenAppTool(): AITool {
       if (!appId) {
         return { success: false, error: 'appId is required' };
       }
+      const module = MODULE_REGISTRY[appId];
       return {
         success: true,
-        data: { action: 'open_app', appId, message: `Opening ${appId}` },
+        data: {
+          action: 'open_app',
+          appId,
+          name: module?.name ?? appId,
+          description: module?.description ?? 'Unknown module',
+          message: module ? `Membuka ${module.name}: ${module.description}` : `Opening ${appId}`,
+        },
+      };
+    },
+  };
+}
+
+export function createGetWeatherTool(): AITool {
+  return {
+    id: 'get_weather',
+    name: 'get_weather',
+    description:
+      'Get real-time weather data for a location. Uses Open-Meteo API (free, no key). Returns current conditions, hourly forecast, and 7-day forecast.',
+    category: 'system',
+    parameters: [
+      {
+        name: 'lat',
+        type: 'number',
+        description: 'Latitude (optional — uses IP geolocation if omitted)',
+      },
+      {
+        name: 'lon',
+        type: 'number',
+        description: 'Longitude (optional — uses IP geolocation if omitted)',
+      },
+      {
+        name: 'city',
+        type: 'string',
+        description: 'City name for display (optional — auto-resolved from coordinates if omitted)',
+      },
+    ],
+    async execute(params): Promise<AIToolResult> {
+      let lat = Number(params.lat) || 0;
+      let lon = Number(params.lon) || 0;
+      let city = params.city ? String(params.city) : null;
+
+      if (!lat || !lon) {
+        const loc = await resolveLocation();
+        if (loc) {
+          lat = loc.lat;
+          lon = loc.lon;
+          if (!city) city = loc.city;
+        } else {
+          lat = -6.2088;
+          lon = 106.8456;
+        }
+      }
+
+      try {
+        const paramsUrl = new URLSearchParams({
+          latitude: lat.toString(),
+          longitude: lon.toString(),
+          current:
+            'temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m',
+          hourly: 'temperature_2m,apparent_temperature,precipitation_probability,weather_code',
+          daily:
+            'temperature_2m_max,temperature_2m_min,weather_code,precipitation_sum,precipitation_probability_max,sunrise,sunset',
+          timezone: 'auto',
+          forecast_days: '7',
+        });
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+        const res = await fetch(`https://api.open-meteo.com/v1/forecast?${paramsUrl}`, {
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+
+        if (!res.ok) {
+          return { success: false, error: `Weather API responded with ${res.status}` };
+        }
+
+        const data = await res.json();
+        const current = data.current;
+
+        if (!city) {
+          city = await resolveCityName(lat, lon);
+        }
+
+        const now = new Date();
+        const hourlyIdx = data.hourly.time.findIndex((t: string) => new Date(t) >= now);
+        const hourlySlice = data.hourly.time.slice(hourlyIdx, hourlyIdx + 7);
+        const hourly = hourlySlice.map((_: string, i: number) => {
+          const idx = hourlyIdx + i;
+          return {
+            time: data.hourly.time[idx],
+            temp: Math.round(data.hourly.temperature_2m[idx]),
+            feelsLike: Math.round(data.hourly.apparent_temperature[idx]),
+            weatherCode: data.hourly.weather_code[idx],
+            condition: weatherCondition(data.hourly.weather_code[idx]),
+            emoji: weatherEmoji(data.hourly.weather_code[idx]),
+            precipitation: data.hourly.precipitation_probability[idx] ?? 0,
+          };
+        });
+
+        const daily = data.daily.time.map((_: string, i: number) => ({
+          date: data.daily.time[i],
+          tempMax: Math.round(data.daily.temperature_2m_max[i]),
+          tempMin: Math.round(data.daily.temperature_2m_min[i]),
+          weatherCode: data.daily.weather_code[i],
+          condition: weatherCondition(data.daily.weather_code[i]),
+          emoji: weatherEmoji(data.daily.weather_code[i]),
+          precipitationSum: data.daily.precipitation_sum[i] ?? 0,
+          precipitationProb: data.daily.precipitation_probability_max[i] ?? 0,
+        }));
+
+        const weatherCode: number = current.weather_code;
+
+        return {
+          success: true,
+          data: {
+            location: city ?? 'Lokasi tidak diketahui',
+            lat,
+            lon,
+            timezone: data.timezone,
+            current: {
+              temp: Math.round(current.temperature_2m),
+              feelsLike: Math.round(current.apparent_temperature),
+              humidity: current.relative_humidity_2m,
+              windSpeed: Math.round(current.wind_speed_10m),
+              weatherCode,
+              condition: weatherCondition(weatherCode),
+              emoji: weatherEmoji(weatherCode),
+            },
+            hourly,
+            daily,
+            sunrise: data.daily.sunrise?.[0] ?? '',
+            sunset: data.daily.sunset?.[0] ?? '',
+          },
+        };
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        return { success: false, error: `Gagal mengambil data cuaca: ${msg}` };
+      }
+    },
+  };
+}
+
+export function createGetCalendarTool(): AITool {
+  return {
+    id: 'get_calendar',
+    name: 'get_calendar',
+    description:
+      'Get current date, time, and calendar information (day, week, month, year, month overview). No calendar events DB available server-side — events are stored client-only.',
+    category: 'system',
+    parameters: [],
+    async execute(): Promise<AIToolResult> {
+      const now = new Date();
+
+      const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+      const monthNames = [
+        'Januari',
+        'Februari',
+        'Maret',
+        'April',
+        'Mei',
+        'Juni',
+        'Juli',
+        'Agustus',
+        'September',
+        'Oktober',
+        'November',
+        'Desember',
+      ];
+
+      const year = now.getFullYear();
+      const month = now.getMonth();
+      const date = now.getDate();
+      const dayOfWeek = now.getDay();
+      const dayOfYear = Math.floor((now.getTime() - new Date(year, 0, 0).getTime()) / 86_400_000);
+
+      const startOfYear = new Date(year, 0, 1);
+      const diff = now.getTime() - startOfYear.getTime();
+      const weekNumber = Math.ceil((diff / 86_400_000 + startOfYear.getDay() + 1) / 7);
+
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      const firstDayOfMonth = new Date(year, month, 1).getDay();
+
+      const weeks: Array<{ week: number; days: Array<{ day: number; isToday: boolean }> }> = [];
+      let currentWeek: Array<{ day: number; isToday: boolean }> = [];
+
+      for (let i = 0; i < firstDayOfMonth; i++) {
+        currentWeek.push({ day: 0, isToday: false });
+      }
+
+      for (let d = 1; d <= daysInMonth; d++) {
+        currentWeek.push({ day: d, isToday: d === date });
+        if (currentWeek.length === 7) {
+          weeks.push({ week: weeks.length + 1, days: currentWeek });
+          currentWeek = [];
+        }
+      }
+
+      if (currentWeek.length > 0) {
+        while (currentWeek.length < 7) {
+          currentWeek.push({ day: 0, isToday: false });
+        }
+        weeks.push({ week: weeks.length + 1, days: currentWeek });
+      }
+
+      return {
+        success: true,
+        data: {
+          iso: now.toISOString(),
+          timestamp: now.getTime(),
+          year,
+          month: month + 1,
+          monthName: monthNames[month],
+          date,
+          dayOfWeek,
+          dayName: dayNames[dayOfWeek],
+          dayOfYear,
+          weekNumber,
+          daysInMonth,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          locale: typeof navigator !== 'undefined' ? navigator.language : 'id-ID',
+          monthCalendar: {
+            year,
+            month: month + 1,
+            monthName: monthNames[month],
+            daysInMonth,
+            firstDayOfMonth,
+            weeks,
+          },
+        },
       };
     },
   };
@@ -212,6 +550,8 @@ export function getDefaultTools(): AITool[] {
   return [
     createSystemInfoTool(),
     createOpenAppTool(),
+    createGetWeatherTool(),
+    createGetCalendarTool(),
     createSearchTool(),
     createGetSystemContextTool(),
     createNotifyTool(),

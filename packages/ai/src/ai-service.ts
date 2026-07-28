@@ -167,13 +167,20 @@ export class AIService {
       parts.push(
         `Available tools (only use when the user asks for a system action): ` +
           `- get_system_info: Get system state information ` +
-          `- open_app(appId): Open an application by ID (e.g., "arunaos.weather") ` +
-          `- search(query, category): Search for content ` +
+          `- open_app(appId): Open an application by ID (e.g., "arunaos.weather", "arunaos.files", "arunaos.settings") ` +
+          `- get_weather(lat?, lon?, city?): Get real-time weather data for a location (uses IP geolocation if no coordinates given). ` +
+          `  Returns current temperature, feels-like, humidity, wind speed, condition, emoji, ` +
+          `  7-hour hourly forecast, and 7-day daily forecast. ` +
+          `- get_calendar: Get current date/time info including day name, date, month, year, ISO week number, ` +
+          `  day of year, month calendar grid, and timezone. ` +
+          `- search(query, category?): Search for content in files, modules, settings, or apps ` +
           `- get_system_context: Get current system context ` +
-          `- notify(title, message, type): Send a desktop notification ` +
-          `- execute_command(command, params): Execute a system action ` +
-          `- generate_module(name, description, capabilities): Generate a module\n` +
-          `When the user asks you to DO something (open an app, check weather, search, etc.), ` +
+          `- notify(title, message, type?): Send a desktop notification ` +
+          `- execute_command(command, params?): Execute a system action ` +
+          `- generate_module(name, description, capabilities?): Generate a new ArunaOS module\n` +
+          `When the user asks you to check weather, use get_weather tool to fetch real data and then respond with the weather summary. ` +
+          `When the user asks about date, time, or calendar, use get_calendar tool. ` +
+          `When the user asks you to DO something (open an app, search, etc.), ` +
           `output a JSON tool call on its own line like {"name":"tool_name","args":{...}} ` +
           `and then briefly explain what you did. For normal conversation, just respond naturally.`,
       );
