@@ -114,7 +114,7 @@ describe('ModuleSandbox', () => {
   it('should delegate notify to system API', () => {
     const sandbox = new ModuleSandbox();
     const api = makeAPI();
-    const sb = sandbox.create(makeManifest(), api);
+    const sb = sandbox.create(makeManifest({ permissions: ['notification'] }), api);
     (sb.api as SystemAPI).notify('info', 'Hello', { duration: 3000 });
     expect(api.notify).toHaveBeenCalledWith('info', 'Hello', { duration: 3000 });
   });
