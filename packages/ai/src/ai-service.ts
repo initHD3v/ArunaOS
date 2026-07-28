@@ -14,7 +14,6 @@ import { OpenRouterProvider } from './providers/openrouter';
 import { OllamaProvider } from './providers/ollama';
 import { detectProviders } from './providers/interface';
 import { ToolRegistry } from './tools/registry';
-import { createSystemContext } from './context/system-context';
 
 export class AIService {
   private providers: Map<AIProviderType, AIProvider> = new Map();
@@ -161,7 +160,10 @@ export class AIService {
         `You help users with tasks, answer questions, control the system, and generate modules. ` +
         `You are running in a web-based operating system. ` +
         `You can execute system tools to interact with the OS. ` +
-        `Be concise, helpful, and knowledgeable. ` +
+        `\n\nIMPORTANT: Respond in natural language. Do NOT output JSON unless you are calling a tool. ` +
+        'When you need to call a tool, output ONLY a valid JSON object on its own line with exactly ' +
+        '{"name":"tool_name","args":{...}} — never wrap it in markdown or sentences.' +
+        `\nBe concise, helpful, and knowledgeable. ` +
         `Current time: ${new Date().toISOString()}`,
     );
 
@@ -176,25 +178,26 @@ export class AIService {
 
     if (!message.content) return { toolResults, contextUpdated };
 
+    // Only parse as tool call if the ENTIRE message is a JSON object with name + args
+    const trimmed = message.content.trim();
+    if (!trimmed.startsWith('{') && !trimmed.startsWith('['))
+      return { toolResults, contextUpdated };
+
     let parsed: Array<{ name: string; args: Record<string, unknown> }>;
     try {
-      const raw = JSON.parse(message.content) as
+      const raw = JSON.parse(trimmed) as
         | Array<{ name: string; args: Record<string, unknown> }>
         | { name: string; args: Record<string, unknown> };
       parsed = Array.isArray(raw) ? raw : [raw];
     } catch {
-      // Check for system context tool call pattern
-      if (message.content.includes('get_system_context')) {
-        const ctx = await createSystemContext();
-        toolResults.push({
-          role: 'tool',
-          content: JSON.stringify(ctx),
-          toolName: 'get_system_context',
-        });
-        contextUpdated = true;
-      }
       return { toolResults, contextUpdated };
     }
+
+    // Validate every item has name and args before executing
+    const valid = parsed.every(
+      (c) => typeof c.name === 'string' && c.args && typeof c.args === 'object',
+    );
+    if (!valid) return { toolResults, contextUpdated };
 
     for (const call of parsed) {
       const tool = this.tools.get(call.name);
