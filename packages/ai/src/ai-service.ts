@@ -168,83 +168,132 @@ export class AIService {
         `Available tools (only use when the user asks for a system action): ` +
           `- get_system_info: Get system state information ` +
           `- open_app(appId): Open an application by ID (e.g., "arunaos.weather", "arunaos.files", "arunaos.settings") ` +
-          `- get_weather(lat?, lon?, city?): Get real-time weather data for a location (uses IP geolocation if no coordinates given). ` +
-          `  Returns current temperature, feels-like, humidity, wind speed, condition, emoji, ` +
-          `  7-hour hourly forecast, and 7-day daily forecast. ` +
-          `- get_calendar: Get current date/time info including day name, date, month, year, ISO week number, ` +
-          `  day of year, month calendar grid, and timezone. ` +
+          `- get_weather(lat?, lon?, city?): Get real-time weather data. Use when user asks about weather, forecast, or temperature. ` +
+          `- get_calendar: Get current date/time/week/month/year/calendar grid. Use when user asks what day/date/month/year it is, or about calendar. ` +
           `- search(query, category?): Search for content in files, modules, settings, or apps ` +
-          `- get_system_context: Get current system context ` +
+          `- get_system_context: Get current system context (active windows, workspace, theme, modules) ` +
           `- notify(title, message, type?): Send a desktop notification ` +
           `- execute_command(command, params?): Execute a system action ` +
           `- generate_module(name, description, capabilities?): Generate a new ArunaOS module\n` +
-          `When the user asks you to check weather, use get_weather tool to fetch real data and then respond with the weather summary. ` +
-          `When the user asks about date, time, or calendar, use get_calendar tool. ` +
-          `When the user asks you to DO something (open an app, search, etc.), ` +
-          `output a JSON tool call on its own line like {"name":"tool_name","args":{...}} ` +
-          `and then briefly explain what you did. For normal conversation, just respond naturally.`,
+          `IMPORTANT: When the user asks about WEATHER → ONLY output {"name":"get_weather","args":{}} on its own line. Nothing else. ` +
+          `When the user asks about DATE, TIME, DAY, MONTH, YEAR, or CALENDAR → ONLY output {"name":"get_calendar","args":{}} on its own line. Nothing else. ` +
+          `For other actions (open app, search, notify, etc.) → ONLY output the JSON tool call on its own line. Nothing else. ` +
+          `The system will execute your tool and respond to the user naturally. ` +
+          `DO NOT add any explanation, commentary, or extra text after the JSON. ` +
+          `For normal conversation (no tool needed), just respond naturally without any JSON.`,
       );
     }
 
     return parts.join('\n\n');
   }
 
-  private async processToolCalls(
-    message: AIMessage,
-  ): Promise<{ toolResults: AIMessage[]; contextUpdated: boolean }> {
+  /**
+   * Extract JSON tool call(s) from text content.
+   * Supports both pure JSON and mixed text-with-embedded-JSON.
+   * Returns tool results + cleaned content (JSON stripped).
+   */
+  private async extractToolCalls(content: string): Promise<{
+    toolResults: AIMessage[];
+    contextUpdated: boolean;
+    cleanedContent: string;
+    found: boolean;
+  }> {
     const toolResults: AIMessage[] = [];
     let contextUpdated = false;
+    let cleanedContent = content;
+    let found = false;
 
-    if (!message.content) return { toolResults, contextUpdated };
+    if (!content) return { toolResults, contextUpdated, cleanedContent, found };
 
-    // Only parse as tool call if the ENTIRE message is a JSON object with name + args
-    const trimmed = message.content.trim();
-    if (!trimmed.startsWith('{') && !trimmed.startsWith('['))
-      return { toolResults, contextUpdated };
-
-    let parsed: Array<{ name: string; args: Record<string, unknown> }>;
-    try {
-      const raw = JSON.parse(trimmed) as
-        | Array<{ name: string; args: Record<string, unknown> }>
-        | { name: string; args: Record<string, unknown> };
-      parsed = Array.isArray(raw) ? raw : [raw];
-    } catch {
-      return { toolResults, contextUpdated };
-    }
-
-    // Validate every item has name and args before executing
-    const valid = parsed.every(
-      (c) => typeof c.name === 'string' && c.args && typeof c.args === 'object',
-    );
-    if (!valid) return { toolResults, contextUpdated };
-
-    for (const call of parsed) {
-      const tool = this.tools.get(call.name);
-      if (tool) {
-        try {
-          const result = await tool.execute(call.args);
-          toolResults.push({
-            role: 'tool',
-            content: JSON.stringify(result),
-            toolName: call.name,
-            toolCallId: call.name,
-          });
-          if (call.name === 'get_system_context') {
-            contextUpdated = true;
+    // Try parsing the entire content as pure JSON first (fast path)
+    const trimmed = content.trim();
+    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+      let parsed: Array<{ name: string; args: Record<string, unknown> }>;
+      try {
+        const raw = JSON.parse(trimmed) as
+          | Array<{ name: string; args: Record<string, unknown> }>
+          | { name: string; args: Record<string, unknown> };
+        parsed = Array.isArray(raw) ? raw : [raw];
+        const valid = parsed.every(
+          (c) => typeof c.name === 'string' && c.args && typeof c.args === 'object',
+        );
+        if (valid) {
+          found = true;
+          cleanedContent = '';
+          for (const call of parsed) {
+            await this.executeSingleTool(call, toolResults);
+            if (call.name === 'get_system_context') contextUpdated = true;
           }
-        } catch (err: unknown) {
-          const errorMessage = err instanceof Error ? err.message : String(err);
-          toolResults.push({
-            role: 'tool',
-            content: JSON.stringify({ success: false, error: errorMessage }),
-            toolName: call.name,
-            toolCallId: call.name,
-          });
+          return { toolResults, contextUpdated, cleanedContent, found };
         }
+      } catch {
+        // Not pure JSON — fall through to regex extraction
       }
     }
 
-    return { toolResults, contextUpdated };
+    // Mixed content: scan for {"name":"...","args":{...}} patterns via regex
+    const toolCallRegex =
+      /\{"name"\s*:\s*"([^"]+)"\s*,\s*"args"\s*:\s*(\{(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*\})\s*\}/g;
+    let match: RegExpExecArray | null;
+    const seenToolNames = new Set<string>();
+
+    while ((match = toolCallRegex.exec(content)) !== null) {
+      const rawName = match[1];
+      const rawArgs = match[2] ?? '';
+      if (!rawName || !rawArgs) continue;
+
+      let argsObj: Record<string, unknown>;
+      try {
+        argsObj = JSON.parse(rawArgs) as Record<string, unknown>;
+      } catch {
+        continue;
+      }
+
+      if (typeof argsObj !== 'object' || argsObj === null) continue;
+
+      // Avoid re-executing the same tool name
+      if (seenToolNames.has(rawName)) continue;
+      seenToolNames.add(rawName);
+
+      found = true;
+      await this.executeSingleTool({ name: rawName, args: argsObj }, toolResults);
+      if (rawName === 'get_system_context') contextUpdated = true;
+    }
+
+    // Strip all JSON tool call patterns from the content
+    if (found) {
+      cleanedContent = content
+        .replace(toolCallRegex, '')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+    }
+
+    return { toolResults, contextUpdated, cleanedContent, found };
+  }
+
+  private async executeSingleTool(
+    call: { name: string; args: Record<string, unknown> },
+    results: AIMessage[],
+  ): Promise<void> {
+    const tool = this.tools.get(call.name);
+    if (!tool) return;
+    try {
+      const result = await tool.execute(call.args);
+      results.push({
+        role: 'tool',
+        content: JSON.stringify(result),
+        toolName: call.name,
+        toolCallId: call.name,
+      });
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      results.push({
+        role: 'tool',
+        content: JSON.stringify({ success: false, error: errorMessage }),
+        toolName: call.name,
+        toolCallId: call.name,
+      });
+    }
   }
 
   async complete(
@@ -269,11 +318,14 @@ export class AIService {
       tools: !isLocalModel && allTools.length > 0 ? allTools : undefined,
     });
 
-    // Process any tool calls
-    const { toolResults } = await this.processToolCalls(response.message);
+    // Extract tool calls from response (handles both pure JSON and mixed content)
+    const { toolResults, cleanedContent } = await this.extractToolCalls(
+      response.message.content ?? '',
+    );
+
     if (toolResults.length > 0) {
       const followUp = await provider.complete({
-        messages: [...req.messages, response.message, ...toolResults],
+        messages: [...req.messages, { role: 'assistant', content: cleanedContent }, ...toolResults],
         systemPrompt,
         temperature: req.temperature,
       });
@@ -305,41 +357,47 @@ export class AIService {
       tools: !isLocalModel && allTools.length > 0 ? allTools : undefined,
     });
 
+    // Buffer text chunks until stream ends to detect tool calls before displaying
+    const textBuffer: string[] = [];
     let fullContent = '';
-    const toolCallAccumulator: string[] = [];
 
     for await (const chunk of stream) {
       if (chunk.type === 'text') {
+        textBuffer.push(chunk.content);
         fullContent += chunk.content;
-        toolCallAccumulator.push(chunk.content);
+      } else {
+        yield chunk;
       }
-      yield chunk;
     }
 
-    // Process tool calls if detected
-    if (fullContent) {
-      const toolMessage: AIMessage = { role: 'assistant', content: fullContent };
-      const { toolResults } = await this.processToolCalls(toolMessage);
+    // Extract tool calls from the full content
+    const { toolResults, cleanedContent } = await this.extractToolCalls(fullContent);
 
-      if (toolResults.length > 0) {
-        for (const result of toolResults) {
-          yield {
-            type: 'tool-result',
-            content: result.content,
-            toolName: result.toolName,
-          };
-        }
+    if (toolResults.length > 0) {
+      // Tool calls found — do NOT replay the raw text (which contains JSON)
+      // Instead, yield tool results and generate a follow-up response
 
-        // Get final response after tool calls
-        const followUpStream = provider.completeStream({
-          messages: [...req.messages, toolMessage, ...toolResults],
-          systemPrompt,
-          temperature: req.temperature,
-        });
+      for (const result of toolResults) {
+        yield {
+          type: 'tool-result',
+          content: result.content,
+          toolName: result.toolName,
+        };
+      }
 
-        for await (const chunk of followUpStream) {
-          yield chunk;
-        }
+      const followUpStream = provider.completeStream({
+        messages: [...req.messages, { role: 'assistant', content: cleanedContent }, ...toolResults],
+        systemPrompt,
+        temperature: req.temperature,
+      });
+
+      for await (const chunk of followUpStream) {
+        yield chunk;
+      }
+    } else {
+      // No tool calls — replay buffered text to the client
+      for (const content of textBuffer) {
+        yield { type: 'text', content };
       }
     }
   }
