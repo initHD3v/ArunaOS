@@ -29,14 +29,37 @@ function getClientAddress(request: NextRequest): string {
   return request.headers.get('x-forwarded-for') ?? 'anonymous';
 }
 
+function buildLocationPrompt(
+  lat?: string | null,
+  lon?: string | null,
+  city?: string | null,
+): string {
+  if (!lat || !lon) return '';
+  const loc = `User location: ${lat}, ${lon}`;
+  return city ? `${loc} (${city})` : loc;
+}
+
+function buildSystemPrompt(
+  base: string,
+  lat?: string | null,
+  lon?: string | null,
+  city?: string | null,
+): string {
+  const locationLine = buildLocationPrompt(lat, lon, city);
+  return locationLine ? `${base}\n\n${locationLine}` : base;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { message, sessionId, provider, providerConfig } = body as {
+    const { message, sessionId, provider, providerConfig, lat, lon, city } = body as {
       message?: string;
       sessionId?: string;
       provider?: string;
       providerConfig?: { type: AIProviderType } & AIProviderConfig;
+      lat?: string;
+      lon?: string;
+      city?: string;
     };
 
     if (!message || typeof message !== 'string') {
@@ -68,11 +91,15 @@ export async function POST(request: NextRequest) {
     const session = new ChatSession(
       {
         id: sid,
-        systemPrompt:
+        systemPrompt: buildSystemPrompt(
           'You are the ArunaOS AI — the brain, heart, and soul of this operating system. ' +
-          'You help users with tasks, answer questions, control the system, and generate modules. ' +
-          'You are running in a web-based operating system. You can execute system tools. ' +
-          'Be concise, helpful, and knowledgeable.',
+            'You help users with tasks, answer questions, control the system, and generate modules. ' +
+            'You are running in a web-based operating system. You can execute system tools. ' +
+            'Be concise, helpful, and knowledgeable.',
+          lat,
+          lon,
+          city,
+        ),
         provider: providerType,
         providerConfig: providerConfig?.type ? providerConfig : undefined,
       },
@@ -124,6 +151,9 @@ export async function GET(request: NextRequest) {
   const sessionId = searchParams.get('sessionId') ?? undefined;
   const providerRaw = searchParams.get('provider') ?? undefined;
   const providerConfigRaw = searchParams.get('providerConfig') ?? undefined;
+  const lat = searchParams.get('lat');
+  const lon = searchParams.get('lon');
+  const city = searchParams.get('city');
 
   if (!message) {
     return new Response(JSON.stringify({ error: 'message query param is required' }), {
@@ -177,8 +207,12 @@ export async function GET(request: NextRequest) {
         const session = new ChatSession(
           {
             id: sid,
-            systemPrompt:
+            systemPrompt: buildSystemPrompt(
               'You are the ArunaOS AI — the brain, heart, and soul of this operating system.',
+              lat,
+              lon,
+              city,
+            ),
             provider: providerType,
             providerConfig: providerConfig?.type ? providerConfig : undefined,
           },

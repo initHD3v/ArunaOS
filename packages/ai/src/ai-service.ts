@@ -168,14 +168,17 @@ export class AIService {
         `Available tools (only use when the user asks for a system action): ` +
           `- get_system_info: Get system state information ` +
           `- open_app(appId): Open an application by ID (e.g., "arunaos.weather", "arunaos.files", "arunaos.settings") ` +
-          `- get_weather(lat?, lon?, city?): Get real-time weather data. Use when user asks about weather, forecast, or temperature. ` +
+          `- get_weather(lat, lon, city?): Get real-time weather data for the user's location. ` +
+          `  Use when user asks about weather, forecast, or temperature. ` +
           `- get_calendar: Get current date/time/week/month/year/calendar grid. Use when user asks what day/date/month/year it is, or about calendar. ` +
           `- search(query, category?): Search for content in files, modules, settings, or apps ` +
           `- get_system_context: Get current system context (active windows, workspace, theme, modules) ` +
           `- notify(title, message, type?): Send a desktop notification ` +
           `- execute_command(command, params?): Execute a system action ` +
           `- generate_module(name, description, capabilities?): Generate a new ArunaOS module\n` +
-          `IMPORTANT: When the user asks about WEATHER → ONLY output {"name":"get_weather","args":{}} on its own line. Nothing else. ` +
+          `IMPORTANT: Your user's location is specified as "User location: lat, lon (city)" at the top of this prompt. ` +
+          `When the user asks about WEATHER → output {"name":"get_weather","args":{"lat":LAT,"lon":LON}} on its own line, ` +
+          `replacing LAT and LON with the actual coordinates from your location. Nothing else. ` +
           `When the user asks about DATE, TIME, DAY, MONTH, YEAR, or CALENDAR → ONLY output {"name":"get_calendar","args":{}} on its own line. Nothing else. ` +
           `For other actions (open app, search, notify, etc.) → ONLY output the JSON tool call on its own line. Nothing else. ` +
           `The system will execute your tool and respond to the user naturally. ` +

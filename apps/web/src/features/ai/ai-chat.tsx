@@ -6,6 +6,7 @@ import { ChatMessages } from './components/chat-messages';
 import { ChatInput } from './components/chat-input';
 import { AIChatSettingsPanel } from './components/ai-chat-settings-panel';
 import { ModelDownloadProgress } from './components/model-download-progress';
+import { useLocationStore } from '@/stores/location.store';
 import {
   PanelLeftClose,
   PanelLeft,
@@ -362,6 +363,14 @@ export function AIChat() {
         if (sessionIdRef.current) params.set('sessionId', sessionIdRef.current);
         if (provider) params.set('provider', provider);
         if (providerCfg) params.set('providerConfig', JSON.stringify(providerCfg));
+
+        // Attach precise user location if available
+        const loc = useLocationStore.getState();
+        if (loc.enabled && loc.latitude != null && loc.longitude != null) {
+          params.set('lat', String(loc.latitude));
+          params.set('lon', String(loc.longitude));
+          if (loc.city) params.set('city', loc.city);
+        }
 
         const response = await fetch(`/api/ai/chat?${params}`, {
           signal: abortController.signal,
