@@ -118,6 +118,33 @@ async function resolveCityFromIP(): Promise<{ lat: number; lon: number; city: st
   }
 }
 
+function formatLocationName(addr: Record<string, string> | undefined): string | null {
+  if (!addr) return null;
+
+  const specific = addr.hamlet || addr.suburb || addr.neighbourhood || addr.isolated_dwelling || '';
+  const local = addr.village || addr.town || addr.city || '';
+  const county = addr.county || addr.state_district || '';
+  const state = addr.state || '';
+  const country = addr.country || '';
+
+  let name: string;
+  if (specific && local && specific !== local) {
+    name = `${specific}, ${local}`;
+  } else if (specific) {
+    name = specific;
+  } else if (local) {
+    name = local;
+  } else if (county) {
+    name = county;
+  } else if (state) {
+    name = state;
+  } else {
+    return null;
+  }
+
+  return country ? `${name}, ${country}` : name;
+}
+
 async function resolveCityFromCoords(lat: number, lon: number): Promise<string | null> {
   try {
     const res = await fetch(
@@ -129,10 +156,9 @@ async function resolveCityFromCoords(lat: number, lon: number): Promise<string |
     );
     if (!res.ok) return null;
     const data = await res.json();
-    const addr = data.address;
-    const city = addr?.city || addr?.town || addr?.village || addr?.county || addr?.state;
-    const country = addr?.country;
-    if (city) return country ? `${city}, ${country}` : city;
+    const result = formatLocationName(data.address);
+    if (result) return result;
+    if (data.display_name) return data.display_name.split(', ').slice(0, 2).join(', ');
     return null;
   } catch {
     return null;
