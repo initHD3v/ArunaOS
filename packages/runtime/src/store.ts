@@ -22,13 +22,11 @@ type Listener = (state: ModuleStoreState) => void;
 
 export class ModuleStore {
   private registry: ModuleRegistry;
-  private bus: EventBus;
   private listeners = new Set<Listener>();
   private isLoadedFn: (id: string) => boolean;
 
-  constructor(registry: ModuleRegistry, bus: EventBus, isLoaded: (id: string) => boolean) {
+  constructor(registry: ModuleRegistry, _bus: EventBus, isLoaded: (id: string) => boolean) {
     this.registry = registry;
-    this.bus = bus;
     this.isLoadedFn = isLoaded;
   }
 

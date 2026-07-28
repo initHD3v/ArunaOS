@@ -46,7 +46,6 @@ export class RegistryClient {
       process.env.NEXT_PUBLIC_REGISTRY_URL ??
       'https://registry.arunaos.io'
     ).replace(/\/+$/, '');
-    this.baseUrl = baseUrl.replace(/\/+$/, '');
   }
 
   async search(params: RegistrySearchParams = {}): Promise<RegistrySearchResult> {
