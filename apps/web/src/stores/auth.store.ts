@@ -5,6 +5,13 @@ function generateSalt(): Uint8Array {
   return crypto.getRandomValues(new Uint8Array(16));
 }
 
+async function sha256(password: string): Promise<string> {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(password));
+  return Array.from(new Uint8Array(buf))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+}
+
 async function deriveKey(password: string, salt: Uint8Array): Promise<string> {
   const enc = new TextEncoder();
   const keyMaterial = await crypto.subtle.importKey(
@@ -42,6 +49,35 @@ function hexToBytes(hex: string): Uint8Array {
     bytes[i / 2] = Number.parseInt(hex.slice(i, i + 2), 16);
   }
   return bytes;
+}
+
+const STORAGE_KEY = 'arunaos-auth';
+
+function migrateOldCredential(password: string): Promise<boolean> {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return Promise.resolve(false);
+    const parsed = JSON.parse(raw)?.state;
+    if (!parsed || !('passwordHash' in parsed)) return Promise.resolve(false);
+    return sha256(password).then((h) => h === parsed.passwordHash);
+  } catch {
+    return Promise.resolve(false);
+  }
+}
+
+function cleanupOldCredential(): void {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    if (parsed?.state && 'passwordHash' in parsed.state) {
+      delete parsed.state.passwordHash;
+      delete parsed.state.username;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
+    }
+  } catch {
+    /* cleanup best-effort */
+  }
 }
 
 interface StoredCredential {
@@ -84,7 +120,23 @@ export const useAuthStore = create<AuthState>()(
 
       login: async (password) => {
         const { credential, isAuthEnabled } = get();
-        if (!credential) return !isAuthEnabled;
+
+        if (!credential) {
+          const migrated = await migrateOldCredential(password);
+          if (migrated) {
+            const salt = generateSalt();
+            const hash = await deriveKey(password, salt);
+            set({
+              credential: { salt: bytesToHex(salt), hash },
+              isLocked: false,
+              hasSession: true,
+            });
+            cleanupOldCredential();
+            return true;
+          }
+          return !isAuthEnabled;
+        }
+
         const salt = hexToBytes(credential.salt);
         const hash = await deriveKey(password, salt);
         const ok = hash === credential.hash;
@@ -97,7 +149,7 @@ export const useAuthStore = create<AuthState>()(
       closeSession: () => set({ hasSession: false }),
     }),
     {
-      name: 'arunaos-auth',
+      name: STORAGE_KEY,
       partialize: (state) => ({
         credential: state.credential,
         isAuthEnabled: state.isAuthEnabled,
