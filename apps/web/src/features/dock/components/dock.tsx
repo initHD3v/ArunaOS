@@ -8,7 +8,7 @@ import { useService } from '@/providers/service-provider';
 import type { ModuleWindowService } from '@/services/module-window';
 import { getAppIdForModule } from '@/services/module-window';
 import { useWindowStore } from '@/features/window-manager/stores/window.store';
-import { MENUBAR_HEIGHT, APP_PAD } from '@/constants/layout';
+import { createWindowConfig } from '@/lib/window-utils';
 import { useDockStore, ICON_MAP } from '@/features/dock/stores/dock.store';
 import type { DockItem } from '@/features/dock/stores/dock.store';
 import { useIsMobile } from '@/hooks/use-media-query';
@@ -92,9 +92,6 @@ export function Dock() {
         /* not a registered module, fall through */
       }
 
-      const vw = window.innerWidth;
-      const vh = window.innerHeight;
-
       const id = `dock-${appId}-${Date.now()}`;
 
       const defaults: Record<
@@ -117,10 +114,12 @@ export function Dock() {
       };
 
       // Always clamp to viewport — same behaviour on all devices
-      const winWidth = Math.min(cfg.size.width, vw - APP_PAD * 2);
-      const winHeight = Math.min(cfg.size.height, vh - MENUBAR_HEIGHT - APP_PAD);
-      const winX = Math.round((vw - winWidth) / 2);
-      const winY = MENUBAR_HEIGHT + Math.round((vh - MENUBAR_HEIGHT - winHeight) / 2);
+      const {
+        width: winWidth,
+        height: winHeight,
+        x: winX,
+        y: winY,
+      } = createWindowConfig(cfg.size.width, cfg.size.height);
 
       openWindow({
         id,

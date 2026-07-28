@@ -8,6 +8,7 @@
   <p align="center">
     <img src="https://img.shields.io/badge/version-0.3.0-8b5cf6?style=flat-square" alt="Version" />
     <img src="https://img.shields.io/badge/status-active-22c55e?style=flat-square" alt="Status" />
+    <img src="https://github.com/initHD3v/ArunaOS/actions/workflows/ci.yml/badge.svg" alt="CI" />
     <img src="https://img.shields.io/badge/TypeScript-0_errors-3178c6?style=flat-square" alt="TypeScript" />
     <img src="https://img.shields.io/badge/tests-115_passed-22c55e?style=flat-square" alt="Tests" />
     <img src="https://img.shields.io/badge/circular_deps-0-22c55e?style=flat-square" alt="Circular Dependencies" />

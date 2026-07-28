@@ -4,7 +4,7 @@ import { memo, useCallback, useEffect, useRef } from 'react';
 import { DesktopIcon } from '@/features/desktop-icons/components/desktop-icon';
 import { useDesktopStore } from '@/features/desktop/stores/desktop.store';
 import { useWindowStore } from '@/features/window-manager/stores/window.store';
-import { MENUBAR_HEIGHT, APP_PAD } from '@/constants/layout';
+import { createWindowConfig } from '@/lib/window-utils';
 import { useService } from '@/providers/service-provider';
 import type { ModuleWindowService } from '@/services/module-window';
 import { getAppIdForModule } from '@/services/module-window';
@@ -14,18 +14,11 @@ import { cn } from '@/lib/utils';
 import type { DesktopIconData } from '@/types';
 
 function createWindowFromIcon(data: DesktopIconData) {
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
-
   const D_W = 960;
   const D_H = 640;
   const id = `window-${data.id}-${Date.now()}`;
 
-  // Always clamp to viewport — same behaviour on all devices
-  const winWidth = Math.min(D_W, vw - APP_PAD * 2);
-  const winHeight = Math.min(D_H, vh - MENUBAR_HEIGHT - APP_PAD);
-  const winX = Math.round((vw - winWidth) / 2);
-  const winY = MENUBAR_HEIGHT + Math.round((vh - MENUBAR_HEIGHT - winHeight) / 2);
+  const { width: winWidth, height: winHeight, x: winX, y: winY } = createWindowConfig(D_W, D_H);
 
   return {
     id,

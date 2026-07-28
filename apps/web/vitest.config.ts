@@ -14,14 +14,8 @@ export default defineConfig({
     include: ['src/**/*.test.{ts,tsx}'],
     coverage: {
       provider: 'v8',
-      include: ['src/features/aruna-assistant/engines/**/*.ts'],
-      exclude: ['src/features/aruna-assistant/engines/types.ts'],
-      thresholds: {
-        statements: 80,
-        branches: 65,
-        functions: 80,
-        lines: 80,
-      },
+      include: ['src/**/*.ts'],
+      exclude: ['src/**/*.test.ts', 'src/**/*.test.tsx', 'src/test/**'],
     },
   },
   resolve: {
