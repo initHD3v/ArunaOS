@@ -40,7 +40,12 @@ export interface RegistryManifestResponse {
 export class RegistryClient {
   private baseUrl: string;
 
-  constructor(baseUrl: string = 'https://registry.arunaos.io') {
+  constructor(baseUrl?: string) {
+    this.baseUrl = (
+      baseUrl ??
+      process.env.NEXT_PUBLIC_REGISTRY_URL ??
+      'https://registry.arunaos.io'
+    ).replace(/\/+$/, '');
     this.baseUrl = baseUrl.replace(/\/+$/, '');
   }
 

@@ -59,6 +59,7 @@ export function ArunaEngineProvider({ children }: { children: ReactNode }) {
             engine
               .getMemoryStore()
               .clear()
+              .catch(() => {})
               .then(() => {
                 const final = new ArunaEngine({ proactiveMode: 'balanced' });
                 engineRef.current = final;
