@@ -319,16 +319,16 @@ export class AIService {
     });
 
     // Extract tool calls from response (handles both pure JSON and mixed content)
-    const { toolResults, cleanedContent } = await this.extractToolCalls(
-      response.message.content ?? '',
-    );
+    const { toolResults } = await this.extractToolCalls(response.message.content ?? '');
 
     if (toolResults.length > 0) {
-      const followUpMessages: AIMessage[] = [...req.messages];
-      if (cleanedContent) {
-        followUpMessages.push({ role: 'assistant' as const, content: cleanedContent });
-      }
-      followUpMessages.push(...toolResults);
+      // Include original assistant message (with JSON tool call) so model
+      // sees its own tool invocation in context. Display-side strips JSON.
+      const followUpMessages: AIMessage[] = [
+        ...req.messages,
+        { role: 'assistant' as const, content: response.message.content ?? '' },
+        ...toolResults,
+      ];
       const followUp = await provider.complete({
         messages: followUpMessages,
         systemPrompt,
@@ -376,7 +376,7 @@ export class AIService {
     }
 
     // Extract tool calls from the full content
-    const { toolResults, cleanedContent } = await this.extractToolCalls(fullContent);
+    const { toolResults } = await this.extractToolCalls(fullContent);
 
     if (toolResults.length > 0) {
       // Tool calls found — do NOT replay the raw text (which contains JSON)
@@ -390,11 +390,12 @@ export class AIService {
         };
       }
 
-      const followUpMessages: AIMessage[] = [...req.messages];
-      if (cleanedContent) {
-        followUpMessages.push({ role: 'assistant' as const, content: cleanedContent });
-      }
-      followUpMessages.push(...toolResults);
+      // Include original assistant message so model sees its own tool call
+      const followUpMessages: AIMessage[] = [
+        ...req.messages,
+        { role: 'assistant' as const, content: fullContent },
+        ...toolResults,
+      ];
       const followUpStream = provider.completeStream({
         messages: followUpMessages,
         systemPrompt,
