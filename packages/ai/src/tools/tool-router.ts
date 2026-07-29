@@ -113,11 +113,35 @@ export class ToolRouter {
     const hasTimeWord = timeWords.some((w) => lower.includes(w));
     if (!hasTimeWord) return null;
 
-    const eventWords = ['event', 'acara', 'agenda', 'festival', 'liburan', 'hari libur', 'jadwal'];
-    if (eventWords.some((w) => lower.includes(w))) return null;
+    const now = new Date();
+    let month = findMentionedMonth(lower);
+    let year = findMentionedYear(lower);
 
-    const month = findMentionedMonth(lower);
-    const year = findMentionedYear(lower);
+    const nextMonthWords = ['bulan depan', 'next month', 'bulan besok'];
+    const lastMonthWords = ['bulan lalu', 'last month', 'bulan kemarin'];
+    const nextYearWords = ['tahun depan', 'next year'];
+    const lastYearWords = ['tahun lalu', 'last year'];
+
+    if (nextMonthWords.some((w) => lower.includes(w)) && !month) {
+      month = now.getMonth() + 2;
+      if (month > 12) {
+        month -= 12;
+        year = (year ?? now.getFullYear()) + 1;
+      }
+    }
+    if (lastMonthWords.some((w) => lower.includes(w)) && !month) {
+      month = now.getMonth();
+      if (month < 1) {
+        month += 12;
+        year = (year ?? now.getFullYear()) - 1;
+      }
+    }
+    if (nextYearWords.some((w) => lower.includes(w)) && !year) {
+      year = now.getFullYear() + 1;
+    }
+    if (lastYearWords.some((w) => lower.includes(w)) && !year) {
+      year = now.getFullYear() - 1;
+    }
 
     const args: Record<string, unknown> = {};
     if (month) args.month = month;

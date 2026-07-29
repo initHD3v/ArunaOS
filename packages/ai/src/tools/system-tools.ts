@@ -1,4 +1,5 @@
 import type { AITool, AIToolResult } from '../types';
+import { HOLIDAYS_2026 } from '../data/holidays-2026';
 
 async function resolveLocation(): Promise<{ lat: number; lon: number; city: string } | null> {
   try {
@@ -339,7 +340,7 @@ export function createGetCalendarTool(): AITool {
     id: 'get_calendar',
     name: 'get_calendar',
     description:
-      'Get current date, time, and calendar information (day, week, month, year, month overview). No calendar events DB available server-side — events are stored client-only.',
+      'Get current date, time, calendar information, and Indonesian national holidays (2026). Returns day, week, month, year, month overview, and holiday events for the requested month/year.',
     category: 'system',
     parameters: [
       {
@@ -417,6 +418,20 @@ export function createGetCalendarTool(): AITool {
       const daysInMonth = new Date(targetYear, targetMonth + 1, 0).getDate();
       const firstDayOfMonth = new Date(targetYear, targetMonth, 1).getDay();
 
+      const monthPrefix = `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}`;
+      const events = Object.entries(HOLIDAYS_2026)
+        .filter(([key]) => key.startsWith(monthPrefix))
+        .flatMap(([key, evts]) =>
+          evts.map((e) => ({
+            date: key,
+            day: parseInt(key.split('-')[2]!, 10),
+            name: e.name,
+            type: e.type,
+            category: e.category,
+          })),
+        )
+        .sort((a, b) => a.day - b.day);
+
       const weeks: Array<{ week: number; days: Array<{ day: number; isToday: boolean }> }> = [];
       let currentWeek: Array<{ day: number; isToday: boolean }> = [];
 
@@ -468,6 +483,7 @@ export function createGetCalendarTool(): AITool {
             daysInMonth,
             firstDayOfMonth,
             weeks,
+            events,
           },
         },
       };
