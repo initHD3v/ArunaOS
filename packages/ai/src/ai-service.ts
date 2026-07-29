@@ -14,6 +14,10 @@ import { OpenRouterProvider } from './providers/openrouter';
 import { OllamaProvider } from './providers/ollama';
 import { detectProviders } from './providers/interface';
 import { ToolRegistry } from './tools/registry';
+import { ToolRouter } from './tools/tool-router';
+import { ToolResultFormatter } from './tools/tool-formatter';
+import { ContextValidator } from './tools/context-validator';
+import { MODULE_REGISTRY } from './tools/system-tools';
 
 export class AIService {
   private providers: Map<AIProviderType, AIProvider> = new Map();
@@ -23,6 +27,9 @@ export class AIService {
   private tools: ToolRegistry;
   private maxTokens: number;
   private temperature: number;
+  private toolRouter: ToolRouter;
+  private toolFormatter: ToolResultFormatter;
+  private validator: ContextValidator;
 
   constructor(config: AIServiceConfig = {}) {
     this.defaultProviderType = config.defaultProvider ?? 'openai';
@@ -37,6 +44,10 @@ export class AIService {
         this.tools.register(tool);
       }
     }
+
+    this.toolRouter = new ToolRouter();
+    this.toolFormatter = new ToolResultFormatter();
+    this.validator = new ContextValidator();
 
     this.autoDetectProviders();
   }
@@ -165,25 +176,15 @@ export class AIService {
 
     if (providerType === 'ollama' || providerType === 'lmstudio') {
       parts.push(
-        `Available tools (only use when the user asks for a system action): ` +
-          `- get_system_info: Get system state information ` +
-          `- open_app(appId): Open an application by ID (e.g., "arunaos.weather", "arunaos.files", "arunaos.settings") ` +
-          `- get_weather(lat, lon, city?): Get real-time weather data for the user's location. ` +
-          `  Use when user asks about weather, forecast, or temperature. ` +
-          `- get_calendar: Get current date/time/week/month/year/calendar grid. Use when user asks what day/date/month/year it is, or about calendar. ` +
-          `- search(query, category?): Search for content in files, modules, settings, or apps ` +
-          `- get_system_context: Get current system context (active windows, workspace, theme, modules) ` +
-          `- notify(title, message, type?): Send a desktop notification ` +
-          `- execute_command(command, params?): Execute a system action ` +
-          `- generate_module(name, description, capabilities?): Generate a new ArunaOS module\n` +
-          `IMPORTANT: Your user's location is specified as "User location: lat, lon (city)" at the top of this prompt. ` +
-          `When the user asks about WEATHER → output {"name":"get_weather","args":{"lat":LAT,"lon":LON}} on its own line, ` +
-          `replacing LAT and LON with the actual coordinates from your location. Nothing else. ` +
-          `When the user asks about DATE, TIME, DAY, MONTH, YEAR, or CALENDAR → ONLY output {"name":"get_calendar","args":{}} on its own line. Nothing else. ` +
-          `For other actions (open app, search, notify, etc.) → ONLY output the JSON tool call on its own line. Nothing else. ` +
-          `The system will execute your tool and respond to the user naturally. ` +
-          `DO NOT add any explanation, commentary, or extra text after the JSON. ` +
-          `For normal conversation (no tool needed), just respond naturally without any JSON.`,
+        `IMPORTANT:\n` +
+          `- When the user says "Berikut informasi yang saya dapatkan:" they are giving you ` +
+          `accurate and current data. Your training data about dates, times, weather, and ` +
+          `current events is outdated. Trust the user's information.\n` +
+          `- Calendar data for any year (e.g. 2025, 2026, 2027) that the user provides IS correct.\n` +
+          `- Weather data the user provides IS real-time and accurate.\n` +
+          `- Never say you "don't have real-time data" or "training data is outdated" ` +
+          `when the user has already given you the information.\n` +
+          `- If the user doesn't provide specific information, chat normally. Be concise and helpful in Indonesian.`,
       );
     }
 
@@ -299,6 +300,58 @@ export class AIService {
     }
   }
 
+  private generateFallbackContext(messages: AIMessage[]): string | null {
+    const lastUserMsg = [...messages].reverse().find((m) => m.role === 'user');
+    if (!lastUserMsg) return null;
+    const lower = lastUserMsg.content.toLowerCase();
+
+    const fallbacks: Array<{ keywords: string[]; message: string }> = [
+      {
+        keywords: ['presiden indonesia', 'presiden ri', 'siapa presiden'],
+        message: 'Saya tidak memiliki data real-time tentang presiden Indonesia saat ini.',
+      },
+      {
+        keywords: ['prabowo'],
+        message: 'Saya tidak memiliki data terbaru tentang Prabowo Subianto.',
+      },
+      {
+        keywords: ['ibu kota indonesia', 'ibukota indonesia', 'capital of indonesia'],
+        message: 'Ibukota Indonesia adalah Nusantara di Kalimantan Timur.',
+      },
+    ];
+
+    for (const fb of fallbacks) {
+      if (fb.keywords.some((k) => lower.includes(k))) {
+        return fb.message;
+      }
+    }
+
+    return null;
+  }
+
+  private async routeAndExecute(messages: AIMessage[]): Promise<{ contextNote: string } | null> {
+    const lastUserMsg = [...messages].reverse().find((m) => m.role === 'user');
+    if (!lastUserMsg) return null;
+
+    const route = this.toolRouter.route(lastUserMsg.content, {
+      modules: MODULE_REGISTRY,
+    });
+
+    if (!route) return null;
+
+    const tool = this.tools.get(route.tool);
+    if (!tool) return null;
+
+    try {
+      const result = await tool.execute(route.args);
+      if (!result.success) return null;
+      const contextNote = this.toolFormatter.format(route.tool, result);
+      return { contextNote };
+    } catch {
+      return null;
+    }
+  }
+
   async complete(
     req: AICompletionRequest,
     providerType?: AIProviderType,
@@ -315,18 +368,100 @@ export class AIService {
     const isLocalModel =
       req.providerConfig?.type === 'ollama' || req.providerConfig?.type === 'lmstudio';
 
+    if (isLocalModel) {
+      const routed = await this.routeAndExecute(req.messages);
+      if (routed) {
+        const lastUserIdx = req.messages.map((m) => m.role).lastIndexOf('user');
+        const enrichedMessages = [...req.messages];
+        const originalUserContent =
+          lastUserIdx >= 0 ? (enrichedMessages[lastUserIdx]?.content ?? '') : '';
+
+        if (lastUserIdx >= 0 && originalUserContent) {
+          enrichedMessages[lastUserIdx] = {
+            role: 'user' as const,
+            content: `${routed.contextNote}\n\nPertanyaan saya: ${originalUserContent}`,
+          };
+        }
+
+        let response = await provider.complete({
+          messages: enrichedMessages,
+          systemPrompt,
+          temperature: req.temperature,
+          maxTokens: req.maxTokens,
+        });
+
+        let retries = 0;
+        let status = this.validator.validate(response.message.content, routed.contextNote, retries);
+
+        const retryInstructions = [
+          'PENTING: Jawab berdasarkan data di atas, jangan gunakan pengetahuan lama.',
+          'PENTING INI: Jawab persis sesuai data di atas. Abaikan pengetahuan usang Anda.',
+        ];
+
+        while (status === 'retry' && retries < 2) {
+          const instruction = retryInstructions[retries] ?? '';
+          retries++;
+          if (lastUserIdx >= 0 && originalUserContent) {
+            enrichedMessages[lastUserIdx] = {
+              role: 'user' as const,
+              content: `${routed.contextNote}\n\n${instruction}\n\nPertanyaan saya: ${originalUserContent}`,
+            };
+          }
+          response = await provider.complete({
+            messages: enrichedMessages,
+            systemPrompt,
+            temperature: req.temperature,
+            maxTokens: req.maxTokens,
+          });
+          status = this.validator.validate(response.message.content, routed.contextNote, retries);
+        }
+
+        if (status === 'override') {
+          response.message.content = this.validator.generateSafeResponse(routed.contextNote);
+        }
+
+        return response;
+      }
+
+      const fallback = this.generateFallbackContext(req.messages);
+      if (fallback) {
+        const lastUserIdx = req.messages.map((m) => m.role).lastIndexOf('user');
+        const enrichedMessages = [...req.messages];
+        if (lastUserIdx >= 0) {
+          const original = enrichedMessages[lastUserIdx];
+          if (original) {
+            enrichedMessages[lastUserIdx] = {
+              role: 'user' as const,
+              content: `${fallback}\n\nPertanyaan saya: ${original.content}`,
+            };
+          }
+        }
+        return provider.complete({
+          messages: enrichedMessages,
+          systemPrompt,
+          temperature: req.temperature,
+          maxTokens: req.maxTokens,
+        });
+      }
+
+      return provider.complete({
+        messages: req.messages,
+        systemPrompt,
+        temperature: req.temperature,
+        maxTokens: req.maxTokens,
+      });
+    }
+
     const response = await provider.complete({
       ...cleanReq,
       systemPrompt,
-      tools: !isLocalModel && allTools.length > 0 ? allTools : undefined,
+      tools: allTools.length > 0 ? allTools : undefined,
     });
 
     // Extract tool calls from response (handles both pure JSON and mixed content)
     const { toolResults } = await this.extractToolCalls(response.message.content ?? '');
 
     if (toolResults.length > 0) {
-      // Include original assistant message (with JSON tool call) so model
-      // sees its own tool invocation in context. Display-side strips JSON.
       const followUpMessages: AIMessage[] = [
         ...req.messages,
         { role: 'assistant' as const, content: response.message.content ?? '' },
@@ -359,13 +494,88 @@ export class AIService {
     const isLocalModel =
       req.providerConfig?.type === 'ollama' || req.providerConfig?.type === 'lmstudio';
 
+    if (isLocalModel) {
+      const routed = await this.routeAndExecute(req.messages);
+      if (routed) {
+        const lastUserIdx = req.messages.map((m) => m.role).lastIndexOf('user');
+        const enrichedMessages = [...req.messages];
+        if (lastUserIdx >= 0) {
+          const original = enrichedMessages[lastUserIdx];
+          if (original) {
+            enrichedMessages[lastUserIdx] = {
+              role: 'user' as const,
+              content: `${routed.contextNote}\n\nPertanyaan saya: ${original.content}`,
+            };
+          }
+        }
+        const stream = provider.completeStream({
+          messages: enrichedMessages,
+          systemPrompt,
+          temperature: req.temperature,
+        });
+        const textChunks: string[] = [];
+        let yieldedTool = false;
+        for await (const chunk of stream) {
+          if (chunk.type === 'text') {
+            textChunks.push(chunk.content);
+            yield chunk;
+          } else {
+            yieldedTool = true;
+            yield chunk;
+          }
+        }
+        if (!yieldedTool) {
+          const fullContent = textChunks.join('');
+          const status = this.validator.validate(fullContent, routed.contextNote, 0);
+          if (status === 'override' || status === 'retry') {
+            const correction = this.validator.generateSafeResponse(routed.contextNote);
+            yield { type: 'text', content: `\n\n${correction}` };
+          }
+        }
+        return;
+      }
+
+      const fallback = this.generateFallbackContext(req.messages);
+      if (fallback) {
+        const lastUserIdx = req.messages.map((m) => m.role).lastIndexOf('user');
+        const enrichedMessages = [...req.messages];
+        if (lastUserIdx >= 0) {
+          const original = enrichedMessages[lastUserIdx];
+          if (original) {
+            enrichedMessages[lastUserIdx] = {
+              role: 'user' as const,
+              content: `${fallback}\n\nPertanyaan saya: ${original.content}`,
+            };
+          }
+        }
+        const followUpStream = provider.completeStream({
+          messages: enrichedMessages,
+          systemPrompt,
+          temperature: req.temperature,
+        });
+        for await (const chunk of followUpStream) {
+          yield chunk;
+        }
+        return;
+      }
+
+      const passthroughStream = provider.completeStream({
+        messages: req.messages,
+        systemPrompt,
+        temperature: req.temperature,
+      });
+      for await (const chunk of passthroughStream) {
+        yield chunk;
+      }
+      return;
+    }
+
     const stream = provider.completeStream({
       ...cleanReq,
       systemPrompt,
-      tools: !isLocalModel && allTools.length > 0 ? allTools : undefined,
+      tools: allTools.length > 0 ? allTools : undefined,
     });
 
-    // Buffer text chunks until stream ends to detect tool calls before displaying
     const textBuffer: string[] = [];
     let fullContent = '';
 
@@ -378,13 +588,9 @@ export class AIService {
       }
     }
 
-    // Extract tool calls from the full content
     const { toolResults } = await this.extractToolCalls(fullContent);
 
     if (toolResults.length > 0) {
-      // Tool calls found — do NOT replay the raw text (which contains JSON)
-      // Instead, yield tool results and generate a follow-up response
-
       for (const result of toolResults) {
         yield {
           type: 'tool-result',
@@ -393,7 +599,6 @@ export class AIService {
         };
       }
 
-      // Include original assistant message so model sees its own tool call
       const followUpMessages: AIMessage[] = [
         ...req.messages,
         { role: 'assistant' as const, content: fullContent },
@@ -409,7 +614,6 @@ export class AIService {
         yield chunk;
       }
     } else {
-      // No tool calls — replay buffered text to the client
       for (const content of textBuffer) {
         yield { type: 'text', content };
       }

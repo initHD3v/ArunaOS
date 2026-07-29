@@ -40,12 +40,35 @@ const ACTIVE_KEY = 'ai-chat-active-session';
 const PROVIDER_CONFIG_KEY = 'ai-provider-configs';
 const ACTIVE_PROVIDER_KEY = 'ai-active-provider';
 
+function repairMessageIds(messages: ChatMessage[]): { messages: ChatMessage[]; changed: boolean } {
+  const seen = new Set<string>();
+  let changed = false;
+  const repaired = messages.map((msg) => {
+    if (seen.has(msg.id)) {
+      changed = true;
+      return { ...msg, id: `${msg.id}-${crypto.randomUUID().slice(0, 8)}` };
+    }
+    seen.add(msg.id);
+    return msg;
+  });
+  return { messages: repaired, changed };
+}
+
 function loadSessions(): ChatSessionData[] {
   try {
     const raw = localStorage.getItem(SESSIONS_KEY);
     if (raw) {
       const parsed = JSON.parse(raw) as ChatSessionData[];
-      if (Array.isArray(parsed)) return parsed;
+      if (Array.isArray(parsed)) {
+        let changed = false;
+        const repaired = parsed.map((s) => {
+          const result = repairMessageIds(s.messages);
+          if (result.changed) changed = true;
+          return { ...s, messages: result.messages };
+        });
+        if (changed) saveSessions(repaired);
+        return repaired;
+      }
     }
   } catch {
     /* ignore */
@@ -296,6 +319,8 @@ export function AIChat() {
     async (content: string) => {
       if (!activeSessionId) return;
 
+      let msgIdCounter = 0;
+
       const userMsg: ChatMessage = {
         role: 'user',
         content,
@@ -443,7 +468,7 @@ export function AIChat() {
                 const toolMsg: ChatMessage = {
                   role: 'tool',
                   content: parsed.content,
-                  id: `tool-${Date.now()}`,
+                  id: `tool-${Date.now()}-${++msgIdCounter}`,
                 };
                 updateSession(activeSessionId, (s) => ({
                   ...s,

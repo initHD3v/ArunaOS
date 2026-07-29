@@ -134,7 +134,7 @@ export function createSystemInfoTool(): AITool {
   };
 }
 
-const MODULE_REGISTRY: Record<string, { name: string; description: string }> = {
+export const MODULE_REGISTRY: Record<string, { name: string; description: string }> = {
   'arunaos.files': {
     name: 'File Manager',
     description: 'Browse, manage, and organize files and folders',
@@ -247,15 +247,25 @@ export function createGetWeatherTool(): AITool {
           forecast_days: '7',
         });
 
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000);
-        const res = await fetch(`https://api.open-meteo.com/v1/forecast?${paramsUrl}`, {
-          signal: controller.signal,
-        });
-        clearTimeout(timeoutId);
-
-        if (!res.ok) {
-          return { success: false, error: `Weather API responded with ${res.status}` };
+        const url = `https://api.open-meteo.com/v1/forecast?${paramsUrl}`;
+        let res: Response | null = null;
+        for (let attempt = 0; attempt < 2; attempt++) {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 8000);
+          try {
+            res = await fetch(url, { signal: controller.signal });
+            clearTimeout(timeoutId);
+            if (res.ok) break;
+          } catch {
+            clearTimeout(timeoutId);
+            if (attempt === 1) throw new Error('Weather API unavailable');
+          }
+        }
+        if (!res || !res.ok) {
+          return {
+            success: false,
+            error: `Weather API responded with ${res?.status ?? 'no response'}`,
+          };
         }
 
         const data = await res.json();
@@ -331,9 +341,22 @@ export function createGetCalendarTool(): AITool {
     description:
       'Get current date, time, and calendar information (day, week, month, year, month overview). No calendar events DB available server-side — events are stored client-only.',
     category: 'system',
-    parameters: [],
-    async execute(): Promise<AIToolResult> {
+    parameters: [
+      {
+        name: 'year',
+        type: 'number',
+        description: 'Year (default: current year if omitted)',
+      },
+      {
+        name: 'month',
+        type: 'number',
+        description: 'Month 1-12 (default: current month if omitted)',
+      },
+    ],
+    async execute(params: Record<string, unknown>): Promise<AIToolResult> {
       const now = new Date();
+      const targetYear = (params.year as number) ?? now.getFullYear();
+      const targetMonth = ((params.month as number) ?? now.getMonth() + 1) - 1;
 
       const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
       const monthNames = [
@@ -352,7 +375,6 @@ export function createGetCalendarTool(): AITool {
       ];
 
       const year = now.getFullYear();
-      const month = now.getMonth();
       const date = now.getDate();
       const dayOfWeek = now.getDay();
       const dayOfYear = Math.floor((now.getTime() - new Date(year, 0, 0).getTime()) / 86_400_000);
@@ -361,8 +383,39 @@ export function createGetCalendarTool(): AITool {
       const diff = now.getTime() - startOfYear.getTime();
       const weekNumber = Math.ceil((diff / 86_400_000 + startOfYear.getDay() + 1) / 7);
 
-      const daysInMonth = new Date(year, month + 1, 0).getDate();
-      const firstDayOfMonth = new Date(year, month, 1).getDay();
+      const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const locale = typeof navigator !== 'undefined' ? navigator.language : 'id-ID';
+
+      const localTime = new Intl.DateTimeFormat(locale, {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        timeZone,
+        hour12: false,
+      }).format(now);
+
+      const localDate = new Intl.DateTimeFormat(locale, {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        timeZone,
+      }).format(now);
+
+      const localDateTime = new Intl.DateTimeFormat(locale, {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        timeZone,
+        hour12: false,
+      }).format(now);
+
+      const daysInMonth = new Date(targetYear, targetMonth + 1, 0).getDate();
+      const firstDayOfMonth = new Date(targetYear, targetMonth, 1).getDay();
 
       const weeks: Array<{ week: number; days: Array<{ day: number; isToday: boolean }> }> = [];
       let currentWeek: Array<{ day: number; isToday: boolean }> = [];
@@ -372,7 +425,10 @@ export function createGetCalendarTool(): AITool {
       }
 
       for (let d = 1; d <= daysInMonth; d++) {
-        currentWeek.push({ day: d, isToday: d === date });
+        currentWeek.push({
+          day: d,
+          isToday: d === date && now.getMonth() === targetMonth && now.getFullYear() === targetYear,
+        });
         if (currentWeek.length === 7) {
           weeks.push({ week: weeks.length + 1, days: currentWeek });
           currentWeek = [];
@@ -391,21 +447,24 @@ export function createGetCalendarTool(): AITool {
         data: {
           iso: now.toISOString(),
           timestamp: now.getTime(),
-          year,
-          month: month + 1,
-          monthName: monthNames[month],
+          year: targetYear,
+          month: targetMonth + 1,
+          monthName: monthNames[targetMonth],
           date,
           dayOfWeek,
           dayName: dayNames[dayOfWeek],
           dayOfYear,
           weekNumber,
           daysInMonth,
-          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-          locale: typeof navigator !== 'undefined' ? navigator.language : 'id-ID',
+          timezone: timeZone,
+          locale,
+          localTime,
+          localDate,
+          localDateTime,
           monthCalendar: {
-            year,
-            month: month + 1,
-            monthName: monthNames[month],
+            year: targetYear,
+            month: targetMonth + 1,
+            monthName: monthNames[targetMonth],
             daysInMonth,
             firstDayOfMonth,
             weeks,
