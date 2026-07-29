@@ -350,7 +350,7 @@ function GeneralPanel() {
             <span className="text-foreground/50 flex items-center gap-1.5">
               <Terminal size={12} /> Build
             </span>
-            <span className="text-foreground">Phase 5 — Desktop & Settings Polish</span>
+            <span className="text-foreground">Phase 6 — AI Core & Web Search</span>
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-foreground/50 flex items-center gap-1.5">
@@ -962,7 +962,7 @@ function AboutPanel() {
             {/* Info */}
             <div className="text-center">
               <div className="text-foreground text-xl font-semibold tracking-tight">ArunaOS</div>
-              <div className="text-foreground/40 mt-0.5 text-xs">Version 0.3.0 — Phase 4</div>
+              <div className="text-foreground/40 mt-0.5 text-xs">Version 2.0.0-dev-beta1</div>
             </div>
 
             {/* Description */}
