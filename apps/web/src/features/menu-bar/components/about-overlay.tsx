@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'motion/react';
-import { X, Sparkles } from 'lucide-react';
+import { X, Sparkles, Bot, Globe, Cpu, Search, CheckCircle2 } from 'lucide-react';
 
 interface AboutOverlayProps {
   onClose: () => void;
@@ -52,6 +52,32 @@ export function AboutOverlay({ onClose }: AboutOverlayProps) {
           A web-based operating environment that puts AI at the center of your workspace. Built with
           Next.js, React, and Zustand.
         </p>
+
+        <div className="mt-5 w-full max-w-xs space-y-2 px-8">
+          <p className="text-foreground/40 text-center text-[10px] font-medium uppercase tracking-wider">
+            What's New in 2.0.0-dev-beta1
+          </p>
+          <div className="space-y-1.5">
+            {[
+              {
+                icon: Bot,
+                text: 'Modular AI — provider switching (OpenAI, Anthropic, Ollama, LM Studio)',
+              },
+              { icon: Search, text: 'Web search (Wikipedia & DuckDuckGo) for local models' },
+              { icon: Globe, text: 'Web search toggle — on/off per session' },
+              { icon: Cpu, text: 'Native browser model (ONNX) for offline AI' },
+              { icon: Bot, text: 'Status streaming — thinking/searching/done indicators' },
+              { icon: Bot, text: '3-state health indicator (green/yellow/red)' },
+              { icon: CheckCircle2, text: 'ChatFallback with tools + knowledge base when offline' },
+              { icon: CheckCircle2, text: 'Calendar & weather tools with current data injection' },
+            ].map(({ icon: Icon, text }) => (
+              <div key={text} className="flex items-start gap-2">
+                <Icon size={10} className="mt-0.5 shrink-0 text-violet-400" />
+                <span className="text-foreground/50 text-[10px] leading-tight">{text}</span>
+              </div>
+            ))}
+          </div>
+        </div>
 
         <div className="via-border/60 my-5 h-px w-16 bg-gradient-to-r from-transparent to-transparent" />
 
