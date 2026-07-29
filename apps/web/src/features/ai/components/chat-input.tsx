@@ -7,11 +7,20 @@ interface ChatInputProps {
   onSend: (message: string) => void;
   disabled: boolean;
   placeholder?: string;
+  aiHealth?: 'full' | 'limited' | 'none';
 }
 
-export function ChatInput({ onSend, disabled, placeholder }: ChatInputProps) {
+export function ChatInput({ onSend, disabled, placeholder, aiHealth }: ChatInputProps) {
   const [input, setInput] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const dynamicPlaceholder =
+    placeholder ??
+    (aiHealth === 'limited'
+      ? '🌐 Offline — answers limited to local tools'
+      : aiHealth === 'none'
+        ? '🔌 Setup AI in Settings'
+        : 'Ask AI...');
 
   useEffect(() => {
     if (!disabled && textareaRef.current) {
@@ -56,7 +65,7 @@ export function ChatInput({ onSend, disabled, placeholder }: ChatInputProps) {
             adjustHeight();
           }}
           onKeyDown={handleKeyDown}
-          placeholder={placeholder ?? 'Ask AI...'}
+          placeholder={dynamicPlaceholder}
           disabled={disabled}
           rows={1}
           className={cn(

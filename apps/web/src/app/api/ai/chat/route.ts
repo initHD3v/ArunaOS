@@ -12,7 +12,7 @@ const aiService = new AIService({
   tools: getDefaultTools(),
 });
 
-const fallback = new ChatFallback();
+const fallback = new ChatFallback(getDefaultTools());
 
 function hasConfiguredProvider(
   providerConfig?: { type: AIProviderType } & AIProviderConfig,
@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (!hasConfiguredProvider(providerConfig)) {
-      const reply = fallback.respond(message);
+      const reply = await fallback.respond(message);
       return new Response(
         JSON.stringify({
           reply: reply.content,
@@ -122,7 +122,7 @@ export async function POST(request: NextRequest) {
         },
       );
     } catch {
-      const reply = fallback.respond(message);
+      const reply = await fallback.respond(message);
       return new Response(
         JSON.stringify({
           reply: reply.content,
@@ -151,6 +151,7 @@ export async function GET(request: NextRequest) {
   const sessionId = searchParams.get('sessionId') ?? undefined;
   const providerRaw = searchParams.get('provider') ?? undefined;
   const providerConfigRaw = searchParams.get('providerConfig') ?? undefined;
+  const webSearch = searchParams.get('webSearch');
   const lat = searchParams.get('lat');
   const lon = searchParams.get('lon');
   const city = searchParams.get('city');
@@ -219,7 +220,9 @@ export async function GET(request: NextRequest) {
           aiService,
         );
 
-        const generator = session.sendMessageStream(message);
+        const generator = session.sendMessageStream(message, {
+          webSearchEnabled: webSearch !== 'false',
+        });
 
         for await (const chunk of generator) {
           const data = JSON.stringify(chunk);

@@ -18,6 +18,7 @@ import { ToolRouter } from './tools/tool-router';
 import { ToolResultFormatter } from './tools/tool-formatter';
 import { ContextValidator } from './tools/context-validator';
 import { MODULE_REGISTRY } from './tools/system-tools';
+import { webSearch, shouldSearchWeb } from './tools/web-search';
 
 export class AIService {
   private providers: Map<AIProviderType, AIProvider> = new Map();
@@ -308,15 +309,22 @@ export class AIService {
     const fallbacks: Array<{ keywords: string[]; message: string }> = [
       {
         keywords: ['presiden indonesia', 'presiden ri', 'siapa presiden'],
-        message: 'Saya tidak memiliki data real-time tentang presiden Indonesia saat ini.',
+        message:
+          'Presiden Indonesia saat ini adalah Prabowo Subianto, menjabat sejak 20 Oktober 2024.',
       },
       {
         keywords: ['prabowo'],
-        message: 'Saya tidak memiliki data terbaru tentang Prabowo Subianto.',
+        message:
+          'Prabowo Subianto adalah Presiden Indonesia ke-8 yang menjabat sejak 20 Oktober 2024.',
       },
       {
         keywords: ['ibu kota indonesia', 'ibukota indonesia', 'capital of indonesia'],
         message: 'Ibukota Indonesia adalah Nusantara di Kalimantan Timur.',
+      },
+      {
+        keywords: ['wakil presiden'],
+        message:
+          'Wakil Presiden Indonesia adalah Gibran Rakabuming Raka, menjabat sejak 20 Oktober 2024.',
       },
     ];
 
@@ -425,23 +433,36 @@ export class AIService {
 
       const fallback = this.generateFallbackContext(req.messages);
       if (fallback) {
-        const lastUserIdx = req.messages.map((m) => m.role).lastIndexOf('user');
-        const enrichedMessages = [...req.messages];
-        if (lastUserIdx >= 0) {
-          const original = enrichedMessages[lastUserIdx];
-          if (original) {
-            enrichedMessages[lastUserIdx] = {
-              role: 'user' as const,
-              content: `${fallback}\n\nPertanyaan saya: ${original.content}`,
-            };
+        return {
+          message: { role: 'assistant' as const, content: fallback, timestamp: Date.now() },
+        };
+      }
+
+      const query = req.messages
+        .map((m) => (m.role === 'user' ? m.content : ''))
+        .filter(Boolean)
+        .join(' ');
+      if (req.webSearchEnabled !== false && shouldSearchWeb(query)) {
+        const searchResult = await webSearch(query);
+        if (searchResult) {
+          const lastUserIdx = req.messages.map((m) => m.role).lastIndexOf('user');
+          const enrichedMessages = [...req.messages];
+          if (lastUserIdx >= 0) {
+            const original = enrichedMessages[lastUserIdx];
+            if (original) {
+              enrichedMessages[lastUserIdx] = {
+                role: 'user' as const,
+                content: `Informasi dari web:\n${searchResult}\n\nPertanyaan saya: ${original.content}`,
+              };
+            }
           }
+          return provider.complete({
+            messages: enrichedMessages,
+            systemPrompt,
+            temperature: req.temperature,
+            maxTokens: req.maxTokens,
+          });
         }
-        return provider.complete({
-          messages: enrichedMessages,
-          systemPrompt,
-          temperature: req.temperature,
-          maxTokens: req.maxTokens,
-        });
       }
 
       return provider.complete({
@@ -494,6 +515,8 @@ export class AIService {
     const isLocalModel =
       req.providerConfig?.type === 'ollama' || req.providerConfig?.type === 'lmstudio';
 
+    yield { type: 'status', content: 'Thinking...', status: 'thinking' };
+
     if (isLocalModel) {
       const routed = await this.routeAndExecute(req.messages);
       if (routed) {
@@ -532,31 +555,48 @@ export class AIService {
             yield { type: 'text', content: `\n\n${correction}` };
           }
         }
+        yield { type: 'status', content: '', status: 'done' };
         return;
       }
 
       const fallback = this.generateFallbackContext(req.messages);
       if (fallback) {
-        const lastUserIdx = req.messages.map((m) => m.role).lastIndexOf('user');
-        const enrichedMessages = [...req.messages];
-        if (lastUserIdx >= 0) {
-          const original = enrichedMessages[lastUserIdx];
-          if (original) {
-            enrichedMessages[lastUserIdx] = {
-              role: 'user' as const,
-              content: `${fallback}\n\nPertanyaan saya: ${original.content}`,
-            };
-          }
-        }
-        const followUpStream = provider.completeStream({
-          messages: enrichedMessages,
-          systemPrompt,
-          temperature: req.temperature,
-        });
-        for await (const chunk of followUpStream) {
-          yield chunk;
-        }
+        yield { type: 'text', content: fallback };
+        yield { type: 'status', content: '', status: 'done' };
+        yield { type: 'done', content: '', done: true };
         return;
+      }
+
+      const query = req.messages
+        .map((m) => (m.role === 'user' ? m.content : ''))
+        .filter(Boolean)
+        .join(' ');
+      if (req.webSearchEnabled !== false && shouldSearchWeb(query)) {
+        yield { type: 'status', content: 'Searching web...', status: 'searching' };
+        const searchResult = await webSearch(query);
+        if (searchResult) {
+          const lastUserIdx = req.messages.map((m) => m.role).lastIndexOf('user');
+          const enrichedMessages = [...req.messages];
+          if (lastUserIdx >= 0) {
+            const original = enrichedMessages[lastUserIdx];
+            if (original) {
+              enrichedMessages[lastUserIdx] = {
+                role: 'user' as const,
+                content: `Informasi dari web:\n${searchResult}\n\nPertanyaan saya: ${original.content}`,
+              };
+            }
+          }
+          const webStream = provider.completeStream({
+            messages: enrichedMessages,
+            systemPrompt,
+            temperature: req.temperature,
+          });
+          for await (const chunk of webStream) {
+            yield chunk;
+          }
+          yield { type: 'status', content: '', status: 'done' };
+          return;
+        }
       }
 
       const passthroughStream = provider.completeStream({
@@ -567,7 +607,7 @@ export class AIService {
       for await (const chunk of passthroughStream) {
         yield chunk;
       }
-      return;
+      yield { type: 'status', content: '', status: 'done' };
     }
 
     const stream = provider.completeStream({
@@ -618,5 +658,6 @@ export class AIService {
         yield { type: 'text', content };
       }
     }
+    yield { type: 'status', content: '', status: 'done' };
   }
 }

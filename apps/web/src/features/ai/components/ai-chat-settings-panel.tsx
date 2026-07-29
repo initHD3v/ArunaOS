@@ -12,6 +12,7 @@ import {
   Download,
   X,
   Wifi,
+  Globe,
 } from 'lucide-react';
 import { TestConnectionModal, type TestStep } from './test-connection-modal';
 import { ModelDownloadModal } from './model-download-modal';
@@ -147,6 +148,7 @@ export function AIChatSettingsPanel({ onClose }: AIChatSettingsPanelProps) {
   const [testLatency, setTestLatency] = useState('');
   const [modelDownloadOpen, setModelDownloadOpen] = useState(false);
   const [modelDownloading, setModelDownloading] = useState(false);
+  const [webSearchEnabled, setWebSearchEnabled] = useState(true);
 
   useEffect(() => {
     const cfg = loadSingleConfig();
@@ -157,6 +159,7 @@ export function AIChatSettingsPanel({ onClose }: AIChatSettingsPanelProps) {
     setShowKey(
       cfg.provider === 'ollama' || cfg.provider === 'lmstudio' || cfg.provider === 'native',
     );
+    setWebSearchEnabled(localStorage.getItem('ai-web-search') !== 'false');
   }, []);
 
   const meta = PROVIDER_META[provider];
@@ -557,6 +560,39 @@ export function AIChatSettingsPanel({ onClose }: AIChatSettingsPanelProps) {
             </div>
           </>
         )}
+
+        {/* Web Search Toggle */}
+        <div className="border-border/20 rounded-lg border p-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Globe className="text-foreground/50 h-4 w-4" />
+              <div>
+                <p className="text-xs font-medium">Pencarian Web</p>
+                <p className="text-foreground/40 mt-0.5 text-[10px]">
+                  Cari informasi dari Wikipedia & DuckDuckGo
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                const next = !webSearchEnabled;
+                setWebSearchEnabled(next);
+                localStorage.setItem('ai-web-search', next ? 'true' : 'false');
+              }}
+              className={cn(
+                'relative h-5 w-9 rounded-full transition-colors',
+                webSearchEnabled ? 'bg-primary' : 'bg-muted',
+              )}
+            >
+              <span
+                className={cn(
+                  'bg-background absolute left-0.5 top-0.5 h-4 w-4 rounded-full shadow-sm transition-transform',
+                  webSearchEnabled && 'translate-x-4',
+                )}
+              />
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Save */}

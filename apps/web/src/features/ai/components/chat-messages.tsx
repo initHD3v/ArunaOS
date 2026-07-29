@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 import { Copy, Check } from 'lucide-react';
 
 interface ChatMessage {
-  role: 'user' | 'assistant' | 'tool' | 'error';
+  role: 'user' | 'assistant' | 'tool' | 'error' | 'status';
   content: string;
   id: string;
 }
@@ -31,6 +31,7 @@ function MessageBubble({ message }: { message: ChatMessage }) {
   const isUser = message.role === 'user';
   const isTool = message.role === 'tool';
   const isError = message.role === 'error';
+  const isStatus = message.id.startsWith('status-');
   const [copied, setCopied] = useState(false);
 
   const handleCopy = useCallback(() => {
@@ -46,6 +47,31 @@ function MessageBubble({ message }: { message: ChatMessage }) {
   const baseClasses = cn(
     'max-w-[80%] rounded-lg px-4 py-2 text-sm leading-relaxed whitespace-pre-wrap break-words',
   );
+
+  if (isStatus) {
+    return (
+      <div className="flex justify-center">
+        <div className="bg-muted text-foreground/60 flex items-center gap-2 rounded-full px-4 py-1.5 text-xs">
+          <span className="relative flex h-2 w-2">
+            <span className="bg-primary absolute inline-flex h-full w-full animate-ping rounded-full opacity-75" />
+            <span className="bg-primary relative inline-flex h-2 w-2 rounded-full" />
+          </span>
+          {message.content === 'Searching web...' ? (
+            <span>Searching web...</span>
+          ) : (
+            <span className="flex items-center gap-1.5">
+              Thinking
+              <span className="flex gap-0.5">
+                <span className="bg-foreground/40 h-1 w-1 animate-bounce rounded-full [animation-delay:0s]" />
+                <span className="bg-foreground/40 h-1 w-1 animate-bounce rounded-full [animation-delay:0.15s]" />
+                <span className="bg-foreground/40 h-1 w-1 animate-bounce rounded-full [animation-delay:0.3s]" />
+              </span>
+            </span>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   if (isTool) {
     return (

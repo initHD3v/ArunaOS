@@ -34,8 +34,9 @@ export interface AIMessage {
 }
 
 export interface AIStreamChunk {
-  type: 'text' | 'tool-call' | 'tool-result' | 'done' | 'error';
+  type: 'text' | 'tool-call' | 'tool-result' | 'done' | 'error' | 'status';
   content: string;
+  status?: 'thinking' | 'searching' | 'done' | 'fail';
   toolCallId?: string;
   toolName?: string;
   done?: boolean;
@@ -48,6 +49,7 @@ export interface AICompletionRequest {
   stream?: boolean;
   temperature?: number;
   maxTokens?: number;
+  webSearchEnabled?: boolean;
   /** Inline provider config — if present, creates a one-shot provider for this request */
   providerConfig?: { type: AIProviderType } & AIProviderConfig;
 }

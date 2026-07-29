@@ -108,7 +108,10 @@ export class ChatSession {
     return response.message;
   }
 
-  async *sendMessageStream(content: string): AsyncGenerator<AIStreamChunk> {
+  async *sendMessageStream(
+    content: string,
+    options?: { webSearchEnabled?: boolean },
+  ): AsyncGenerator<AIStreamChunk> {
     this.addMessage('user', content);
     this.streaming = true;
 
@@ -119,6 +122,7 @@ export class ChatSession {
         messages: this.messages,
         systemPrompt: this.systemPrompt || undefined,
         tools: this.tools.length > 0 ? this.tools : undefined,
+        webSearchEnabled: options?.webSearchEnabled,
       };
       if (this.providerConfig) {
         request.providerConfig = this.providerConfig;

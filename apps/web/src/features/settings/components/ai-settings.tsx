@@ -12,6 +12,7 @@ import {
   ChevronDown,
   ChevronRight,
   ExternalLink,
+  Globe,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -78,6 +79,7 @@ export function AISettingsPanel() {
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saved' | 'error'>('idle');
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [showKeys, setShowKeys] = useState<Set<string>>(new Set());
+  const [webSearchEnabled, setWebSearchEnabled] = useState(true);
 
   const fetchStatus = useCallback(async () => {
     setLoading(true);
@@ -169,6 +171,7 @@ export function AISettingsPanel() {
         .catch(() => {});
     }
     fetchStatus();
+    setWebSearchEnabled(localStorage.getItem('ai-web-search') !== 'false');
   }, [fetchStatus]);
 
   const toggleKeyVisibility = (type: string) => {
@@ -434,6 +437,43 @@ export function AISettingsPanel() {
             </div>
           );
         })}
+      </div>
+
+      {/* Web Search Toggle */}
+      <div className="border-border/20 rounded-lg border p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-start gap-3">
+            <Globe className="text-foreground/40 mt-0.5 h-5 w-5" />
+            <div>
+              <p className="text-sm font-medium">Pencarian Web</p>
+              <p className="text-foreground/40 mt-0.5 text-xs leading-relaxed">
+                Izinkan AI mencari informasi dari Wikipedia & DuckDuckGo untuk pertanyaan yang tidak
+                bisa dijawab oleh alat bawaan.
+              </p>
+              <p className="text-foreground/30 mt-1 text-[11px]">
+                Nonaktifkan jika ingin AI hanya menggunakan pengetahuan internal dan alat lokal.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              const next = !webSearchEnabled;
+              setWebSearchEnabled(next);
+              localStorage.setItem('ai-web-search', next ? 'true' : 'false');
+            }}
+            className={cn(
+              'relative ml-4 h-5 w-9 shrink-0 rounded-full transition-colors',
+              webSearchEnabled ? 'bg-primary' : 'bg-muted',
+            )}
+          >
+            <span
+              className={cn(
+                'bg-background absolute left-0.5 top-0.5 h-4 w-4 rounded-full shadow-sm transition-transform',
+                webSearchEnabled && 'translate-x-4',
+              )}
+            />
+          </button>
+        </div>
       </div>
 
       <button

@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 
 interface ChatMessage {
-  role: 'user' | 'assistant' | 'tool' | 'error';
+  role: 'user' | 'assistant' | 'tool' | 'error' | 'status';
   content: string;
   id: string;
 }
@@ -147,12 +147,15 @@ function loadActiveProvider(): string | null {
   }
 }
 
+type AIHealth = 'full' | 'limited' | 'none';
+
 export function AIChat() {
   const [sessions, setSessions] = useState<ChatSessionData[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [modelLoading, setModelLoading] = useState(false);
   const [provider, setProvider] = useState<string | null>(null);
+  const [aiHealth, setAIHealth] = useState<AIHealth>('none');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const sessionIdRef = useRef<string | null>(null);
@@ -191,6 +194,35 @@ export function AIChat() {
     window.addEventListener('ai-provider-config-changed', handler);
     return () => window.removeEventListener('ai-provider-config-changed', handler);
   }, []);
+
+  // Periodic health check
+  useEffect(() => {
+    const check = () => {
+      const online = navigator.onLine;
+      const providerCfg = provider ? getProviderConfig(provider) : null;
+      const params = new URLSearchParams();
+      if (providerCfg) params.set('providerConfig', JSON.stringify(providerCfg));
+      if (!online) params.set('online', 'false');
+
+      fetch(`/api/ai/health?${params}`)
+        .then((r) => r.json())
+        .then((d) => setAIHealth(d.status as AIHealth))
+        .catch(() => setAIHealth('none'));
+    };
+    check();
+    const interval = setInterval(check, 30000);
+    const onOnline = () => check();
+    const onOffline = () => check();
+    window.addEventListener('online', onOnline);
+    window.addEventListener('offline', onOffline);
+    window.addEventListener('ai-provider-config-changed', check);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('online', onOnline);
+      window.removeEventListener('offline', onOffline);
+      window.removeEventListener('ai-provider-config-changed', check);
+    };
+  }, [provider]);
 
   // Persist sessions on changes
   useEffect(() => {
@@ -389,6 +421,9 @@ export function AIChat() {
         if (provider) params.set('provider', provider);
         if (providerCfg) params.set('providerConfig', JSON.stringify(providerCfg));
 
+        const webSearchEnabled = localStorage.getItem('ai-web-search') !== 'false';
+        if (!webSearchEnabled) params.set('webSearch', 'false');
+
         // Attach precise user location if available
         const loc = useLocationStore.getState();
         if (loc.enabled && loc.latitude != null && loc.longitude != null) {
@@ -462,6 +497,39 @@ export function AIChat() {
                   }
                   return { ...s, messages: msgs, updatedAt: Date.now() };
                 });
+              }
+
+              if (parsed.type === 'status') {
+                const statusId = `status-${Date.now()}`;
+                const statusContent =
+                  parsed.status === 'thinking'
+                    ? 'Thinking...'
+                    : parsed.status === 'searching'
+                      ? 'Searching web...'
+                      : '';
+
+                if (statusContent) {
+                  updateSession(activeSessionId, (s) => ({
+                    ...s,
+                    messages: [
+                      ...s.messages,
+                      {
+                        role: 'status' as ChatMessage['role'],
+                        content: statusContent,
+                        id: statusId,
+                      },
+                    ],
+                  }));
+                }
+
+                if (parsed.status === 'done' || parsed.status === 'fail') {
+                  setTimeout(() => {
+                    updateSession(activeSessionId, (s) => {
+                      const filtered = s.messages.filter((m) => m.id !== statusId);
+                      return { ...s, messages: filtered };
+                    });
+                  }, 1500);
+                }
               }
 
               if (parsed.type === 'tool-result') {
@@ -652,22 +720,35 @@ export function AIChat() {
       {/* Model download progress */}
       {modelLoading && <ModelDownloadProgress />}
 
-      {/* No-provider banner */}
-      {!provider && (
-        <div className="border-b border-amber-500/20 bg-amber-500/5 px-4 py-2.5">
+      {/* Health status banner */}
+      {aiHealth === 'none' && (
+        <div className="border-b border-red-500/20 bg-red-500/5 px-4 py-2.5">
           <div className="flex items-start gap-2.5">
-            <WifiOff className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+            <WifiOff className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
             <div className="flex-1">
-              <p className="text-xs font-medium text-amber-700">No AI provider configured</p>
-              <p className="mt-0.5 text-[11px] leading-relaxed text-amber-600/70">
-                Chat is using offline fallback responses. Add an API key in{' '}
+              <p className="text-xs font-medium text-red-700">AI is offline</p>
+              <p className="mt-0.5 text-[11px] leading-relaxed text-red-600/70">
+                No AI provider configured. Add an API key in{' '}
                 <button
                   onClick={() => setSettingsOpen(true)}
-                  className="text-amber-600 underline underline-offset-2 hover:text-amber-700"
+                  className="text-red-600 underline underline-offset-2 hover:text-red-700"
                 >
                   Settings
                 </button>{' '}
                 for full AI capabilities.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+      {aiHealth === 'limited' && (
+        <div className="border-b border-amber-500/20 bg-amber-500/5 px-4 py-2.5">
+          <div className="flex items-start gap-2.5">
+            <WifiOff className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+            <div className="flex-1">
+              <p className="text-xs font-medium text-amber-700">No internet connection</p>
+              <p className="mt-0.5 text-[11px] leading-relaxed text-amber-600/70">
+                AI is using local tools and offline responses. Web search is unavailable.
               </p>
             </div>
           </div>
@@ -730,7 +811,7 @@ export function AIChat() {
           {activeSession ? (
             <>
               <ChatMessages messages={messages} isLoading={isLoading} />
-              <ChatInput onSend={sendMessage} disabled={isLoading} />
+              <ChatInput onSend={sendMessage} disabled={isLoading} aiHealth={aiHealth} />
             </>
           ) : (
             <div className="flex h-full items-center justify-center">
