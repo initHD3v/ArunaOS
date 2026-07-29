@@ -113,6 +113,9 @@ export class ToolRouter {
     const hasTimeWord = timeWords.some((w) => lower.includes(w));
     if (!hasTimeWord) return null;
 
+    const eventWords = ['event', 'acara', 'agenda', 'festival', 'liburan', 'hari libur', 'jadwal'];
+    if (eventWords.some((w) => lower.includes(w))) return null;
+
     const month = findMentionedMonth(lower);
     const year = findMentionedYear(lower);
 

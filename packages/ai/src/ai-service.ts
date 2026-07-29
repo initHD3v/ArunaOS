@@ -318,6 +318,11 @@ export class AIService {
         keywords: ['ibu kota indonesia', 'ibukota indonesia', 'capital of indonesia'],
         message: 'Ibukota Indonesia adalah Nusantara di Kalimantan Timur.',
       },
+      {
+        keywords: ['event', 'acara', 'agenda', 'festival', 'liburan', 'hari libur', 'jadwal'],
+        message:
+          'Saya tidak memiliki data acara kalender. Tidak ada database acara atau agenda yang tersimpan di sistem.',
+      },
     ];
 
     for (const fb of fallbacks) {
