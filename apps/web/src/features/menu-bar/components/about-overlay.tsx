@@ -45,7 +45,7 @@ export function AboutOverlay({ onClose }: AboutOverlayProps) {
         {/* Content */}
         <div className="flex flex-col items-center gap-1 px-8 pb-3">
           <h1 className="text-foreground text-xl font-semibold tracking-tight">ArunaOS</h1>
-          <p className="text-foreground/40 text-xs">Version 0.3.0 — Phase 4</p>
+          <p className="text-foreground/40 text-xs">Version 2.0.0-dev-beta1</p>
         </div>
 
         <p className="text-foreground/50 max-w-xs px-8 text-center text-xs leading-relaxed">
