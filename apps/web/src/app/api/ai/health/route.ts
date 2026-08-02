@@ -21,7 +21,9 @@ export async function GET(request: NextRequest) {
         JSON.parse(providerConfigRaw);
       if (providerConfig.apiKey) hasProvider = true;
       if (
-        (providerConfig.type === 'ollama' || providerConfig.type === 'lmstudio') &&
+        (providerConfig.type === 'ollama' ||
+          providerConfig.type === 'lmstudio' ||
+          providerConfig.type === 'deepseek') &&
         providerConfig.baseUrl
       )
         hasProvider = true;

@@ -7,6 +7,7 @@ import { useIsMobile } from '@/hooks/use-media-query';
 import { useAuthStore } from '@/stores/auth.store';
 import { useService, useEventBus } from '@/providers/service-provider';
 import type { ThemeService, SettingsService, WallpaperConfig } from '@arunaos/services';
+import { wallpaperImageStore, WALLPAPER_MARKER } from '@/features/wallpaper/wallpaper-image-store';
 import type { ShortcutService } from '@/services/shortcut/shortcut-service';
 import { OSTour } from './os-tour';
 import { AISettingsPanel } from './ai-settings';
@@ -438,7 +439,18 @@ function AppearancePanel() {
     settingsService.get('wallpaper'),
   );
   const [powerCfg, setPowerCfg] = useState(() => settingsService.get('power'));
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    let active = true;
+    wallpaperImageStore.resolveUrl(wallpaperCfg.imagePath).then((url) => {
+      if (active) setPreviewUrl(url);
+    });
+    return () => {
+      active = false;
+    };
+  }, [wallpaperCfg.imagePath]);
 
   useEffect(() => {
     return bus.on('settings:updated', () => {
@@ -469,7 +481,17 @@ function AppearancePanel() {
       const reader = new FileReader();
       reader.onload = (ev) => {
         const dataUrl = ev.target?.result as string;
-        updateWallpaper({ type: 'image', gradientIndex: 0, imagePath: dataUrl, blur: 0 });
+        // Persist large image bytes in IndexedDB, keep only a compact marker in
+        // settings so `arunaos_settings` (localStorage) never overflows quota.
+        void wallpaperImageStore.save(dataUrl).then(() => {
+          updateWallpaper({
+            type: 'image',
+            gradientIndex: 0,
+            imagePath: WALLPAPER_MARKER,
+            blur: 0,
+            fit: wallpaperCfg.fit || 'cover',
+          });
+        });
       };
       reader.readAsDataURL(file);
       e.target.value = '';
@@ -528,14 +550,27 @@ function AppearancePanel() {
             {wallpaperTypes.map(({ id, label, desc }) => {
               const getCfg = (): WallpaperConfig => {
                 if (id === 'default')
-                  return { type: 'default', gradientIndex: 0, imagePath: '', blur: 0 };
+                  return {
+                    type: 'default',
+                    gradientIndex: 0,
+                    imagePath: '',
+                    blur: 0,
+                    fit: 'cover',
+                  };
                 if (id === 'gradient')
-                  return { type: 'gradient', gradientIndex: 0, imagePath: '', blur: 0 };
+                  return {
+                    type: 'gradient',
+                    gradientIndex: 0,
+                    imagePath: '',
+                    blur: 0,
+                    fit: 'cover',
+                  };
                 return {
                   type: 'image',
                   gradientIndex: 0,
                   imagePath: wallpaperCfg.imagePath || '',
                   blur: 0,
+                  fit: wallpaperCfg.fit || 'cover',
                 };
               };
               return (
@@ -595,15 +630,18 @@ function AppearancePanel() {
           {wallpaperCfg.type === 'image' && (
             <div className="space-y-2">
               <span className="text-foreground/60 text-xs">Custom Image</span>
-              {wallpaperCfg.imagePath && (
+              {wallpaperCfg.imagePath && previewUrl && (
                 <div className="relative mb-2 aspect-video w-full overflow-hidden rounded-lg">
                   <img
-                    src={wallpaperCfg.imagePath}
+                    src={previewUrl}
                     alt="Wallpaper preview"
                     className="h-full w-full object-cover"
                   />
                   <button
-                    onClick={() => updateWallpaper({ ...wallpaperCfg, imagePath: '' })}
+                    onClick={() => {
+                      void wallpaperImageStore.clear();
+                      updateWallpaper({ ...wallpaperCfg, imagePath: '' });
+                    }}
                     className="absolute right-2 top-2 rounded-full bg-black/50 p-1 text-white/80 transition-colors hover:bg-black/70"
                   >
                     <AlertCircle size={12} />
@@ -627,6 +665,37 @@ function AppearancePanel() {
               <p className="text-foreground/30 text-[11px]">
                 Supports: JPG, PNG, GIF, WebP, BMP, SVG
               </p>
+
+              <div className="pt-1">
+                <span className="text-foreground/60 text-xs">Fit to Screen</span>
+                <div className="mt-1.5 flex flex-wrap gap-1.5">
+                  {[
+                    { id: 'cover', label: 'Fill', desc: 'Fill screen' },
+                    { id: 'stretch', label: 'Stretch', desc: 'Fit to screen' },
+                    { id: 'center', label: 'Center', desc: 'Center' },
+                    { id: 'tile', label: 'Tile', desc: 'Tile' },
+                  ].map((opt) => (
+                    <button
+                      key={opt.id}
+                      onClick={() =>
+                        updateWallpaper({
+                          ...wallpaperCfg,
+                          fit: opt.id as 'cover' | 'stretch' | 'center' | 'tile',
+                        })
+                      }
+                      title={opt.desc}
+                      className={cn(
+                        'rounded-md px-3 py-1.5 text-xs transition-colors',
+                        wallpaperCfg.fit === opt.id
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-muted text-foreground/60 hover:text-foreground',
+                      )}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -1019,8 +1088,16 @@ const panelComponents: Record<SettingsTab, React.ElementType> = {
 
 export const Settings = memo(function Settings() {
   const isMobile = useIsMobile();
+  const bus = useEventBus();
   const [activeTab, setActiveTab] = useState<SettingsTab>('general');
   const Panel = panelComponents[activeTab];
+
+  useEffect(() => {
+    const unsub = bus.on('settings:request-tab', (payload: { tab?: string }) => {
+      if (payload?.tab) setActiveTab(payload.tab as SettingsTab);
+    });
+    return unsub;
+  }, [bus]);
 
   return (
     <div className="bg-background/40 flex h-full flex-col">

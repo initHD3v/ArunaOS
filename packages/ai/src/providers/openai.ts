@@ -17,25 +17,61 @@ import {
 const DEFAULT_BASE_URL = 'https://api.openai.com/v1';
 const DEFAULT_MODEL = 'gpt-4o-mini';
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export class OpenAIProvider implements AIProvider {
-  readonly type: 'openai' | 'openrouter' = 'openai';
+  readonly type: 'openai' | 'openrouter' | 'deepseek' = 'openai';
   readonly model: string;
   private baseUrl: string;
   private apiKey?: string;
   private maxTokens: number;
   private temperature: number;
+  private retry: boolean;
+  private retryDelayMs: number;
+  private maxRetries: number;
+  private timeoutMs: number;
 
-  constructor(config: AIProviderConfig & { _type?: 'openai' | 'openrouter' } = {}) {
+  constructor(
+    config: AIProviderConfig & {
+      _type?: 'openai' | 'openrouter' | 'deepseek';
+      _retry?: boolean;
+      _retryDelayMs?: number;
+      _maxRetries?: number;
+      _timeoutMs?: number;
+    } = {},
+  ) {
     this.apiKey = config.apiKey;
     this.baseUrl = normalizeBaseUrl(config.baseUrl, DEFAULT_BASE_URL);
     this.model = config.model ?? DEFAULT_MODEL;
     this.maxTokens = config.maxTokens ?? 4096;
     this.temperature = config.temperature ?? 0.7;
+    this.retry = config._retry ?? false;
+    this.retryDelayMs = config._retryDelayMs ?? 5000;
+    this.maxRetries = config._maxRetries ?? 3;
+    this.timeoutMs = config._timeoutMs ?? 0;
     if (config._type) this.type = config._type;
   }
 
   isAvailable(): boolean {
-    return !!this.apiKey;
+    return !!this.apiKey || this.retry;
+  }
+
+  private timed(init: RequestInit): RequestInit {
+    return this.timeoutMs > 0 ? { ...init, signal: AbortSignal.timeout(this.timeoutMs) } : init;
+  }
+
+  private async fetchWithRetry(url: string, init: RequestInit): Promise<Response> {
+    for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
+      const response = await fetch(url, this.timed(init));
+      if (response.status === 503 && this.retry && attempt < this.maxRetries) {
+        await sleep(this.retryDelayMs * (attempt + 1));
+        continue;
+      }
+      return response;
+    }
+    return fetch(url, this.timed(init));
   }
 
   async complete(req: AICompletionRequest): Promise<AICompletionResponse> {
@@ -53,7 +89,7 @@ export class OpenAIProvider implements AIProvider {
       req.maxTokens ?? this.maxTokens,
     );
 
-    const response = await fetch(`${this.baseUrl}/chat/completions`, {
+    const response = await this.fetchWithRetry(`${this.baseUrl}/chat/completions`, {
       method: 'POST',
       headers,
       body: JSON.stringify(body),
@@ -100,11 +136,18 @@ export class OpenAIProvider implements AIProvider {
       req.maxTokens ?? this.maxTokens,
     );
 
-    const response = await fetch(`${this.baseUrl}/chat/completions`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(body),
-    });
+    let response: Response;
+    try {
+      response = await this.fetchWithRetry(`${this.baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      yield { type: 'error', content: `OpenAI API error: ${msg}` };
+      return;
+    }
 
     if (!response.ok) {
       const text = await response.text().catch(() => '');
@@ -120,9 +163,14 @@ export class OpenAIProvider implements AIProvider {
 
     const decoder = new TextDecoder();
     let buffer = '';
+    // Structured tool calls arrive as fragmented deltas (name on first delta,
+    // arguments streamed across many deltas). Reassemble them here so the
+    // engine can extract & execute a complete {"name":"...","args":{...}}.
+    const structuredToolCalls = new Map<number, { name: string; args: string }>();
+    let sawDone = false;
 
     try {
-      while (true) {
+      while (!sawDone) {
         const { done, value } = await reader.read();
         if (done) break;
 
@@ -136,8 +184,8 @@ export class OpenAIProvider implements AIProvider {
 
           const data = trimmed.slice(6);
           if (data === '[DONE]') {
-            yield { type: 'done', content: '', done: true };
-            return;
+            sawDone = true;
+            break;
           }
 
           try {
@@ -149,19 +197,13 @@ export class OpenAIProvider implements AIProvider {
               yield { type: 'text', content: delta.content };
             }
 
-            if (delta.tool_calls) {
+            if (Array.isArray(delta.tool_calls)) {
               for (const tc of delta.tool_calls) {
-                if (tc.function?.name) {
-                  yield {
-                    type: 'tool-call',
-                    content: tc.function.name,
-                    toolCallId: tc.id,
-                    toolName: tc.function.name,
-                  };
-                }
-                if (tc.function?.arguments) {
-                  yield { type: 'text', content: tc.function.arguments };
-                }
+                const index = typeof tc.index === 'number' ? tc.index : structuredToolCalls.size;
+                const entry = structuredToolCalls.get(index) ?? { name: '', args: '' };
+                if (tc.function?.name) entry.name = tc.function.name;
+                if (tc.function?.arguments) entry.args += tc.function.arguments;
+                structuredToolCalls.set(index, entry);
               }
             }
           } catch {
@@ -171,6 +213,18 @@ export class OpenAIProvider implements AIProvider {
       }
     } finally {
       reader.releaseLock();
+    }
+
+    // Reassemble structured tool calls into extractable JSON and relay them
+    // (as a tool-call chunk, never as text) so they don't leak into the reply.
+    for (const tc of structuredToolCalls.values()) {
+      if (tc.name && tc.args) {
+        yield {
+          type: 'tool-call',
+          content: `{"name":${JSON.stringify(tc.name)},"args":${tc.args}}`,
+          toolName: tc.name,
+        };
+      }
     }
 
     yield { type: 'done', content: '', done: true };

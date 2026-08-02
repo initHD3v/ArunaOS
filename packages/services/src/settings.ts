@@ -2,12 +2,15 @@ import type { EventBus } from './event-bus';
 import type { StorageService } from './storage';
 
 export type WallpaperType = 'default' | 'gradient' | 'image';
+export type WallpaperFit = 'cover' | 'stretch' | 'center' | 'tile';
 
 export interface WallpaperConfig {
   type: WallpaperType;
   gradientIndex: number;
   imagePath: string;
   blur: number;
+  /** How an image wallpaper fills the screen. */
+  fit: WallpaperFit;
 }
 
 export interface SettingsSchema {
@@ -35,7 +38,7 @@ export interface SettingsSchema {
 export const DEFAULT_SETTINGS: SettingsSchema = {
   version: 2,
   theme: 'system',
-  wallpaper: { type: 'default', gradientIndex: 0, imagePath: '', blur: 0 },
+  wallpaper: { type: 'default', gradientIndex: 0, imagePath: '', blur: 0, fit: 'cover' },
   language: 'en',
   accessibility: {
     reducedMotion: false,
@@ -77,6 +80,11 @@ export class SettingsService {
       }
       this.settings = { ...DEFAULT_SETTINGS, ...stored, version: DEFAULT_SETTINGS.version };
     }
+    // Backfill `fit` for legacy wallpaper configs persisted before it existed.
+    this.settings = {
+      ...this.settings,
+      wallpaper: { ...this.settings.wallpaper, fit: this.settings.wallpaper?.fit ?? 'cover' },
+    };
     this.ready = true;
     this.bus.emit('settings:loaded', { settings: this.settings });
   }
@@ -91,6 +99,7 @@ export class SettingsService {
           gradientIndex: oldWallpaper.index ?? 0,
           imagePath: '',
           blur: oldWallpaper.blur ?? 0,
+          fit: 'cover',
         };
       }
       stored.version = 2;

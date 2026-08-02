@@ -97,6 +97,10 @@ function isLocalProvider(type: string): boolean {
   return type === 'ollama' || type === 'lmstudio' || type === 'native';
 }
 
+function isKeylessProvider(type: string): boolean {
+  return isLocalProvider(type) || type === 'deepseek';
+}
+
 function getProviderConfig(
   provider: string,
 ): { type: string; apiKey: string; baseUrl: string; model: string } | null {
@@ -111,8 +115,8 @@ function getProviderConfig(
     }>;
     const match = configs.find((c) => c.type === provider);
     if (!match) return null;
-    // Local providers don't need apiKey; remote providers require it
-    if (!isLocalProvider(provider) && !match.apiKey) return null;
+    // Keyless providers (ollama/lmstudio/native/deepseek) don't need apiKey
+    if (!isKeylessProvider(provider) && !match.apiKey) return null;
     return {
       type: match.type,
       apiKey: match.apiKey ?? '',
@@ -139,7 +143,9 @@ function loadActiveProvider(): string | null {
     }>;
     const remote = configs.find((c) => c.apiKey && c.apiKey.length > 0);
     if (remote) return remote.type;
-    const local = configs.find((c) => isLocalProvider(c.type) && c.baseUrl && c.baseUrl.length > 0);
+    const local = configs.find(
+      (c) => isKeylessProvider(c.type) && c.baseUrl && c.baseUrl.length > 0,
+    );
     if (local) return local.type;
     return null;
   } catch {
@@ -161,6 +167,7 @@ export function AIChat() {
   const sessionIdRef = useRef<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const initialized = useRef(false);
+  const streamMsgIdRef = useRef<string | null>(null);
 
   const activeSession = sessions.find((s) => s.id === activeSessionId) ?? null;
   const messages = activeSession?.messages ?? [];
@@ -352,6 +359,7 @@ export function AIChat() {
       if (!activeSessionId) return;
 
       let msgIdCounter = 0;
+      streamMsgIdRef.current = null;
 
       const userMsg: ChatMessage = {
         role: 'user',
@@ -489,11 +497,19 @@ export function AIChat() {
                 fullReply += parsed.content;
                 updateSession(activeSessionId, (s) => {
                   const msgs = [...s.messages];
-                  const last = msgs[msgs.length - 1];
-                  if (last?.id.startsWith('stream-')) {
-                    msgs[msgs.length - 1] = { ...last, content: fullReply };
+                  const pendingId = streamMsgIdRef.current;
+                  if (pendingId) {
+                    const idx = msgs.findIndex((m) => m.id === pendingId);
+                    const existing = msgs[idx];
+                    if (existing) {
+                      msgs[idx] = { ...existing, content: fullReply };
+                    } else {
+                      msgs.push({ role: 'assistant', content: fullReply, id: pendingId });
+                    }
                   } else {
-                    msgs.push({ role: 'assistant', content: fullReply, id: 'stream-pending' });
+                    const newId = `stream-${Date.now()}-${++msgIdCounter}`;
+                    streamMsgIdRef.current = newId;
+                    msgs.push({ role: 'assistant', content: fullReply, id: newId });
                   }
                   return { ...s, messages: msgs, updatedAt: Date.now() };
                 });
@@ -551,15 +567,18 @@ export function AIChat() {
         }
 
         updateSession(activeSessionId, (s) => {
-          const msgs = [...s.messages];
-          const last = msgs[msgs.length - 1];
-          if (last?.id === 'stream-pending') {
-            msgs[msgs.length - 1] = {
-              role: 'assistant',
-              content: fullReply,
-              id: `assistant-${Date.now()}`,
-            };
+          const msgs = [...s.messages].filter((m) => m.role !== 'status');
+          if (streamMsgIdRef.current) {
+            const idx = msgs.findIndex((m) => m.id === streamMsgIdRef.current);
+            if (idx >= 0) {
+              msgs[idx] = {
+                role: 'assistant',
+                content: fullReply,
+                id: `assistant-${Date.now()}`,
+              };
+            }
           }
+          streamMsgIdRef.current = null;
           return { ...s, messages: msgs, updatedAt: Date.now() };
         });
       } catch (err: unknown) {

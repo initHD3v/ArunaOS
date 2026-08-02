@@ -58,9 +58,16 @@ const PROVIDER_META: Record<
     defaultModel: 'llama3.2',
     getApiKeyUrl: 'https://ollama.com/download',
   },
+  deepseek: {
+    label: 'DeepSeek V4 Flash (Free)',
+    defaultBaseUrl: 'https://q5dh1rfszfym23hj.us-east-2.aws.endpoints.huggingface.cloud/v1',
+    defaultModel: 'deepseek-ai/DeepSeek-V4-Flash-0731',
+    getApiKeyUrl: '',
+  },
 };
 
-const PROVIDER_ORDER = ['openai', 'anthropic', 'openrouter', 'ollama'];
+const PROVIDER_ORDER = ['openai', 'anthropic', 'openrouter', 'deepseek', 'ollama'];
+const KEYLESS_PROVIDERS = new Set(['ollama', 'deepseek']);
 
 export function AISettingsPanel() {
   const [providers, setProviders] = useState<ProviderStatus[]>([]);
@@ -222,7 +229,9 @@ export function AISettingsPanel() {
       localStorage.setItem('ai-session-id', data.sessionId);
       localStorage.setItem(
         'ai-active-provider',
-        providersPayload.find((c) => c.apiKey)?.type ?? '',
+        providersPayload.find((c) => c.apiKey)?.type ??
+          providersPayload.find((c) => c.type === 'deepseek')?.type ??
+          '',
       );
       window.dispatchEvent(new Event('ai-provider-config-changed'));
       setSaveStatus('saved');
@@ -372,8 +381,11 @@ export function AISettingsPanel() {
                       className="text-primary mb-1.5 inline-flex items-center gap-1 text-[10px] hover:underline"
                     >
                       <ExternalLink size={10} />
-                      Get {meta.label} API Key
+                      {meta.label} API Key
                     </a>
+                    {KEYLESS_PROVIDERS.has(cfg.type) && (
+                      <p className="text-foreground/30 mb-1.5 text-[10px]">No API key required.</p>
+                    )}
                     <div className="relative">
                       <input
                         type={showKeys.has(cfg.type) ? 'text' : 'password'}

@@ -46,12 +46,19 @@ const PROVIDER_META: Record<string, ProviderMeta> = {
     defaultModel: 'llama3.2',
     getApiKeyUrl: 'https://ollama.com/download',
   },
+  deepseek: {
+    label: 'DeepSeek V4 Flash (Free)',
+    defaultBaseUrl: 'https://q5dh1rfszfym23hj.us-east-2.aws.endpoints.huggingface.cloud/v1',
+    defaultModel: 'deepseek-ai/DeepSeek-V4-Flash-0731',
+    getApiKeyUrl: '',
+  },
 };
 
 const PROVIDER_ORDER: (keyof typeof PROVIDER_META)[] = [
   'openai',
   'anthropic',
   'openrouter',
+  'deepseek',
   'ollama',
 ];
 
@@ -123,6 +130,8 @@ const PROVIDER_HELP: Record<string, string> = {
   openrouter:
     'Use OpenRouter to access many models through a single API. Get your key from OpenRouter.',
   ollama: 'Run models locally with Ollama. No API key needed — just make sure Ollama is running.',
+  deepseek:
+    'Free public DeepSeek V4 Flash endpoint. No API key or account required — works out of the box.',
 };
 
 function getTestEndpoint(
@@ -168,7 +177,7 @@ export function AIChatSettings({ open, onClose }: AIChatSettingsProps) {
       setSaved(false);
       setShowAdvanced(false);
       setTestResult({ status: 'idle' });
-      setShowKey(cfg.provider === 'ollama');
+      setShowKey(cfg.provider === 'ollama' || cfg.provider === 'deepseek');
     }
   }, [open]);
 
@@ -294,7 +303,7 @@ export function AIChatSettings({ open, onClose }: AIChatSettingsProps) {
                               setProviderOpen(false);
                               setBaseUrl(m?.defaultBaseUrl ?? '');
                               setModel(m?.defaultModel ?? '');
-                              setShowKey(type === 'ollama');
+                              setShowKey(type === 'ollama' || type === 'deepseek');
                               setTestResult({ status: 'idle' });
                             }}
                             className={cn(
@@ -329,7 +338,7 @@ export function AIChatSettings({ open, onClose }: AIChatSettingsProps) {
                   value={apiKey}
                   onChange={(e) => setApiKey(e.target.value)}
                   placeholder={
-                    provider === 'ollama'
+                    provider === 'ollama' || provider === 'deepseek'
                       ? 'Leave empty if not required'
                       : 'Paste your API key here...'
                   }
@@ -343,7 +352,7 @@ export function AIChatSettings({ open, onClose }: AIChatSettingsProps) {
                   {showKey ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                 </button>
               </div>
-              {meta && provider !== 'ollama' && (
+              {meta && provider !== 'ollama' && provider !== 'deepseek' && (
                 <a
                   href={meta.getApiKeyUrl}
                   target="_blank"

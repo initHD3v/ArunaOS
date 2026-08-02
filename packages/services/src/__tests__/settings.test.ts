@@ -167,6 +167,7 @@ describe('SettingsService', () => {
       gradientIndex: 0,
       imagePath: 'data:...',
       blur: 0,
+      fit: 'cover',
     });
     expect(bus.emit).toHaveBeenCalledWith(
       'settings:updated',

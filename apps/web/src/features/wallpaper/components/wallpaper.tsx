@@ -3,6 +3,42 @@
 import { useEffect, useState } from 'react';
 import { useService, useEventBus } from '@/providers/service-provider';
 import type { ThemeService, SettingsService, WallpaperConfig, ThemeMode } from '@arunaos/services';
+import { wallpaperImageStore } from '@/features/wallpaper/wallpaper-image-store';
+import type { WallpaperFit } from '@arunaos/services';
+
+function imageBackground(imageUrl: string, fit: WallpaperFit): React.CSSProperties {
+  switch (fit) {
+    case 'stretch':
+      return {
+        backgroundImage: `url(${imageUrl})`,
+        backgroundSize: '100% 100%',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+      };
+    case 'center':
+      return {
+        backgroundImage: `url(${imageUrl})`,
+        backgroundSize: 'auto',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+      };
+    case 'tile':
+      return {
+        backgroundImage: `url(${imageUrl})`,
+        backgroundSize: 'auto',
+        backgroundPosition: 'top left',
+        backgroundRepeat: 'repeat',
+      };
+    case 'cover':
+    default:
+      return {
+        backgroundImage: `url(${imageUrl})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+      };
+  }
+}
 
 const SOFT_GRADIENTS = [
   'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
@@ -48,10 +84,21 @@ export function Wallpaper() {
   );
   const [theme, setTheme] = useState<ThemeMode>(() => themeService.getMode());
   const [imageError, setImageError] = useState(false);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    wallpaperImageStore.resolveUrl(wallpaperConfig.imagePath).then((url) => {
+      if (active) setImageUrl(url);
+    });
+    return () => {
+      active = false;
+    };
+  }, [wallpaperConfig.imagePath]);
 
   useEffect(() => {
     const unsub1 = bus.on('theme:changed', ({ mode }: { mode: ThemeMode }) => {
@@ -79,13 +126,8 @@ export function Wallpaper() {
 
   let backgroundStyle: React.CSSProperties;
 
-  if (cfg.type === 'image' && cfg.imagePath && !imageError) {
-    backgroundStyle = {
-      backgroundImage: `url(${cfg.imagePath})`,
-      backgroundSize: 'cover',
-      backgroundPosition: 'center',
-      backgroundRepeat: 'no-repeat',
-    };
+  if (cfg.type === 'image' && imageUrl && !imageError) {
+    backgroundStyle = imageBackground(imageUrl, cfg.fit ?? 'cover');
   } else if (cfg.type === 'default') {
     backgroundStyle = {
       backgroundImage: 'url(/wallpapers/default.png)',

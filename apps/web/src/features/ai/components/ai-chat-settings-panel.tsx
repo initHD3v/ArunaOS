@@ -57,12 +57,21 @@ const PROVIDER_META: Record<
     defaultModel: 'Qwen2.5-0.5B',
     getApiKeyUrl: '',
   },
+  deepseek: {
+    label: 'DeepSeek V4 Flash (Free)',
+    defaultBaseUrl: 'https://q5dh1rfszfym23hj.us-east-2.aws.endpoints.huggingface.cloud/v1',
+    defaultModel: 'deepseek-ai/DeepSeek-V4-Flash-0731',
+    getApiKeyUrl: '',
+  },
 };
+
+const KEYLESS_PROVIDERS = new Set(['ollama', 'lmstudio', 'native', 'deepseek']);
 
 const PROVIDER_ORDER: (keyof typeof PROVIDER_META)[] = [
   'openai',
   'anthropic',
   'openrouter',
+  'deepseek',
   'ollama',
   'lmstudio',
   'native',
@@ -75,6 +84,8 @@ const PROVIDER_HELP: Record<string, string> = {
   ollama: 'Run models locally with Ollama. No API key needed.',
   lmstudio: 'Run local models via LM Studio. No API key needed.',
   native: 'Run AI directly in your browser. No server or API key needed.',
+  deepseek:
+    'Free public DeepSeek V4 Flash endpoint. No API key or account required — works out of the box.',
 };
 
 function loadSingleConfig() {
@@ -156,9 +167,7 @@ export function AIChatSettingsPanel({ onClose }: AIChatSettingsPanelProps) {
     setApiKey(cfg.apiKey);
     setBaseUrl(cfg.baseUrl);
     setModel(cfg.model);
-    setShowKey(
-      cfg.provider === 'ollama' || cfg.provider === 'lmstudio' || cfg.provider === 'native',
-    );
+    setShowKey(KEYLESS_PROVIDERS.has(cfg.provider));
     setWebSearchEnabled(localStorage.getItem('ai-web-search') !== 'false');
   }, []);
 
@@ -341,7 +350,7 @@ export function AIChatSettingsPanel({ onClose }: AIChatSettingsPanelProps) {
                           setProviderOpen(false);
                           setBaseUrl(m?.defaultBaseUrl ?? '');
                           setModel(m?.defaultModel ?? '');
-                          setShowKey(type === 'ollama' || type === 'lmstudio' || type === 'native');
+                          setShowKey(KEYLESS_PROVIDERS.has(type));
                           setAvailableModels([]);
                           setTestResult('idle');
                         }}
@@ -439,7 +448,7 @@ export function AIChatSettingsPanel({ onClose }: AIChatSettingsPanelProps) {
                   onChange={(e) => setApiKey(e.target.value)}
                   onKeyDown={handleKeyDown}
                   placeholder={
-                    provider === 'ollama' || provider === 'lmstudio'
+                    KEYLESS_PROVIDERS.has(provider)
                       ? 'Leave empty if not required'
                       : 'Paste your API key...'
                   }
@@ -456,7 +465,7 @@ export function AIChatSettingsPanel({ onClose }: AIChatSettingsPanelProps) {
                   {showKey ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
                 </button>
               </div>
-              {meta && provider !== 'ollama' && provider !== 'lmstudio' && (
+              {meta && !KEYLESS_PROVIDERS.has(provider) && (
                 <a
                   href={meta.getApiKeyUrl}
                   target="_blank"
@@ -599,13 +608,7 @@ export function AIChatSettingsPanel({ onClose }: AIChatSettingsPanelProps) {
       <div className="border-border/20 border-t p-4">
         <button
           onClick={handleSave}
-          disabled={
-            testResult === 'idle' &&
-            !hasKey &&
-            provider !== 'ollama' &&
-            provider !== 'lmstudio' &&
-            provider !== 'native'
-          }
+          disabled={testResult === 'idle' && !hasKey && !KEYLESS_PROVIDERS.has(provider)}
           className={cn(
             'flex w-full items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-all',
             saved

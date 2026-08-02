@@ -7,6 +7,7 @@ export {
   AnthropicProvider,
   OpenRouterProvider,
   OllamaProvider,
+  DeepSeekProvider,
   detectProviders,
 } from './providers';
 

@@ -8,9 +8,8 @@ import { ArunaAssistant } from '@/features/aruna-assistant/aruna-assistant';
 import { useUIStore } from '@/stores/ui-store';
 import { useDesktopStore } from '@/features/desktop/stores/desktop.store';
 import { useWindowStore } from '@/features/window-manager/stores/window.store';
-import { useService } from '@/providers/service-provider';
+import { useEventBus } from '@/providers/service-provider';
 import { useAIContextStore } from '@/stores/ai-context.store';
-import type { SettingsService } from '@arunaos/services';
 import type { DesktopIconData } from '@/types';
 
 export default function Home() {
@@ -20,22 +19,21 @@ export default function Home() {
   const desktopIconsHidden = useDesktopStore((s) => s.desktopIconsHidden);
   const toggleDesktopIcons = useDesktopStore((s) => s.toggleDesktopIcons);
   const openWindow = useWindowStore((s) => s.openWindow);
-  const settingsService = useService<SettingsService>('settings');
+  const bus = useEventBus();
 
-  const cycleWallpaper = useCallback(() => {
-    const cfg = settingsService.get('wallpaper');
-    const types: Record<string, 'default' | 'gradient' | 'image'> = {
-      default: 'gradient',
-      gradient: 'image',
-      image: 'default',
-    };
-    const nextType = types[cfg.type] ?? 'default';
-    settingsService.set('wallpaper', {
-      ...cfg,
-      type: nextType,
-      imagePath: nextType === 'image' && !cfg.imagePath ? '' : cfg.imagePath,
+  const openWallpaperSettings = useCallback(() => {
+    openWindow({
+      id: `window-settings-${Date.now()}`,
+      title: 'Settings',
+      icon: 'settings',
+      appId: 'settings',
+      position: { x: 200, y: 100 },
+      size: { width: 800, height: 600 },
+      zIndex: 1,
+      state: 'active',
     });
-  }, [settingsService]);
+    bus.emit('settings:request-tab', { tab: 'appearance' });
+  }, [openWindow, bus]);
 
   const askAI = useAIContextStore((s) => s.askAI);
 
@@ -65,7 +63,7 @@ export default function Home() {
       { id: 'sep2', label: '', separator: true },
       { id: 'refresh', label: 'Refresh', action: triggerRefresh },
       { id: 'sep3', label: '', separator: true },
-      { id: 'wallpaper', label: 'Change Wallpaper', action: cycleWallpaper },
+      { id: 'wallpaper', label: 'Change Wallpaper', action: openWallpaperSettings },
       { id: 'sep4', label: '', action: () => {}, separator: true },
       {
         id: 'settings',
@@ -94,7 +92,7 @@ export default function Home() {
     [
       addIcon,
       triggerRefresh,
-      cycleWallpaper,
+      openWallpaperSettings,
       openWindow,
       desktopIconsHidden,
       toggleDesktopIcons,

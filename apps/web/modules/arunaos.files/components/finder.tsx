@@ -31,6 +31,9 @@ import { useNativeFSStore, type NativeEntry } from '../stores/native-fs.store';
 import { getFileCategory, type FileCategory } from '@/features/viewer/utils/file-types';
 import { useAIContextStore } from '@/stores/ai-context.store';
 import { getAIContextActions } from '@/features/ai/ai-context-actions';
+import { useService } from '@/providers/service-provider';
+import type { SettingsService } from '@arunaos/services';
+import { wallpaperImageStore, WALLPAPER_MARKER } from '@/features/wallpaper/wallpaper-image-store';
 import type { DesktopIconData } from '@/types';
 
 const iconMap: Record<string, React.ElementType> = {
@@ -179,6 +182,7 @@ export const Finder = memo(function Finder() {
   const openWindow = useWindowStore((s) => s.openWindow);
   const showContextMenu = useUIStore((s) => s.showContextMenu);
   const { items: fileItems, createItem, deleteItem, renameItem } = useFilesStore();
+  const settingsService = useService<SettingsService>('settings');
 
   const nativeFS = useNativeFSStore();
   const isBrowsingNative = nativeFS.activeDriveId !== null;
@@ -468,6 +472,33 @@ export const Finder = memo(function Finder() {
     [nativeFS.entries, sortBy],
   );
 
+  const setAsWallpaper = useCallback(
+    async (file: FileItem) => {
+      try {
+        const blob = await getBlob(file.id);
+        if (!blob) return;
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = () => reject(reader.error);
+          reader.readAsDataURL(blob);
+        });
+        await wallpaperImageStore.save(dataUrl);
+        const cfg = settingsService.get('wallpaper');
+        await settingsService.set('wallpaper', {
+          type: 'image',
+          gradientIndex: 0,
+          imagePath: WALLPAPER_MARKER,
+          blur: 0,
+          fit: cfg.fit ?? 'cover',
+        });
+      } catch {
+        /* ignore */
+      }
+    },
+    [settingsService],
+  );
+
   const handleItemContextMenu = useCallback(
     (e: React.MouseEvent, item: DesktopIconData | FileItem) => {
       e.preventDefault();
@@ -532,7 +563,18 @@ export const Finder = memo(function Finder() {
         ]);
       } else {
         const fi = item as FileItem;
+        const isImage = fi.type === 'file' && getFileCategory(fi.name) === 'image';
         showContextMenu({ x: e.clientX, y: e.clientY }, [
+          ...(isImage
+            ? [
+                {
+                  id: 'set-wallpaper',
+                  label: 'Set as Wallpaper',
+                  action: () => setAsWallpaper(fi),
+                },
+                { id: 'sep-wall', label: '', action: () => {}, separator: true },
+              ]
+            : []),
           { id: 'open', label: 'Open', action: () => openItem(item) },
           { id: 'sep1', label: '', action: () => {}, separator: true },
           {
@@ -587,6 +629,7 @@ export const Finder = memo(function Finder() {
       handleVirtualCopySelection,
       handleVirtualCutSelection,
       rawSubItems,
+      setAsWallpaper,
     ],
   );
 

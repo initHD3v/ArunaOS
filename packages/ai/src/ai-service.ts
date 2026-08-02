@@ -12,6 +12,7 @@ import { OpenAIProvider } from './providers/openai';
 import { AnthropicProvider } from './providers/anthropic';
 import { OpenRouterProvider } from './providers/openrouter';
 import { OllamaProvider } from './providers/ollama';
+import { DeepSeekProvider } from './providers/deepseek';
 import { detectProviders } from './providers/interface';
 import { ToolRegistry } from './tools/registry';
 import { ToolRouter } from './tools/tool-router';
@@ -87,6 +88,9 @@ export class AIService {
       case 'ollama':
         this.providers.set(type, new OllamaProvider(cfg));
         break;
+      case 'deepseek':
+        this.providers.set(type, new DeepSeekProvider(cfg));
+        break;
     }
   }
 
@@ -130,6 +134,8 @@ export class AIService {
         return new OpenRouterProvider(cfg);
       case 'ollama':
         return new OllamaProvider(cfg);
+      case 'deepseek':
+        return new DeepSeekProvider(cfg);
       case 'lmstudio': {
         const lmBaseUrl = (cfg.baseUrl ?? 'http://127.0.0.1:1234').replace(/\/$/, '');
         const finalUrl = lmBaseUrl.includes('/v1') ? lmBaseUrl : `${lmBaseUrl}/v1`;
@@ -271,6 +277,14 @@ export class AIService {
         .replace(toolCallRegex, '')
         .replace(/\n{3,}/g, '\n\n')
         .trim();
+    }
+
+    // If nothing usable was produced and the whole reply is just JSON (e.g. a
+    // malformed tool-call like `{"query":"..."}` leaked as text), drop it so raw
+    // JSON never surfaces in the chat.
+    const jsonOnlyContent = content.trim();
+    if (!found && (jsonOnlyContent.startsWith('{') || jsonOnlyContent.startsWith('['))) {
+      cleanedContent = '';
     }
 
     return { toolResults, contextUpdated, cleanedContent, found };
@@ -623,12 +637,21 @@ export class AIService {
       if (chunk.type === 'text') {
         textBuffer.push(chunk.content);
         fullContent += chunk.content;
+      } else if (
+        chunk.type === 'tool-call' &&
+        chunk.content &&
+        (chunk.content.startsWith('{') || chunk.content.startsWith('['))
+      ) {
+        // Accumulate tool-call arguments so a well-formed {"name","args"} JSON
+        // can be extracted and executed later. Chunk is relayed (client ignores it).
+        fullContent += chunk.content;
+        yield chunk;
       } else {
         yield chunk;
       }
     }
 
-    const { toolResults } = await this.extractToolCalls(fullContent);
+    const { toolResults, cleanedContent } = await this.extractToolCalls(fullContent);
 
     if (toolResults.length > 0) {
       for (const result of toolResults) {
@@ -654,8 +677,17 @@ export class AIService {
         yield chunk;
       }
     } else {
-      for (const content of textBuffer) {
-        yield { type: 'text', content };
+      // Only suppress the reply if the whole output was malformed tool-call JSON
+      // (stripped by extractToolCalls). Otherwise stream the prose chunk-by-chunk.
+      const combined = textBuffer.join('');
+      const jsonNoise =
+        toolResults.length === 0 &&
+        cleanedContent === '' &&
+        (combined.startsWith('{') || combined.startsWith('['));
+      if (!jsonNoise) {
+        for (const content of textBuffer) {
+          yield { type: 'text', content };
+        }
       }
     }
     yield { type: 'status', content: '', status: 'done' };

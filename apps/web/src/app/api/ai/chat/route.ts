@@ -19,7 +19,11 @@ function hasConfiguredProvider(
 ): boolean {
   if (!providerConfig) return aiService.getAvailableProviders().length > 0;
   if (providerConfig.apiKey) return true;
-  if (providerConfig.type === 'ollama' || providerConfig.type === 'lmstudio')
+  if (
+    providerConfig.type === 'ollama' ||
+    providerConfig.type === 'lmstudio' ||
+    providerConfig.type === 'deepseek'
+  )
     return !!providerConfig.baseUrl;
   if (providerConfig.type === 'native') return true;
   return false;
