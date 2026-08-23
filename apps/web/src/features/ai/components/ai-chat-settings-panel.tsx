@@ -13,6 +13,8 @@ import {
   X,
   Wifi,
   Globe,
+  Trash2,
+  RotateCcw,
 } from 'lucide-react';
 import { TestConnectionModal, type TestStep } from './test-connection-modal';
 import { ModelDownloadModal } from './model-download-modal';
@@ -36,7 +38,7 @@ const PROVIDER_META: Record<
   openrouter: {
     label: 'OpenRouter',
     defaultBaseUrl: 'https://openrouter.ai/api/v1',
-    defaultModel: 'openai/gpt-4o',
+    defaultModel: 'z-ai/glm-5.2:free',
     getApiKeyUrl: 'https://openrouter.ai/keys',
   },
   ollama: {
@@ -67,6 +69,27 @@ const PROVIDER_META: Record<
 
 const KEYLESS_PROVIDERS = new Set(['ollama', 'lmstudio', 'native', 'deepseek']);
 
+const HIDDEN_PROVIDERS_KEY = 'ai-hidden-providers';
+
+function loadHiddenProviders(): string[] {
+  try {
+    const raw = localStorage.getItem(HIDDEN_PROVIDERS_KEY);
+    if (raw) {
+      const parsed: unknown = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return parsed.filter((t): t is string => typeof t === 'string' && t in PROVIDER_META);
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+  return [];
+}
+
+function saveHiddenProviders(types: string[]) {
+  localStorage.setItem(HIDDEN_PROVIDERS_KEY, JSON.stringify(types));
+}
+
 const PROVIDER_ORDER: (keyof typeof PROVIDER_META)[] = [
   'openai',
   'anthropic',
@@ -80,7 +103,8 @@ const PROVIDER_ORDER: (keyof typeof PROVIDER_META)[] = [
 const PROVIDER_HELP: Record<string, string> = {
   openai: 'Paste your OpenAI API key. Get one from the OpenAI dashboard.',
   anthropic: 'Enter your Anthropic API key to use Claude models.',
-  openrouter: 'Use OpenRouter to access many models through a single API.',
+  openrouter:
+    'Use OpenRouter to access many models through a single API. Models ending in :free can be used at no cost.',
   ollama: 'Run models locally with Ollama. No API key needed.',
   lmstudio: 'Run local models via LM Studio. No API key needed.',
   native: 'Run AI directly in your browser. No server or API key needed.',
@@ -160,6 +184,10 @@ export function AIChatSettingsPanel({ onClose }: AIChatSettingsPanelProps) {
   const [modelDownloadOpen, setModelDownloadOpen] = useState(false);
   const [modelDownloading, setModelDownloading] = useState(false);
   const [webSearchEnabled, setWebSearchEnabled] = useState(true);
+  const [freeOnly, setFreeOnly] = useState(true);
+  const [modelQuery, setModelQuery] = useState('');
+  const [hiddenProviders, setHiddenProviders] = useState<string[]>([]);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
   useEffect(() => {
     const cfg = loadSingleConfig();
@@ -169,10 +197,113 @@ export function AIChatSettingsPanel({ onClose }: AIChatSettingsPanelProps) {
     setModel(cfg.model);
     setShowKey(KEYLESS_PROVIDERS.has(cfg.provider));
     setWebSearchEnabled(localStorage.getItem('ai-web-search') !== 'false');
+    setFreeOnly(localStorage.getItem('ai-openrouter-free-only') !== 'false');
+    setHiddenProviders(loadHiddenProviders());
   }, []);
 
   const meta = PROVIDER_META[provider];
   const hasKey = apiKey.length > 0;
+  const visibleProviders = PROVIDER_ORDER.filter((t) => !hiddenProviders.includes(t));
+  const restorableProviders = PROVIDER_ORDER.filter((t) => hiddenProviders.includes(t));
+
+  const selectProvider = (type: string) => {
+    const m = PROVIDER_META[type];
+    setProvider(type);
+    setProviderOpen(false);
+    setConfirmDelete(null);
+    setBaseUrl(m?.defaultBaseUrl ?? '');
+    setModel(m?.defaultModel ?? '');
+    setShowKey(KEYLESS_PROVIDERS.has(type));
+    setAvailableModels([]);
+    setModelQuery('');
+    setTestResult('idle');
+  };
+
+  const handleDeleteProvider = async (type: string) => {
+    const nextHidden = [...hiddenProviders, type];
+    setHiddenProviders(nextHidden);
+    saveHiddenProviders(nextHidden);
+    setConfirmDelete(null);
+
+    // Remove the provider entry entirely from local configs
+    try {
+      const raw = localStorage.getItem('ai-provider-configs');
+      const parsed = raw ? (JSON.parse(raw) as Array<{ type: string }>) : [];
+      if (Array.isArray(parsed)) {
+        localStorage.setItem(
+          'ai-provider-configs',
+          JSON.stringify(parsed.filter((c) => c.type !== type)),
+        );
+        window.dispatchEvent(new Event('ai-provider-config-changed'));
+      }
+    } catch {
+      /* ignore */
+    }
+
+    // Repoint active provider if it referenced the deleted one
+    const next = visibleProviders.find((t) => t !== type);
+    if (localStorage.getItem('ai-active-provider') === type) {
+      localStorage.setItem('ai-active-provider', next ?? '');
+      window.dispatchEvent(new Event('ai-provider-config-changed'));
+    }
+
+    // If the deleted provider was selected in the form, switch to the first remaining one
+    if (provider === type && next) selectProvider(next);
+
+    // Best-effort: remove the provider from the server-side session copy too
+    try {
+      const sid = localStorage.getItem('ai-session-id');
+      if (sid) {
+        const res = await fetch(`/api/ai/settings?sessionId=${encodeURIComponent(sid)}`);
+        const data = (await res.json()) as { providers?: Array<{ type: string }> };
+        if (Array.isArray(data.providers)) {
+          await fetch('/api/ai/settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              sessionId: sid,
+              providers: data.providers.filter((c) => c.type !== type),
+            }),
+          });
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const handleRestoreProvider = (type: string) => {
+    const next = hiddenProviders.filter((t) => t !== type);
+    setHiddenProviders(next);
+    saveHiddenProviders(next);
+  };
+
+  const toggleFreeOnly = () => {
+    setFreeOnly((prev) => {
+      const next = !prev;
+      localStorage.setItem('ai-openrouter-free-only', next ? 'true' : 'false');
+      return next;
+    });
+  };
+
+  const displayModels = (() => {
+    let list = availableModels;
+    if (provider === 'openrouter' && freeOnly) {
+      list = list.filter((m) => m.endsWith(':free'));
+    }
+    const q = modelQuery.trim().toLowerCase();
+    if (q) {
+      list = list.filter((m) => m.toLowerCase().includes(q));
+    }
+    if (provider === 'openrouter') {
+      return [...list].sort((a, b) => {
+        const fa = a.endsWith(':free') ? 0 : 1;
+        const fb = b.endsWith(':free') ? 0 : 1;
+        return fa - fb || a.localeCompare(b);
+      });
+    }
+    return list;
+  })();
 
   const handleSave = () => {
     saveSingleConfig({ provider, apiKey, baseUrl, model });
@@ -239,12 +370,20 @@ export function AIChatSettingsPanel({ onClose }: AIChatSettingsPanelProps) {
         // Step 5: Models
         if (data.models?.length > 0) {
           setAvailableModels(data.models);
+          const preferred =
+            provider === 'openrouter'
+              ? (data.models.find((m: string) => m.endsWith(':free')) ?? data.models[0])
+              : data.models[0];
           if (!model || !data.models.includes(model)) {
-            setModel(data.models[0]);
+            setModel(preferred);
           }
+          const freeCount =
+            provider === 'openrouter'
+              ? `${data.models.filter((m: string) => m.endsWith(':free')).length} free of `
+              : '';
           updateStep(4, {
             status: 'done',
-            detail: `Found ${data.models.length} model${data.models.length > 1 ? 's' : ''}: ${data.models.slice(0, 5).join(', ')}${data.models.length > 5 ? '...' : ''}`,
+            detail: `Found ${freeCount}${data.models.length} model${data.models.length > 1 ? 's' : ''}: ${data.models.slice(0, 5).join(', ')}${data.models.length > 5 ? '...' : ''}`,
           });
         } else {
           updateStep(4, { status: 'done', detail: 'No models returned by server' });
@@ -338,32 +477,89 @@ export function AIChatSettingsPanel({ onClose }: AIChatSettingsPanelProps) {
             </button>
             {providerOpen && (
               <>
-                <div className="fixed inset-0 z-10" onClick={() => setProviderOpen(false)} />
+                <div
+                  className="fixed inset-0 z-10"
+                  onClick={() => {
+                    setProviderOpen(false);
+                    setConfirmDelete(null);
+                  }}
+                />
                 <div className="border-border/20 bg-card absolute left-0 right-0 top-full z-20 mt-1 overflow-hidden rounded-lg border shadow-lg">
-                  {PROVIDER_ORDER.map((type) => {
+                  {visibleProviders.map((type) => {
                     const m = PROVIDER_META[type];
+                    const isConfirming = confirmDelete === type;
                     return (
-                      <button
+                      <div
                         key={type}
-                        onClick={() => {
-                          setProvider(type);
-                          setProviderOpen(false);
-                          setBaseUrl(m?.defaultBaseUrl ?? '');
-                          setModel(m?.defaultModel ?? '');
-                          setShowKey(KEYLESS_PROVIDERS.has(type));
-                          setAvailableModels([]);
-                          setTestResult('idle');
-                        }}
-                        className={cn(
-                          'hover:bg-muted flex w-full items-center gap-2 px-2.5 py-2 text-left text-xs transition-colors',
-                          type === provider ? 'bg-muted' : '',
-                        )}
+                        className={cn('flex items-center', type === provider ? 'bg-muted' : '')}
                       >
-                        <span className="bg-foreground/20 h-1.5 w-1.5 shrink-0 rounded-full" />
-                        <span className="flex-1 font-medium">{m?.label ?? type}</span>
-                      </button>
+                        {isConfirming ? (
+                          <>
+                            <span className="text-foreground/60 flex-1 px-2.5 py-2 text-[10px] leading-snug">
+                              Hapus <span className="font-medium">{m?.label ?? type}</span>? API key
+                              tersimpan juga akan dihapus.
+                            </span>
+                            <button
+                              onClick={() => void handleDeleteProvider(type)}
+                              className="text-danger hover:text-danger/80 shrink-0 px-2 py-2 text-[10px] font-medium"
+                            >
+                              Hapus
+                            </button>
+                            <button
+                              onClick={() => setConfirmDelete(null)}
+                              className="text-foreground/50 hover:text-foreground shrink-0 py-2 pr-2 text-[10px]"
+                            >
+                              Batal
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => {
+                                selectProvider(type);
+                              }}
+                              className="hover:bg-muted flex flex-1 items-center gap-2 px-2.5 py-2 text-left text-xs transition-colors"
+                            >
+                              <span
+                                className={cn(
+                                  'h-1.5 w-1.5 shrink-0 rounded-full',
+                                  type === provider && hasKey ? 'bg-green-500' : 'bg-foreground/20',
+                                )}
+                              />
+                              <span className="flex-1 font-medium">{m?.label ?? type}</span>
+                            </button>
+                            <button
+                              onClick={() => setConfirmDelete(type)}
+                              disabled={visibleProviders.length <= 1}
+                              className="text-foreground/30 hover:text-danger disabled:hover:text-foreground/30 mr-1.5 shrink-0 rounded p-1 transition-colors disabled:opacity-20"
+                              title={`Hapus ${m?.label ?? type}`}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+                          </>
+                        )}
+                      </div>
                     );
                   })}
+                  {restorableProviders.length > 0 && (
+                    <div className="border-border/10 border-t px-2.5 py-2">
+                      <p className="text-foreground/30 mb-1 text-[9px] font-semibold uppercase tracking-wider">
+                        Dihapus — klik untuk pulihkan
+                      </p>
+                      <div className="flex flex-wrap gap-1">
+                        {restorableProviders.map((type) => (
+                          <button
+                            key={type}
+                            onClick={() => handleRestoreProvider(type)}
+                            className="border-border/20 text-foreground/50 hover:border-primary/40 hover:text-foreground flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] transition-colors"
+                          >
+                            <RotateCcw className="h-2.5 w-2.5" />
+                            {PROVIDER_META[type]?.label ?? type}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </>
             )}
@@ -483,20 +679,57 @@ export function AIChatSettingsPanel({ onClose }: AIChatSettingsPanelProps) {
                 <label className="text-foreground/50 mb-1.5 block text-[10px] font-semibold uppercase tracking-wider">
                   Model
                 </label>
-                <div className="relative">
-                  <select
-                    value={model}
-                    onChange={(e) => setModel(e.target.value)}
-                    className="border-border/20 bg-muted text-foreground focus:border-primary/50 w-full appearance-none rounded-lg border px-2.5 py-2 pr-7 text-xs outline-none transition-colors"
-                  >
-                    {availableModels.map((m) => (
-                      <option key={m} value={m}>
-                        {m}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="text-foreground/40 pointer-events-none absolute right-2 top-1/2 h-3 w-3 -translate-y-1/2" />
-                </div>
+                {provider === 'openrouter' && (
+                  <div className="mb-1.5 space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-foreground/40 text-[10px]">Hanya model gratis</span>
+                      <button
+                        onClick={toggleFreeOnly}
+                        className={cn(
+                          'relative h-4 w-7 shrink-0 rounded-full transition-colors',
+                          freeOnly ? 'bg-primary' : 'bg-muted',
+                        )}
+                        title={
+                          freeOnly ? 'Menampilkan semua model' : 'Menampilkan model gratis saja'
+                        }
+                      >
+                        <span
+                          className={cn(
+                            'bg-background absolute left-0.5 top-0.5 h-3 w-3 rounded-full shadow-sm transition-transform',
+                            freeOnly && 'translate-x-3',
+                          )}
+                        />
+                      </button>
+                    </div>
+                    <input
+                      type="text"
+                      value={modelQuery}
+                      onChange={(e) => setModelQuery(e.target.value)}
+                      placeholder="Cari model..."
+                      className="border-border/20 bg-muted text-foreground placeholder:text-foreground/30 focus:border-primary/50 w-full rounded-lg border px-2.5 py-1.5 text-xs outline-none transition-colors"
+                    />
+                  </div>
+                )}
+                {displayModels.length > 0 ? (
+                  <div className="relative">
+                    <select
+                      value={displayModels.includes(model) ? model : displayModels[0]}
+                      onChange={(e) => setModel(e.target.value)}
+                      className="border-border/20 bg-muted text-foreground focus:border-primary/50 w-full appearance-none rounded-lg border px-2.5 py-2 pr-7 text-xs outline-none transition-colors"
+                    >
+                      {displayModels.map((m) => (
+                        <option key={m} value={m}>
+                          {m}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="text-foreground/40 pointer-events-none absolute right-2 top-1/2 h-3 w-3 -translate-y-1/2" />
+                  </div>
+                ) : (
+                  <p className="text-foreground/30 text-[10px]">
+                    Tidak ada model yang cocok dengan filter.
+                  </p>
+                )}
               </div>
             )}
           </>

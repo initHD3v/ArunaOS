@@ -86,7 +86,12 @@ export function extractToolCalls(
 export function buildRequestBody(
   provider: AIProviderType,
   model: string,
-  messages: Array<{ role: string; content: string }>,
+  messages: Array<{
+    role: string;
+    content: string;
+    toolCallId?: string;
+    toolName?: string;
+  }>,
   systemPrompt?: string,
   tools?: Array<Record<string, unknown>>,
   stream?: boolean,
@@ -117,7 +122,7 @@ export function buildRequestBody(
       if (systemPrompt && !msgs.some((m) => m.role === 'system')) {
         msgs.unshift({ role: 'system', content: systemPrompt });
       }
-      body.messages = msgs;
+      body.messages = normalizeOpenAIMessages(msgs);
       if (tools && tools.length > 0 && provider !== 'ollama') {
         body.tools = tools;
       }
@@ -129,6 +134,62 @@ export function buildRequestBody(
   }
 
   return body;
+}
+
+// Strict OpenAI-compatible backends (e.g. Nemotron behind OpenRouter) reject
+// `role:"tool"` messages without `tool_call_id`, and require that they respond
+// to an assistant message carrying matching structured `tool_calls`. ArunaOS
+// stores tool calls as plain JSON text (`{"name","args"}`), so reconstruct the
+// wire format here.
+function normalizeOpenAIMessages(
+  messages: Array<{ role: string; content: string; toolCallId?: string; toolName?: string }>,
+): Array<Record<string, unknown>> {
+  const out: Array<Record<string, unknown>> = [];
+  for (let i = 0; i < messages.length; i++) {
+    const m = messages[i]!;
+    const next = messages[i + 1];
+
+    if (m.role === 'tool') {
+      out.push({
+        role: 'tool',
+        content: m.content,
+        tool_call_id: m.toolCallId ?? m.toolName ?? `call_${i}`,
+      });
+      continue;
+    }
+
+    // Convert an assistant message whose content is our internal tool-call
+    // JSON into a proper structured tool_calls assistant message.
+    if (
+      m.role === 'assistant' &&
+      typeof m.content === 'string' &&
+      next?.role === 'tool' &&
+      m.content.trim().startsWith('{')
+    ) {
+      try {
+        const parsed = JSON.parse(m.content) as { name?: unknown; args?: unknown };
+        if (typeof parsed.name === 'string') {
+          out.push({
+            role: 'assistant',
+            content: null,
+            tool_calls: [
+              {
+                id: parsed.name,
+                type: 'function',
+                function: { name: parsed.name, arguments: JSON.stringify(parsed.args ?? {}) },
+              },
+            ],
+          });
+          continue;
+        }
+      } catch {
+        /* not a tool-call JSON — keep as-is */
+      }
+    }
+
+    out.push({ role: m.role, content: m.content });
+  }
+  return out;
 }
 
 export function detectProviders(): Array<{ type: AIProviderType; config: AIProviderConfig }> {

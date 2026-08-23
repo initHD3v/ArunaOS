@@ -103,6 +103,188 @@ describe('OpenAIProvider', () => {
       const headers = mockFetch.mock.calls[0]![1]!.headers;
       expect(headers['Authorization']).toBe('Bearer test-key');
     });
+
+    it('should serialize tool history with tool_call_id and structured assistant tool_calls', async () => {
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ choices: [{ message: { content: 'ok' } }] }),
+      });
+      vi.stubGlobal('fetch', mockFetch);
+
+      await provider.complete({
+        messages: [
+          { role: 'user', content: 'What time is it?' },
+          { role: 'assistant', content: '{"name":"get_time","args":{}}' },
+          {
+            role: 'tool',
+            content: '{"time":"10:00"}',
+            toolName: 'get_time',
+            toolCallId: 'get_time',
+          },
+        ],
+      });
+
+      const body = JSON.parse(mockFetch.mock.calls[0]![1]!.body as string);
+      const [assistantMsg, toolMsg] = body.messages.slice(-2);
+
+      expect(assistantMsg.role).toBe('assistant');
+      expect(assistantMsg.content).toBeNull();
+      expect(assistantMsg.tool_calls).toEqual([
+        {
+          id: 'get_time',
+          type: 'function',
+          function: { name: 'get_time', arguments: '{}' },
+        },
+      ]);
+
+      expect(toolMsg.role).toBe('tool');
+      expect(toolMsg.tool_call_id).toBe('get_time');
+      vi.unstubAllGlobals();
+    });
+  });
+
+  describe('rate limit retry', () => {
+    it('should retry on 429 honoring Retry-After and succeed', async () => {
+      const rateLimited = () => ({
+        ok: false,
+        status: 429,
+        text: async () => 'rate limited',
+        headers: { get: (k: string) => (k === 'retry-after' ? '0' : null) },
+        body: { cancel: vi.fn().mockResolvedValue(undefined) },
+      });
+      const mockFetch = vi
+        .fn()
+        .mockImplementationOnce(async () => rateLimited())
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ choices: [{ message: { content: 'after 429' } }] }),
+        });
+      vi.stubGlobal('fetch', mockFetch);
+
+      const result = await provider.complete({
+        messages: [{ role: 'user', content: 'Hi' }],
+      });
+
+      expect(result.message.content).toBe('after 429');
+      expect(mockFetch.mock.calls.length).toBe(2);
+      vi.unstubAllGlobals();
+    });
+
+    it('should give up after max retries on persistent 429', async () => {
+      const p = new OpenAIProvider({
+        apiKey: 'test-key',
+        _retryDelayMs: 1,
+        _maxRetries: 2,
+      });
+      const makeResponse = () => ({
+        ok: false,
+        status: 429,
+        text: async () => 'rate limited',
+        headers: { get: (k: string) => (k === 'retry-after' ? '0' : null) },
+        body: { cancel: vi.fn().mockResolvedValue(undefined) },
+      });
+      const mockFetch = vi.fn().mockImplementation(async () => makeResponse());
+      vi.stubGlobal('fetch', mockFetch);
+
+      await expect(p.complete({ messages: [{ role: 'user', content: 'Hi' }] })).rejects.toThrow(
+        'OpenAI API error (429)',
+      );
+      expect(mockFetch.mock.calls.length).toBe(3); // initial + 2 retries
+      vi.unstubAllGlobals();
+    });
+
+    it('should yield error chunk after exhausting 429 retries while streaming', async () => {
+      const p = new OpenAIProvider({
+        apiKey: 'test-key',
+        _retryDelayMs: 1,
+        _maxRetries: 1,
+      });
+      const makeResponse = () => ({
+        ok: false,
+        status: 429,
+        text: async () => 'rate limited',
+        headers: { get: (k: string) => (k === 'retry-after' ? '0' : null) },
+        body: { cancel: vi.fn().mockResolvedValue(undefined) },
+      });
+      const mockFetch = vi.fn().mockImplementation(async () => makeResponse());
+      vi.stubGlobal('fetch', mockFetch);
+
+      const errors: string[] = [];
+      let sawDone = false;
+      for await (const chunk of p.completeStream({
+        messages: [{ role: 'user', content: 'Hi' }],
+      })) {
+        if (chunk.type === 'error') errors.push(chunk.content);
+        if (chunk.type === 'done') sawDone = true;
+      }
+
+      expect(errors[0]).toContain('OpenAI API error (429)');
+      expect(sawDone).toBe(false);
+      expect(mockFetch.mock.calls.length).toBe(2); // initial + 1 retry
+      vi.unstubAllGlobals();
+    });
+
+    it('should fall back to the next model on persistent 429 (complete)', async () => {
+      const p = new OpenAIProvider({
+        apiKey: 'test-key',
+        model: 'model-a',
+        _retryDelayMs: 1,
+        _maxRetries: 0,
+        _fallbackModels: ['model-b', 'model-c'],
+      });
+      const rateLimited = () => ({
+        ok: false,
+        status: 429,
+        text: async () => 'rate limited',
+        headers: { get: () => null },
+        body: { cancel: vi.fn().mockResolvedValue(undefined) },
+      });
+      const mockFetch = vi.fn(async (_url: string, init?: { body?: string }) => {
+        const bodyModel = JSON.parse(init?.body ?? '{}').model as string;
+        if (bodyModel === 'model-a') return rateLimited();
+        return {
+          ok: true,
+          json: async () => ({ choices: [{ message: { content: `from ${bodyModel}` } }] }),
+        };
+      });
+      vi.stubGlobal('fetch', mockFetch);
+
+      const result = await p.complete({ messages: [{ role: 'user', content: 'Hi' }] });
+
+      expect(result.message.content).toBe('from model-b');
+      vi.unstubAllGlobals();
+    });
+
+    it('should yield error only after all fallback models are exhausted while streaming', async () => {
+      const p = new OpenAIProvider({
+        apiKey: 'test-key',
+        model: 'model-a',
+        _retryDelayMs: 1,
+        _maxRetries: 0,
+        _fallbackModels: ['model-b'],
+      });
+      const rateLimited = () => ({
+        ok: false,
+        status: 429,
+        text: async () => 'rate limited',
+        headers: { get: () => null },
+        body: { cancel: vi.fn().mockResolvedValue(undefined) },
+      });
+      const mockFetch = vi.fn(async () => rateLimited());
+      vi.stubGlobal('fetch', mockFetch);
+
+      const errors: string[] = [];
+      for await (const chunk of p.completeStream({
+        messages: [{ role: 'user', content: 'Hi' }],
+      })) {
+        if (chunk.type === 'error') errors.push(chunk.content);
+      }
+
+      expect(errors.length).toBe(1);
+      expect(errors[0]).toContain('(429)');
+      expect(mockFetch.mock.calls.length).toBe(2); // model-a + model-b, no retry
+      vi.unstubAllGlobals();
+    });
   });
 
   describe('completeStream', () => {
