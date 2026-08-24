@@ -636,14 +636,38 @@ export function createModuleGeneratorTool(): AITool {
       },
     ],
     async execute(params): Promise<AIToolResult> {
-      return {
-        success: true,
-        data: {
-          action: 'generate_module',
-          name: params.name,
-          description: params.description,
-        },
-      };
+      const name = String(params.name ?? '').trim();
+      const description = String(params.description ?? '').trim();
+      if (!name || !description) {
+        return { success: false, error: 'name and description are required' };
+      }
+      const capabilities = Array.isArray(params.capabilities)
+        ? (params.capabilities as unknown[]).map(String)
+        : [];
+      try {
+        // Defer import to avoid a circular dependency — ai-generator imports
+        // AIService from the same package root.
+        const { AIModuleGenerator } = await import('../ai-generator');
+        const generator = new AIModuleGenerator();
+        const result = await generator.generate({ name, description, capabilities });
+        return {
+          success: true,
+          data: {
+            action: 'generate_module',
+            id: result.id,
+            manifest: result.manifest,
+            files: Object.keys(result.files ?? {}),
+            code: result.code,
+            codeLength: typeof result.code === 'string' ? result.code.length : 0,
+            message: `Modul '${result.id}' berhasil dibuat dan siap diinstall.`,
+          },
+        };
+      } catch (err: unknown) {
+        return {
+          success: false,
+          error: err instanceof Error ? err.message : 'Module generation failed',
+        };
+      }
     },
   };
 }

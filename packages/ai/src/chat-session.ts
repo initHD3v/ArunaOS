@@ -143,11 +143,21 @@ export class ChatSession {
     }
   }
 
-  setProvider(provider: AIProviderType): void {
+  setProvider(
+    provider: AIProviderType,
+    providerConfig?: { type: AIProviderType } & AIProviderConfig,
+  ): void {
     this.provider = provider;
-    const prov = this.aiService.getAvailableProviders().find((p) => p.type === provider);
-    if (prov) {
-      this.model = prov.model;
+    if (providerConfig) {
+      this.providerConfig = providerConfig;
+    }
+    if (this.providerConfig?.model) {
+      this.model = this.providerConfig.model;
+    } else {
+      const prov = this.aiService.getAvailableProviders().find((p) => p.type === this.provider);
+      if (prov) {
+        this.model = prov.model;
+      }
     }
   }
 

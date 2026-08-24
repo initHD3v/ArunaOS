@@ -14,6 +14,47 @@ const aiService = new AIService({
 
 const fallback = new ChatFallback(getDefaultTools());
 
+// Sessions persist across requests so conversation history is kept. The
+// client sends back the sessionId it received from the first reply.
+const sessionStore = new Map<string, ChatSession>();
+const MAX_SESSIONS = 100;
+
+type ProviderConfigInput = { type: AIProviderType } & AIProviderConfig;
+
+function getOrCreateSession(
+  sid: string,
+  providerType: AIProviderType | undefined,
+  providerConfig: ProviderConfigInput | undefined,
+  systemPrompt: string,
+): ChatSession {
+  const existing = sessionStore.get(sid);
+  if (existing) {
+    // Provider/model may have changed since the last message (user switched
+    // it in settings) — update in place without dropping history.
+    if (providerType) {
+      existing.setProvider(providerType, providerConfig);
+    }
+    return existing;
+  }
+
+  const session = new ChatSession(
+    {
+      id: sid,
+      systemPrompt,
+      provider: providerType,
+      providerConfig: providerConfig?.type ? providerConfig : undefined,
+    },
+    aiService,
+  );
+
+  if (sessionStore.size >= MAX_SESSIONS) {
+    const oldest = sessionStore.keys().next().value;
+    if (oldest) sessionStore.delete(oldest);
+  }
+  sessionStore.set(sid, session);
+  return session;
+}
+
 function hasConfiguredProvider(
   providerConfig?: { type: AIProviderType } & AIProviderConfig,
   requestedProvider?: AIProviderType,
@@ -103,22 +144,19 @@ export async function POST(request: NextRequest) {
     const providerType = (provider as AIProviderType) ?? providerConfig?.type ?? undefined;
 
     const sid = sessionId ?? `session-${Date.now()}-${getClientAddress(request)}`;
-    const session = new ChatSession(
-      {
-        id: sid,
-        systemPrompt: buildSystemPrompt(
-          'You are the ArunaOS AI — the brain, heart, and soul of this operating system. ' +
-            'You help users with tasks, answer questions, control the system, and generate modules. ' +
-            'You are running in a web-based operating system. You can execute system tools. ' +
-            'Be concise, helpful, and knowledgeable.',
-          lat,
-          lon,
-          city,
-        ),
-        provider: providerType,
-        providerConfig: providerConfig?.type ? providerConfig : undefined,
-      },
-      aiService,
+    const session = getOrCreateSession(
+      sid,
+      providerType,
+      providerConfig,
+      buildSystemPrompt(
+        'You are the ArunaOS AI — the brain, heart, and soul of this operating system. ' +
+          'You help users with tasks, answer questions, control the system, and generate modules. ' +
+          'You are running in a web-based operating system. You can execute system tools. ' +
+          'Be concise, helpful, and knowledgeable.',
+        lat,
+        lon,
+        city,
+      ),
     );
 
     try {
@@ -136,7 +174,11 @@ export async function POST(request: NextRequest) {
           headers: { 'Content-Type': 'application/json' },
         },
       );
-    } catch {
+    } catch (err: unknown) {
+      console.error(
+        '[ai/chat] completion failed, using fallback:',
+        err instanceof Error ? err.message : err,
+      );
       const reply = await fallback.respond(message);
       return new Response(
         JSON.stringify({
@@ -220,19 +262,16 @@ export async function GET(request: NextRequest) {
   const stream = new ReadableStream({
     async start(controller) {
       try {
-        const session = new ChatSession(
-          {
-            id: sid,
-            systemPrompt: buildSystemPrompt(
-              'You are the ArunaOS AI — the brain, heart, and soul of this operating system.',
-              lat,
-              lon,
-              city,
-            ),
-            provider: providerType,
-            providerConfig: providerConfig?.type ? providerConfig : undefined,
-          },
-          aiService,
+        const session = getOrCreateSession(
+          sid,
+          providerType,
+          providerConfig,
+          buildSystemPrompt(
+            'You are the ArunaOS AI — the brain, heart, and soul of this operating system.',
+            lat,
+            lon,
+            city,
+          ),
         );
 
         const generator = session.sendMessageStream(message, {
@@ -246,7 +285,16 @@ export async function GET(request: NextRequest) {
 
         controller.enqueue(encoder.encode(`data: {"type":"session","sessionId":"${sid}"}\n\n`));
         controller.enqueue(encoder.encode('data: [DONE]\n\n'));
-      } catch {
+      } catch (err: unknown) {
+        // Surface why the provider stream failed instead of silently
+        // degrading to the keyword fallback.
+        const errMsg = err instanceof Error ? err.message : String(err);
+        console.error('[ai/chat] stream failed, using fallback:', errMsg);
+        controller.enqueue(
+          encoder.encode(
+            `data: ${JSON.stringify({ type: 'error', content: `Provider error: ${errMsg}` })}\n\n`,
+          ),
+        );
         const fallbackGen = fallback.respondStream(message);
         for await (const chunk of fallbackGen) {
           const data = JSON.stringify(chunk);

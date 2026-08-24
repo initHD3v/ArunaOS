@@ -28,6 +28,7 @@ import { ModalService } from '@/services/modal/modal-service';
 import { ShortcutService } from '@/services/shortcut/shortcut-service';
 import { SearchService } from '@/services/search/search-service';
 import { WindowAdapter } from '@/services/window-adapter';
+import { useGeneratedModulesStore } from '@/stores/generated-modules.store';
 import { WorkspaceService } from '@/services/workspace/workspace-service';
 import { LifecycleService } from '@/services/lifecycle/lifecycle-service';
 import { ModuleWindowService } from '@/services/module-window';
@@ -65,6 +66,8 @@ export function ServiceProvider({ children }: { children: ReactNode }) {
     (async () => {
       try {
         const container = new ServiceContainer();
+        // Expose for non-React code paths (e.g. AI chat tool handlers).
+        (window as unknown as { __arunaos_container?: unknown }).__arunaos_container = container;
         const storageAdapter = new LocalStorageAdapter();
         const storage = new StorageService(storageAdapter, 1);
         await storage.init();
@@ -287,6 +290,52 @@ export function ServiceProvider({ children }: { children: ReactNode }) {
             permissions: [...manifest.permissions],
           });
         }
+
+        // Register AI-generated modules persisted from previous sessions so
+        // they survive reloads and appear in Applications / Installer.
+        const registerGenerated = (gen: {
+          id: string;
+          name: string;
+          version: string;
+          description: string;
+          icon?: string;
+          entry?: string;
+        }) => {
+          moduleRegistry.register({
+            id: gen.id,
+            name: gen.name,
+            version: gen.version || '0.1.0',
+            description: gen.description,
+            icon: gen.icon || 'sparkles',
+            entry: gen.entry || './src/index.ts',
+            type: 'external',
+            permissions: [],
+          });
+        };
+
+        for (const gen of useGeneratedModulesStore.getState().modules) {
+          try {
+            registerGenerated(gen);
+            if (gen.code) externalModuleLoader.seedCache(gen.id, gen.code);
+          } catch {
+            /* already registered — skip */
+          }
+        }
+
+        // Live-registration when the AI generates a new module mid-session.
+        const onModuleGenerated = () => {
+          for (const gen of useGeneratedModulesStore.getState().modules) {
+            try {
+              registerGenerated(gen);
+            } catch {
+              /* already registered */
+            }
+          }
+        };
+        window.addEventListener('arunaos:module-generated', onModuleGenerated);
+        cleanups.push(() =>
+          window.removeEventListener('arunaos:module-generated', onModuleGenerated),
+        );
 
         // Build system API for module sandbox
         const systemAPI = {

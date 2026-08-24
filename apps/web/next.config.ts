@@ -2,6 +2,9 @@ import type { NextConfig } from 'next';
 import { join } from 'path';
 
 const nextConfig: NextConfig = {
+  // Pin the workspace root — otherwise Next.js infers it from lockfiles and
+  // can pick up a stray package-lock.json in the home directory.
+  outputFileTracingRoot: join(__dirname, '../..'),
   reactStrictMode: true,
   transpilePackages: [
     '@arunaos/ui',

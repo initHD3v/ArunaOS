@@ -42,7 +42,12 @@ function inferPermissions(description: string, capabilities?: string[]): string[
     perms.add('clipboard:read');
     perms.add('clipboard:write');
   }
-  if (text.includes('network') || text.includes('api') || text.includes('fetch') || text.includes('http')) {
+  if (
+    text.includes('network') ||
+    text.includes('api') ||
+    text.includes('fetch') ||
+    text.includes('http')
+  ) {
     perms.add('network');
   }
   if (text.includes('location') || text.includes('map') || text.includes('geo')) {
@@ -56,10 +61,28 @@ function inferCategory(description: string, capabilities?: string[]): string {
   const text = `${description} ${(capabilities ?? []).join(' ')}`.toLowerCase();
 
   if (text.includes('game') || text.includes('play')) return 'games';
-  if (text.includes('edit') || text.includes('media') || text.includes('video') || text.includes('image')) return 'media';
-  if (text.includes('dev') || text.includes('code') || text.includes('debug') || text.includes('terminal')) return 'development';
+  if (
+    text.includes('edit') ||
+    text.includes('media') ||
+    text.includes('video') ||
+    text.includes('image')
+  )
+    return 'media';
+  if (
+    text.includes('dev') ||
+    text.includes('code') ||
+    text.includes('debug') ||
+    text.includes('terminal')
+  )
+    return 'development';
   if (text.includes('tool') || text.includes('util') || text.includes('convert')) return 'tools';
-  if (text.includes('product') || text.includes('task') || text.includes('organize') || text.includes('calendar')) return 'productivity';
+  if (
+    text.includes('product') ||
+    text.includes('task') ||
+    text.includes('organize') ||
+    text.includes('calendar')
+  )
+    return 'productivity';
 
   return 'utilities';
 }
@@ -68,6 +91,104 @@ function generateCode(name: string, description: string, capabilities?: string[]
   const id = sanitizeId(name);
   const capList = capabilities?.map((c) => `  // Handle capability: ${c}`).join('\n') ?? '';
 
+  // Calculator modules get a real, runnable UI + arithmetic logic. The code
+  // must stay plain JavaScript (no imports) — it is executed inside the
+  // SandboxV2 iframe via a data: URL module import.
+  const text = `${description} ${(capabilities ?? []).join(' ')}`.toLowerCase();
+  if (text.includes('kalkulator') || text.includes('calculator')) {
+    return `
+const state = { display: '0', prev: null, op: null, fresh: true };
+
+function compute(a, b, op) {
+  switch (op) {
+    case '+': return a + b;
+    case '\u2212': return a - b;
+    case '\u00d7': return a * b;
+    case '\u00f7': return b === 0 ? NaN : a / b;
+    default: return b;
+  }
+}
+
+export function execute(input) {
+  const a = Number(input && input.a);
+  const b = Number(input && input.b);
+  const op = input && (input.operation || input.op);
+  if (!op || isNaN(a) || isNaN(b)) {
+    return { status: 'error', message: 'Need { a: number, b: number, operation: "add"|"subtract"|"multiply"|"divide" }' };
+  }
+  const map = { add: '+', subtract: '\\u2212', multiply: '\\u00d7', divide: '\\u00f7' };
+  const result = compute(a, b, map[op]);
+  return { status: 'ok', result: result, expression: a + ' ' + map[op] + ' ' + b + ' = ' + result };
+}
+
+export const api = {
+  metadata: { name: '${name}', description: '${description}' },
+
+  mount() {
+    const root = document.getElementById('root');
+    if (!root) return;
+    root.innerHTML = '';
+    root.style.cssText = 'display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;font-family:system-ui;background:#111;color:#fff;';
+
+    const screen = document.createElement('div');
+    screen.id = 'calc-screen';
+    screen.style.cssText = 'width:240px;padding:14px;margin-bottom:10px;background:#1e1e1e;border-radius:10px;font-size:26px;text-align:right;min-height:32px;';
+    screen.textContent = state.display;
+
+    const pad = document.createElement('div');
+    pad.style.cssText = 'display:grid;grid-template-columns:repeat(4,60px);gap:6px;';
+
+    const buttons = ['7','8','9','\\u00f7','4','5','6','\\u00d7','1','2','3','\\u2212','0','C','=','+'];
+    for (const label of buttons) {
+      const btn = document.createElement('button');
+      btn.textContent = label;
+      btn.dataset.key = label;
+      btn.style.cssText = 'height:52px;border:none;border-radius:10px;font-size:20px;background:#2c2c2c;color:#fff;cursor:pointer;';
+      if (label === '=') btn.style.background = '#2563eb';
+      if (label === 'C') btn.style.background = '#7f1d1d';
+      pad.appendChild(btn);
+    }
+
+    pad.addEventListener('click', function (ev) {
+      const key = ev.target && ev.target.dataset ? ev.target.dataset.key : null;
+      if (!key) return;
+      if (key === 'C') {
+        state.display = '0'; state.prev = null; state.op = null; state.fresh = true;
+      } else if ('\\u00f7\\u00d7\\u2212+'.indexOf(key) !== -1) {
+        state.prev = parseFloat(state.display); state.op = key; state.fresh = true;
+      } else if (key === '=') {
+        if (state.op !== null && state.prev !== null) {
+          const b = parseFloat(state.display);
+          const r = compute(state.prev, b, state.op);
+          state.display = String(r); state.prev = null; state.op = null; state.fresh = true;
+        }
+      } else {
+        state.display = state.fresh || state.display === '0' ? key : state.display + key;
+        state.fresh = false;
+      }
+      screen.textContent = state.display;
+    });
+
+    root.appendChild(screen);
+    root.appendChild(pad);
+    return '${name} ready';
+  },
+
+  unmount() {
+    const root = document.getElementById('root');
+    if (root) root.innerHTML = '';
+  },
+
+  async execute(input) {
+${capList}
+    return execute(input);
+  },
+};
+
+export default api;
+`.trimStart();
+  }
+
   return `
 export const api = {
   metadata: {
@@ -75,17 +196,17 @@ export const api = {
     description: '${description}',
   },
 
-  mount(params?: Record<string, unknown>): string {
+  mount(params) {
     console.log('[${id}] mounted with params:', params);
     return '${name} loaded successfully';
   },
 
-  unmount(): void {
+  unmount() {
     console.log('[${id}] unmounted');
   },
 
   // ── API Methods ──
-  async execute(input?: Record<string, unknown>): Promise<Record<string, unknown>> {
+  async execute(input) {
 ${capList}
     return {
       status: 'ok',

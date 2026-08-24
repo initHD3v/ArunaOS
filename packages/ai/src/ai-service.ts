@@ -195,6 +195,27 @@ export class AIService {
       );
     }
 
+    // Teach every model HOW to invoke tools — without this, small/local models
+    // hallucinate tool usage instead of emitting a parseable call.
+    const toolList = this.tools.getAll();
+    if (toolList.length > 0) {
+      const lines = toolList.map((t) => {
+        const params = t.parameters
+          .map((p) => `${p.name}${p.required ? '' : '?'}:${p.type}`)
+          .join(', ');
+        return `- ${t.name}(${params}): ${t.description}`;
+      });
+      parts.push(
+        `TOOL CALLING:\n` +
+          `You can execute system tools. To run one, reply with ONLY this JSON ` +
+          `(no markdown fences, no extra text):\n` +
+          `{"name":"<tool_name>","args":{<parameters>}}\n` +
+          `Available tools:\n${lines.join('\n')}\n` +
+          `After the system executes the tool, you will receive its result and must ` +
+          `summarize it for the user in Indonesian. If no tool is needed, just answer normally.`,
+      );
+    }
+
     return parts.join('\n\n');
   }
 
@@ -242,11 +263,34 @@ export class AIService {
       }
     }
 
+    // DeepSeek native tool-call format:
+    // <｜tool▁call▁begin｜>function<｜tool▁sep｜>TOOL_NAME\n```json\n{args}\n```<｜tool▁call▁end｜>
+    const seenToolNames = new Set<string>();
+    const deepseekRegex =
+      /<｜tool▁sep｜>\s*([a-zA-Z_][a-zA-Z0-9_]*)[\s\S]*?(\{(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*\})/g;
+    let dsMatch: RegExpExecArray | null;
+    while ((dsMatch = deepseekRegex.exec(content)) !== null) {
+      const rawName = dsMatch[1];
+      const rawArgs = dsMatch[2] ?? '';
+      if (!rawName || !rawArgs) continue;
+      let argsObj: Record<string, unknown>;
+      try {
+        argsObj = JSON.parse(rawArgs) as Record<string, unknown>;
+      } catch {
+        continue;
+      }
+      if (typeof argsObj !== 'object' || argsObj === null) continue;
+      if (seenToolNames.has(rawName)) continue;
+      seenToolNames.add(rawName);
+      found = true;
+      await this.executeSingleTool({ name: rawName, args: argsObj }, toolResults);
+      if (rawName === 'get_system_context') contextUpdated = true;
+    }
+
     // Mixed content: scan for {"name":"...","args":{...}} patterns via regex
     const toolCallRegex =
       /\{"name"\s*:\s*"([^"]+)"\s*,\s*"args"\s*:\s*(\{(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*\})\s*\}/g;
     let match: RegExpExecArray | null;
-    const seenToolNames = new Set<string>();
 
     while ((match = toolCallRegex.exec(content)) !== null) {
       const rawName = match[1];
@@ -274,10 +318,18 @@ export class AIService {
     // Strip all JSON tool call patterns from the content
     if (found) {
       cleanedContent = content
+        .replace(/<｜tool▁calls▁begin｜>[\s\S]*?<｜tool▁calls▁end｜>/g, '')
         .replace(toolCallRegex, '')
         .replace(/\n{3,}/g, '\n\n')
         .trim();
     }
+
+    // DeepSeek control tokens must never leak into chat even when no valid
+    // tool call was extracted from them.
+    cleanedContent = cleanedContent
+      .replace(/<｜tool▁[a-zA-Z▁]*｜>/g, '')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
 
     // If nothing usable was produced and the whole reply is just JSON (e.g. a
     // malformed tool-call like `{"query":"..."}` leaked as text), drop it so raw

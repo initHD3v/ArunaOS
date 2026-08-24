@@ -8,6 +8,11 @@ import { AIChatSettingsPanel } from './components/ai-chat-settings-panel';
 import { ModelDownloadProgress } from './components/model-download-progress';
 import { useLocationStore } from '@/stores/location.store';
 import { useAIHealth } from './use-ai-health';
+import { StreamSanitizer, sanitizeAIText } from './sanitize-stream';
+import { useWindowStore } from '@/features/window-manager/stores/window.store';
+import { createWindowConfig } from '@/lib/window-utils';
+import { MODULE_APP_ID_MAP } from '@/services/module-window';
+import { useGeneratedModulesStore } from '@/stores/generated-modules.store';
 import {
   PanelLeftClose,
   PanelLeft,
@@ -423,6 +428,9 @@ export function AIChat() {
     async (content: string, opts?: { sessionId?: string }) => {
       const targetId = opts?.sessionId ?? activeSessionId;
       if (!targetId) return;
+      // Guard pengiriman ganda — Enter terpicu dua kali / spam klik tidak
+      // boleh memulai stream kedua yang saling menimpa.
+      if (abortRef.current) return;
 
       let msgIdCounter = 0;
       streamMsgIdRef.current = null;
@@ -467,7 +475,7 @@ export function AIChat() {
 
           const replyMsg: ChatMessage = {
             role: 'assistant',
-            content: result.message.content,
+            content: sanitizeAIText(result.message.content),
             id: `assistant-${Date.now()}`,
             createdAt: Date.now(),
           };
@@ -530,6 +538,9 @@ export function AIChat() {
         const decoder = new TextDecoder();
         let buffer = '';
         let fullReply = '';
+        // Strip leaked model artifacts (<think>…, <tool_call>…) that can be
+        // split across SSE chunk boundaries.
+        const sanitizer = new StreamSanitizer();
         // P1: commit streamed tokens to React state at most every ~80ms —
         // a full session-array rebuild per SSE token caused jank and
         // synchronous localStorage writes on the hot path.
@@ -564,8 +575,23 @@ export function AIChat() {
         };
 
         while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
+          // Watchdog: jika tidak ada data dalam 90 detik (mis. upstream
+          // OpenRouter hang), finalize jawaban parsial alih-alih menggantung
+          // selamanya dan mengunci input.
+          const readTimeout = new Promise<{ done: true; value?: undefined; timedOut: true }>(
+            (res) => setTimeout(() => res({ done: true, timedOut: true }), 90000),
+          );
+          const { done, value, timedOut } = (await Promise.race([reader.read(), readTimeout])) as {
+            done: boolean;
+            value?: Uint8Array;
+            timedOut?: true;
+          };
+          if (done) {
+            if (timedOut) {
+              console.warn('[sse] read timeout — finalizing partial reply');
+            }
+            break;
+          }
 
           buffer += decoder.decode(value, { stream: true });
           const lines = buffer.split('\n');
@@ -603,12 +629,12 @@ export function AIChat() {
               }
 
               if (parsed.type === 'text' && parsed.content) {
-                fullReply += parsed.content;
+                fullReply += sanitizer.push(parsed.content);
                 commitStream();
               }
 
               if (parsed.type === 'status') {
-                const statusId = `status-${Date.now()}`;
+                const statusId = `status-${Date.now()}-${++msgIdCounter}`;
                 const statusContent =
                   parsed.status === 'thinking'
                     ? 'Thinking...'
@@ -653,6 +679,93 @@ export function AIChat() {
                   messages: [...s.messages, toolMsg],
                   updatedAt: Date.now(),
                 }));
+
+                // open_app dieksekusi di server (hanya cek registry) —
+                // window yang sebenarnya harus dibuka di sisi klien.
+                if (parsed.toolName === 'open_app') {
+                  try {
+                    const result = JSON.parse(parsed.content) as {
+                      success?: boolean;
+                      data?: { appId?: string };
+                    };
+                    const fullAppId = result.data?.appId;
+                    if (result.success && fullAppId) {
+                      const shortId =
+                        MODULE_APP_ID_MAP[fullAppId] ?? fullAppId.replace(/^arunaos\./, '');
+                      const { width, height, x, y } = createWindowConfig(800, 560);
+                      useWindowStore.getState().openWindow({
+                        id: `window-${shortId}-${Date.now()}`,
+                        title: shortId.charAt(0).toUpperCase() + shortId.slice(1),
+                        icon: shortId,
+                        appId: shortId,
+                        position: { x, y },
+                        size: { width, height },
+                        zIndex: 1,
+                        state: 'active',
+                      });
+                    }
+                  } catch {
+                    // bukan payload open_app yang valid — abaikan
+                  }
+                }
+
+                // generate_module — persist modul hasil AI + daftarkan ke
+                // registry agar muncul di Applications / Module Installer.
+                if (parsed.toolName === 'generate_module') {
+                  try {
+                    const result = JSON.parse(parsed.content) as {
+                      success?: boolean;
+                      data?: {
+                        id?: string;
+                        manifest?: {
+                          name?: string;
+                          version?: string;
+                          description?: string;
+                          icon?: string;
+                          entry?: string;
+                        };
+                        code?: string;
+                        files?: string[];
+                      };
+                    };
+                    const genId = result.success ? result.data?.id : undefined;
+                    if (genId && result.data?.manifest) {
+                      const d = result.data;
+                      const m = result.data.manifest;
+                      useGeneratedModulesStore.getState().add({
+                        id: genId,
+                        name: m.name || genId,
+                        version: m.version || '0.1.0',
+                        description: m.description || '',
+                        icon: m.icon,
+                        entry: m.entry,
+                        files: d.files,
+                        code: d.code,
+                        createdAt: Date.now(),
+                      });
+                      // Seed sandbox bundle cache so the module can run
+                      // immediately via ExternalModuleSandbox.
+                      try {
+                        const w = window as unknown as {
+                          __arunaos_container?: { get: <T>(n: string) => T };
+                        };
+                        const container = w.__arunaos_container;
+                        if (container && d.code) {
+                          container
+                            .get<{ seedCache: (id: string, code: string) => void }>(
+                              'externalModuleLoader',
+                            )
+                            .seedCache(genId, d.code);
+                        }
+                      } catch {
+                        /* loader belum siap — boot seeding akan mengisi */
+                      }
+                      window.dispatchEvent(new CustomEvent('arunaos:module-generated'));
+                    }
+                  } catch {
+                    // payload tidak valid — abaikan
+                  }
+                }
               }
             } catch {
               // skip malformed
@@ -660,10 +773,32 @@ export function AIChat() {
           }
         }
 
+        fullReply += sanitizer.flush();
+        const isEmptyReply = !fullReply.trim();
+
         updateSession(targetId, (s) => {
           const msgs = [...s.messages].filter((m) => m.role !== 'status');
-          if (streamMsgIdRef.current) {
-            const idx = msgs.findIndex((m) => m.id === streamMsgIdRef.current);
+          const pendingId = streamMsgIdRef.current;
+          if (pendingId) {
+            const idx = msgs.findIndex((m) => m.id === pendingId);
+            if (idx >= 0) {
+              if (isEmptyReply) {
+                // Model returned nothing usable — drop the placeholder and
+                // surface an error instead of an empty bubble.
+                msgs.splice(idx, 1);
+              }
+            }
+          }
+          if (isEmptyReply) {
+            msgs.push({
+              role: 'error',
+              content:
+                'Model mengembalikan respons kosong. Coba kirim ulang pesan Anda atau ganti model di pengaturan.',
+              id: `error-${Date.now()}`,
+              createdAt: Date.now(),
+            });
+          } else if (pendingId) {
+            const idx = msgs.findIndex((m) => m.id === pendingId);
             if (idx >= 0) {
               msgs[idx] = {
                 role: 'assistant',
@@ -701,7 +836,7 @@ export function AIChat() {
 
           const replyMsg: ChatMessage = {
             role: 'assistant',
-            content: data.reply,
+            content: sanitizeAIText(typeof data.reply === 'string' ? data.reply : ''),
             id: `assistant-${Date.now()}`,
             createdAt: Date.now(),
           };

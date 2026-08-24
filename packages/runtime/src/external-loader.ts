@@ -263,6 +263,12 @@ export class ExternalModuleLoader {
     return code;
   }
 
+  /** Seed the bundle cache directly — used for locally generated (AI) modules
+   * that never went through installFromUrl. */
+  seedCache(id: string, code: string): void {
+    this.codeCache.set(id, code);
+  }
+
   async uninstall(id: string): Promise<void> {
     const entry = this.entries.get(id);
     if (!entry) {

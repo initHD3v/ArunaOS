@@ -37,6 +37,14 @@ export class SandboxV2 {
     { resolve: (v: unknown) => void; reject: (e: Error) => void }
   >();
   private lifecycleId = 0;
+  /** Becomes true once the iframe module script announces readiness. */
+  private _ready = false;
+  private pendingLifecycleCalls: Array<{
+    method: string;
+    payload?: unknown;
+    resolve: (v: unknown) => void;
+    reject: (e: Error) => void;
+  }> = [];
   private messageId = 0;
   /** B5: timestamps of recent API calls for the sliding-window rate limit */
   private messageTimestamps: number[] = [];
@@ -53,6 +61,8 @@ export class SandboxV2 {
 
   mount(parent: HTMLElement): void {
     if (this.iframe) throw new Error('SandboxV2 already mounted');
+    this._ready = false;
+    this.pendingLifecycleCalls = [];
 
     const iframe = document.createElement('iframe');
     // SECURITY: no `allow-same-origin`. Combined with allow-scripts it would
@@ -147,15 +157,34 @@ try {
     const html =
       '<!DOCTYPE html>\n<html>\n<head><meta charset="utf-8"></head>\n<body>\n<div id="root"></div>\n<script>\nvar PARENT_ORIGIN = ' +
       parentOrigin +
-      ";\nvar bridge = {\n  _pending: new Map(),\n  _id: 0,\n  _hooks: {},\n\n  call: function(method, payload) {\n    return new Promise(function(resolve, reject) {\n      var id = ++bridge._id;\n      bridge._pending.set(id, { resolve: resolve, reject: reject });\n      window.parent.postMessage({ type: 'request', id: id, method: method, payload: payload, source: 'module' }, PARENT_ORIGIN);\n    });\n  },\n\n  on: function(method, handler) {\n    bridge._listeners = bridge._listeners || new Map();\n    bridge._listeners.set(method, handler);\n  },\n\n  registerAPI: function(hooks) {\n    bridge._hooks = hooks || {};\n  },\n\n  getAPI: function() {\n    return bridge._hooks;\n  },\n\n  _handleResponse: function(msg) {\n    var pending = bridge._pending.get(msg.id);\n    if (!pending) return;\n    bridge._pending.delete(msg.id);\n    if (msg.error) pending.reject(new Error(msg.error));\n    else pending.resolve(msg.payload);\n  },\n};\n\nwindow.addEventListener('message', function(event) {\n  var msg = event.data;\n  if (!msg || typeof msg !== 'object') return;\n  if (msg.type === 'response') {\n    bridge._handleResponse(msg);\n  } else if (msg.type === 'event') {\n    var handler = bridge._listeners ? bridge._listeners.get(msg.event) : null;\n    if (handler) handler(msg.payload);\n  } else if (msg.type === 'call-lifecycle') {\n    var fn = bridge._hooks[msg.method];\n    if (typeof fn === 'function') {\n      Promise.resolve(fn(msg.payload)).then(function(result) {\n        window.parent.postMessage({ type: 'lifecycle-result', id: msg.id, result: result }, PARENT_ORIGIN);\n      }).catch(function(err) {\n        window.parent.postMessage({ type: 'lifecycle-result', id: msg.id, error: err.message }, PARENT_ORIGIN);\n      });\n    }\n  }\n});\n\nwindow.__BRIDGE__ = bridge;\n<" +
+      ";\nvar bridge = {\n  _pending: new Map(),\n  _id: 0,\n  _hooks: {},\n  _lifecycleQueue: [],\n\n  call: function(method, payload) {\n    return new Promise(function(resolve, reject) {\n      var id = ++bridge._id;\n      bridge._pending.set(id, { resolve: resolve, reject: reject });\n      window.parent.postMessage({ type: 'request', id: id, method: method, payload: payload, source: 'module' }, PARENT_ORIGIN);\n    });\n  },\n\n  on: function(method, handler) {\n    bridge._listeners = bridge._listeners || new Map();\n    bridge._listeners.set(method, handler);\n  },\n\n  registerAPI: function(hooks) {\n    bridge._hooks = hooks || {};\n    // The module registers its API asynchronously (data: URL import). Any\n    // lifecycle call that arrived before registration was queued — replay\n    // it now instead of dropping it (which caused mount timeouts).\n    var queued = bridge._lifecycleQueue;\n    bridge._lifecycleQueue = [];\n    queued.forEach(function(msg) {\n      bridge._runLifecycle(msg);\n    });\n  },\n\n  getAPI: function() {\n    return bridge._hooks;\n  },\n\n  _runLifecycle: function(msg) {\n    var fn = bridge._hooks ? bridge._hooks[msg.method] : null;\n    if (typeof fn !== 'function') return false;\n    Promise.resolve(fn(msg.payload)).then(function(result) {\n      window.parent.postMessage({ type: 'lifecycle-result', id: msg.id, result: result }, PARENT_ORIGIN);\n    }).catch(function(err) {\n      window.parent.postMessage({ type: 'lifecycle-result', id: msg.id, error: err.message }, PARENT_ORIGIN);\n    });\n    return true;\n  },\n\n  _handleResponse: function(msg) {\n    var pending = bridge._pending.get(msg.id);\n    if (!pending) return;\n    bridge._pending.delete(msg.id);\n    if (msg.error) pending.reject(new Error(msg.error));\n    else pending.resolve(msg.payload);\n  },\n};\n\nwindow.addEventListener('message', function(event) {\n  var msg = event.data;\n  if (!msg || typeof msg !== 'object') return;\n  if (msg.type === 'response') {\n    bridge._handleResponse(msg);\n  } else if (msg.type === 'event') {\n    var handler = bridge._listeners ? bridge._listeners.get(msg.event) : null;\n    if (handler) handler(msg.payload);\n  } else if (msg.type === 'call-lifecycle') {\n    // Hook not registered yet? Queue it — registerAPI() replays the queue.\n    if (!bridge._runLifecycle(msg)) bridge._lifecycleQueue.push(msg);\n  }\n});\n\nwindow.__BRIDGE__ = bridge;\nwindow.parent.postMessage({ type: 'module-ready' }, PARENT_ORIGIN);\n<" +
       '/script>\n' +
       moduleScript +
+      '\n<script>window.parent.postMessage({ type: "module-ready" }, PARENT_ORIGIN);<' +
+      '/script>\n' +
       '\n</body>\n</html>';
 
     return html;
   }
 
   async callLifecycle(method: string, payload?: unknown): Promise<unknown> {
+    if (this._destroyed) throw new Error('Sandbox destroyed');
+    if (!this.iframe?.contentWindow) throw new Error('Sandbox not mounted');
+
+    // The iframe loads its blob HTML asynchronously. A lifecycle call posted
+    // before the module script attached its message listener is lost forever
+    // (which surfaced as "mount timed out"). Buffer until the module
+    // announces readiness via 'module-ready'.
+    if (!this._ready) {
+      return new Promise((resolve, reject) => {
+        this.pendingLifecycleCalls.push({ method, payload, resolve, reject });
+      });
+    }
+
+    return this.sendLifecycle(method, payload);
+  }
+
+  private sendLifecycle(method: string, payload?: unknown): Promise<unknown> {
     if (this._destroyed) throw new Error('Sandbox destroyed');
     if (!this.iframe?.contentWindow) throw new Error('Sandbox not mounted');
     const id = `lc-${++this.lifecycleId}`;
@@ -189,6 +218,14 @@ try {
     });
   }
 
+  private flushPendingLifecycleCalls(): void {
+    const queued = this.pendingLifecycleCalls;
+    this.pendingLifecycleCalls = [];
+    for (const call of queued) {
+      this.sendLifecycle(call.method, call.payload).then(call.resolve, call.reject);
+    }
+  }
+
   private handleMessage = (event: MessageEvent): void => {
     if (this._destroyed) return;
     if (event.source !== this.iframe?.contentWindow) return;
@@ -203,6 +240,9 @@ try {
       this.handleRequest(msg);
     } else if (msg.type === 'response') {
       this.handleResponse(msg);
+    } else if (msg.type === 'module-ready') {
+      this._ready = true;
+      this.flushPendingLifecycleCalls();
     } else if (msg.type === 'lifecycle-result') {
       const pending = this.lifecyclePending.get(msg.id);
       if (!pending) return;

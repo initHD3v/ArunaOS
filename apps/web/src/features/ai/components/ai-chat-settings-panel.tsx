@@ -37,7 +37,7 @@ const PROVIDER_META: Record<
   openrouter: {
     label: 'OpenRouter',
     defaultBaseUrl: 'https://openrouter.ai/api/v1',
-    defaultModel: 'z-ai/glm-5.2:free',
+    defaultModel: 'nvidia/nemotron-3-super-120b-a12b:free',
     getApiKeyUrl: 'https://openrouter.ai/keys',
   },
   ollama: {
@@ -67,6 +67,15 @@ const PROVIDER_META: Record<
 };
 
 const KEYLESS_PROVIDERS = new Set(['ollama', 'lmstudio', 'native', 'deepseek']);
+
+// Auto-pick order for OpenRouter free models — larger models produce far
+// fewer leaked artifacts (<tool_call>, <think>) and hallucinations than
+// small (<10B) ones.
+const OPENROUTER_PREFERRED_MODELS = [
+  'nvidia/nemotron-3-super-120b-a12b:free',
+  'google/gemma-4-31b-it:free',
+  'nvidia/nemotron-3-nano-30b-a3b:free',
+];
 
 const HIDDEN_PROVIDERS_KEY = 'ai-hidden-providers';
 
@@ -397,7 +406,9 @@ export function AIChatSettingsPanel({ onClose }: AIChatSettingsPanelProps) {
           setAvailableModels(data.models);
           const preferred =
             provider === 'openrouter'
-              ? (data.models.find((m: string) => m.endsWith(':free')) ?? data.models[0])
+              ? (OPENROUTER_PREFERRED_MODELS.find((m) => data.models.includes(m)) ??
+                data.models.find((m: string) => m.endsWith(':free')) ??
+                data.models[0])
               : data.models[0];
           if (!model || !data.models.includes(model)) {
             setModel(preferred);

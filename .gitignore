@@ -54,3 +54,6 @@ docker-data/
 
 # TypeScript
 *.tsbuildinfo
+
+# Playwright MCP artifacts
+.playwright-mcp/
