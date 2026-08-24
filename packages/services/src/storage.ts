@@ -44,6 +44,10 @@ export class IndexedDBAdapter implements StorageAdapter {
   private readonly dbName: string;
   private readonly storeName: string;
   private ready: Promise<void>;
+  /** B17: set by destroy() — operations after teardown must fail loudly
+   * instead of silently no-op'ing (reads returning null looked identical to
+   * "key missing", i.e. silent data loss). */
+  private destroyed = false;
 
   constructor(dbName = 'arunaos', storeName = 'storage') {
     this.dbName = dbName;
@@ -71,6 +75,9 @@ export class IndexedDBAdapter implements StorageAdapter {
   }
 
   private ensureReady(): Promise<void> {
+    if (this.destroyed) {
+      return Promise.reject(new Error(`IndexedDB '${this.dbName}' has been destroyed`));
+    }
     return this.ready;
   }
 
@@ -141,6 +148,7 @@ export class IndexedDBAdapter implements StorageAdapter {
   async destroy(): Promise<void> {
     this.db?.close();
     this.db = null;
+    this.destroyed = true;
   }
 }
 

@@ -64,5 +64,13 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ providers: [] });
   }
 
-  return NextResponse.json({ providers: config.providers, sessionId });
+  // SECURITY: never return stored API keys to the client. Keys live
+  // server-side only; the client keeps its own copy in localStorage.
+  const providers = config.providers.map((p) => ({
+    ...p,
+    apiKey: undefined,
+    hasApiKey: !!p.apiKey,
+  }));
+
+  return NextResponse.json({ providers, sessionId });
 }

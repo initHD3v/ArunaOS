@@ -27,6 +27,7 @@ export class SandboxV2 {
   private config: SandboxV2Config;
   private limits: Required<ResourceLimits>;
   private iframe: HTMLIFrameElement | null = null;
+  private blobUrl: string | null = null;
   private pending = new Map<
     string,
     { resolve: (v: unknown) => void; reject: (e: Error) => void }
@@ -37,7 +38,8 @@ export class SandboxV2 {
   >();
   private lifecycleId = 0;
   private messageId = 0;
-  private messageCount = 0;
+  /** B5: timestamps of recent API calls for the sliding-window rate limit */
+  private messageTimestamps: number[] = [];
   private _destroyed = false;
 
   constructor(config: SandboxV2Config) {
@@ -53,12 +55,17 @@ export class SandboxV2 {
     if (this.iframe) throw new Error('SandboxV2 already mounted');
 
     const iframe = document.createElement('iframe');
-    iframe.setAttribute(
-      'sandbox',
-      ['allow-scripts', 'allow-same-origin', 'allow-popups'].join(' '),
-    );
+    // SECURITY: no `allow-same-origin`. Combined with allow-scripts it would
+    // let a module strip its own sandbox attribute and reach parent DOM /
+    // localStorage. Without it the frame runs in an opaque origin and can
+    // only talk to us through postMessage.
+    iframe.setAttribute('sandbox', ['allow-scripts', 'allow-popups'].join(' '));
     iframe.style.cssText = 'border:none;width:100%;height:100%;display:block';
-    iframe.srcdoc = this.buildSandboxHTML();
+
+    const html = this.buildSandboxHTML();
+    const blob = new Blob([html], { type: 'text/html' });
+    this.blobUrl = URL.createObjectURL(blob);
+    iframe.src = this.blobUrl;
 
     this.iframe = iframe;
     parent.appendChild(iframe);
@@ -75,10 +82,21 @@ export class SandboxV2 {
     }
     this.iframe = null;
 
+    if (this.blobUrl) {
+      URL.revokeObjectURL(this.blobUrl);
+      this.blobUrl = null;
+    }
+
     for (const { reject } of this.pending.values()) {
       reject(new Error('Sandbox destroyed'));
     }
     this.pending.clear();
+
+    // B1: pending lifecycle calls must not outlive the sandbox
+    for (const { reject } of this.lifecyclePending.values()) {
+      reject(new Error('Sandbox destroyed'));
+    }
+    this.lifecyclePending.clear();
   }
 
   postMessage(type: string, payload?: unknown): void {
@@ -98,7 +116,11 @@ export class SandboxV2 {
 
   private buildSandboxHTML(): string {
     const code = this.config.bundleCode ?? '';
-    const escapedCode = code.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$/g, '\\$');
+    const escapedCode = code
+      .replace(/\\/g, '\\\\')
+      .replace(/`/g, '\\`')
+      .replace(/\$/g, '\\$')
+      .replace(/<\/script/gi, '<\\/script');
 
     const moduleScript = escapedCode
       ? `<script type="module">
@@ -119,8 +141,13 @@ try {
 <` + `/script>`
       : '';
 
+    const parentOrigin =
+      typeof window !== 'undefined' ? JSON.stringify(window.location.origin) : '"null"';
+
     const html =
-      "<!DOCTYPE html>\n<html>\n<head><meta charset=\"utf-8\"></head>\n<body>\n<div id=\"root\"></div>\n<script>\nvar bridge = {\n  _pending: new Map(),\n  _id: 0,\n  _hooks: {},\n\n  call: function(method, payload) {\n    return new Promise(function(resolve, reject) {\n      var id = ++bridge._id;\n      bridge._pending.set(id, { resolve: resolve, reject: reject });\n      window.parent.postMessage({ type: 'request', id: id, method: method, payload: payload, source: 'module' }, '*');\n    });\n  },\n\n  on: function(method, handler) {\n    bridge._listeners = bridge._listeners || new Map();\n    bridge._listeners.set(method, handler);\n  },\n\n  registerAPI: function(hooks) {\n    bridge._hooks = hooks || {};\n  },\n\n  getAPI: function() {\n    return bridge._hooks;\n  },\n\n  _handleResponse: function(msg) {\n    var pending = bridge._pending.get(msg.id);\n    if (!pending) return;\n    bridge._pending.delete(msg.id);\n    if (msg.error) pending.reject(new Error(msg.error));\n    else pending.resolve(msg.payload);\n  },\n};\n\nwindow.addEventListener('message', function(event) {\n  var msg = event.data;\n  if (!msg || typeof msg !== 'object') return;\n  if (msg.type === 'response') {\n    bridge._handleResponse(msg);\n  } else if (msg.type === 'event') {\n    var handler = bridge._listeners ? bridge._listeners.get(msg.event) : null;\n    if (handler) handler(msg.payload);\n  } else if (msg.type === 'call-lifecycle') {\n    var fn = bridge._hooks[msg.method];\n    if (typeof fn === 'function') {\n      Promise.resolve(fn(msg.payload)).then(function(result) {\n        window.parent.postMessage({ type: 'lifecycle-result', id: msg.id, result: result }, '*');\n      }).catch(function(err) {\n        window.parent.postMessage({ type: 'lifecycle-result', id: msg.id, error: err.message }, '*');\n      });\n    }\n  }\n});\n\nwindow.__BRIDGE__ = bridge;\n<" +
+      '<!DOCTYPE html>\n<html>\n<head><meta charset="utf-8"></head>\n<body>\n<div id="root"></div>\n<script>\nvar PARENT_ORIGIN = ' +
+      parentOrigin +
+      ";\nvar bridge = {\n  _pending: new Map(),\n  _id: 0,\n  _hooks: {},\n\n  call: function(method, payload) {\n    return new Promise(function(resolve, reject) {\n      var id = ++bridge._id;\n      bridge._pending.set(id, { resolve: resolve, reject: reject });\n      window.parent.postMessage({ type: 'request', id: id, method: method, payload: payload, source: 'module' }, PARENT_ORIGIN);\n    });\n  },\n\n  on: function(method, handler) {\n    bridge._listeners = bridge._listeners || new Map();\n    bridge._listeners.set(method, handler);\n  },\n\n  registerAPI: function(hooks) {\n    bridge._hooks = hooks || {};\n  },\n\n  getAPI: function() {\n    return bridge._hooks;\n  },\n\n  _handleResponse: function(msg) {\n    var pending = bridge._pending.get(msg.id);\n    if (!pending) return;\n    bridge._pending.delete(msg.id);\n    if (msg.error) pending.reject(new Error(msg.error));\n    else pending.resolve(msg.payload);\n  },\n};\n\nwindow.addEventListener('message', function(event) {\n  var msg = event.data;\n  if (!msg || typeof msg !== 'object') return;\n  if (msg.type === 'response') {\n    bridge._handleResponse(msg);\n  } else if (msg.type === 'event') {\n    var handler = bridge._listeners ? bridge._listeners.get(msg.event) : null;\n    if (handler) handler(msg.payload);\n  } else if (msg.type === 'call-lifecycle') {\n    var fn = bridge._hooks[msg.method];\n    if (typeof fn === 'function') {\n      Promise.resolve(fn(msg.payload)).then(function(result) {\n        window.parent.postMessage({ type: 'lifecycle-result', id: msg.id, result: result }, PARENT_ORIGIN);\n      }).catch(function(err) {\n        window.parent.postMessage({ type: 'lifecycle-result', id: msg.id, error: err.message }, PARENT_ORIGIN);\n      });\n    }\n  }\n});\n\nwindow.__BRIDGE__ = bridge;\n<" +
       '/script>\n' +
       moduleScript +
       '\n</body>\n</html>';
@@ -129,10 +156,32 @@ try {
   }
 
   async callLifecycle(method: string, payload?: unknown): Promise<unknown> {
+    if (this._destroyed) throw new Error('Sandbox destroyed');
     if (!this.iframe?.contentWindow) throw new Error('Sandbox not mounted');
     const id = `lc-${++this.lifecycleId}`;
+
     return new Promise((resolve, reject) => {
-      this.lifecyclePending.set(id, { resolve, reject });
+      // B1: bound the wait — a module that never registered the lifecycle
+      // hook must not hang the host forever.
+      let timer: ReturnType<typeof setTimeout> | null = setTimeout(() => {
+        timer = null;
+        this.lifecyclePending.delete(id);
+        reject(new Error(`Lifecycle '${method}' timed out after ${this.limits.maxExecutionMs}ms`));
+      }, this.limits.maxExecutionMs);
+
+      const settle = (fn: () => void): void => {
+        if (timer !== null) {
+          clearTimeout(timer);
+          timer = null;
+        }
+        fn();
+      };
+
+      this.lifecyclePending.set(id, {
+        resolve: (v: unknown) => settle(() => resolve(v)),
+        reject: (e: Error) => settle(() => reject(e)),
+      });
+
       this.iframe!.contentWindow!.postMessage(
         { type: 'call-lifecycle', id, method, payload, source: 'system' },
         '*',
@@ -143,6 +192,9 @@ try {
   private handleMessage = (event: MessageEvent): void => {
     if (this._destroyed) return;
     if (event.source !== this.iframe?.contentWindow) return;
+    // Our frame is sandboxed without allow-same-origin, so its origin
+    // serializes as "null". Any other origin is not our frame.
+    if (event.origin !== 'null') return;
 
     const msg = event.data as IPCMessage;
     if (!msg || typeof msg !== 'object') return;
@@ -174,12 +226,16 @@ try {
       return;
     }
 
-    this.messageCount++;
-
-    if (this.messageCount > this.limits.maxStorageItems) {
+    // B5: sliding-window rate limit — the previous implementation compared a
+    // lifetime counter against `maxStorageItems`, permanently bricking a
+    // module after 100 total API calls ever.
+    const now = Date.now();
+    this.messageTimestamps = this.messageTimestamps.filter((t) => now - t < 60_000);
+    if (this.messageTimestamps.length >= 600) {
       this.postResponse(msg, null, 'Message rate limit exceeded');
       return;
     }
+    this.messageTimestamps.push(now);
 
     const api = this.buildAPIBridge();
     const fn = this.resolveNested(api, method);
@@ -189,16 +245,24 @@ try {
       return;
     }
 
+    // B15: keep the timer handle and always clear it so settled calls do not
+    // accumulate dangling timeouts.
+    let timer: ReturnType<typeof setTimeout> | undefined;
     try {
       const result = await Promise.race([
         fn(msg.payload),
-        new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Execution timeout')), this.limits.maxExecutionMs),
-        ),
+        new Promise((_, reject) => {
+          timer = setTimeout(
+            () => reject(new Error('Execution timeout')),
+            this.limits.maxExecutionMs,
+          );
+        }),
       ]);
       this.postResponse(msg, result);
     } catch (err) {
       this.postResponse(msg, null, err instanceof Error ? err.message : String(err));
+    } finally {
+      if (timer !== undefined) clearTimeout(timer);
     }
   }
 

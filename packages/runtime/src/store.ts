@@ -24,13 +24,21 @@ export class ModuleStore {
   private registry: ModuleRegistry;
   private listeners = new Set<Listener>();
   private isLoadedFn: (id: string) => boolean;
+  /** B10: cached snapshot — getSnapshot() must return a stable identity
+   * between mutations or useSyncExternalStore loops forever. */
+  private snapshot: ModuleStoreState | null = null;
 
-  constructor(registry: ModuleRegistry, _bus: EventBus, isLoaded: (id: string) => boolean) {
+  constructor(registry: ModuleRegistry, bus: EventBus, isLoaded: (id: string) => boolean) {
     this.registry = registry;
     this.isLoadedFn = isLoaded;
+    // B10: invalidate the cached snapshot when module status changes —
+    // previously the bus parameter was ignored and getSnapshot() rebuilt
+    // (a new object identity) on every call, which loops under
+    // useSyncExternalStore.
+    bus.on('module:statusChange', () => this.notify());
   }
 
-  private getState(): ModuleStoreState {
+  private buildState(): ModuleStoreState {
     const entries = this.registry.getAll();
     return {
       entries,
@@ -47,18 +55,21 @@ export class ModuleStore {
 
   subscribe(listener: Listener): () => void {
     this.listeners.add(listener);
-    listener(this.getState());
+    listener(this.getSnapshot());
     return () => {
       this.listeners.delete(listener);
     };
   }
 
   getSnapshot(): ModuleStoreState {
-    return this.getState();
+    if (!this.snapshot) {
+      this.snapshot = this.buildState();
+    }
+    return this.snapshot;
   }
 
   private notify(): void {
-    const state = this.getState();
-    this.listeners.forEach((fn) => fn(state));
+    this.snapshot = this.buildState();
+    this.listeners.forEach((fn) => fn(this.snapshot!));
   }
 }

@@ -134,9 +134,20 @@ export class SettingsService {
   }
 
   async reset(): Promise<void> {
+    const previous = this.settings;
     this.settings = { ...DEFAULT_SETTINGS };
     await this.persist();
-    this.bus.emit('settings:updated', { settings: this.settings });
+    // B14: emit one event per CHANGED key so per-key listeners (e.g.
+    // ThemeService listening for key==='theme') react to resets too.
+    for (const key of Object.keys(DEFAULT_SETTINGS) as (keyof SettingsSchema)[]) {
+      if (!deepEqual(previous[key], DEFAULT_SETTINGS[key])) {
+        this.bus.emit('settings:updated', {
+          key,
+          value: this.settings[key],
+          settings: this.settings,
+        });
+      }
+    }
   }
 
   isReady(): boolean {
@@ -146,4 +157,15 @@ export class SettingsService {
   private async persist(): Promise<void> {
     await this.storage.set(SETTINGS_KEY, this.settings);
   }
+}
+
+function deepEqual(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false;
+  const ka = Object.keys(a);
+  const kb = Object.keys(b);
+  if (ka.length !== kb.length) return false;
+  return ka.every((k) =>
+    deepEqual((a as Record<string, unknown>)[k], (b as Record<string, unknown>)[k]),
+  );
 }

@@ -133,4 +133,18 @@ describe('ModuleStore', () => {
     const stateAfter = store.getSnapshot();
     expect(stateAfter.activeModuleIds).toEqual(['mod.a']);
   });
+
+  it('returns a stable snapshot identity between mutations (B10)', () => {
+    registry.register(makeManifest('mod.a'));
+    const s1 = store.getSnapshot();
+    const s2 = store.getSnapshot();
+    expect(s1).toBe(s2);
+
+    // Mutating state invalidates the cache
+    registry.setStatus('mod.a', 'active');
+    bus.emit('module:statusChange', {});
+    const s3 = store.getSnapshot();
+    expect(s3).not.toBe(s1);
+    expect(s3.activeModuleIds).toEqual(['mod.a']);
+  });
 });

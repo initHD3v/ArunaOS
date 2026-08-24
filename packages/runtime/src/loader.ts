@@ -16,6 +16,9 @@ export class ModuleLoader {
   private factories = new Map<string, ModuleFactory>();
   private systemAPI: SystemAPI | null = null;
   private loaded = new Set<string>();
+  /** B2: in-flight loads so concurrent load(id) calls share one promise
+   * instead of racing past the `loaded` check twice. */
+  private inFlight = new Map<string, Promise<ModuleInstance>>();
 
   constructor(
     registry: ModuleRegistry,
@@ -52,7 +55,8 @@ export class ModuleLoader {
         return;
       }
       try {
-        const result = await fn(msg.payload);
+        // B6: invoke as a method so class-based module APIs keep their `this`.
+        const result = await fn.call(api, msg.payload);
         this.ipc.respond(msg, result ?? null);
       } catch (err) {
         this.ipc.respond(msg, null, err instanceof Error ? err.message : String(err));
@@ -77,6 +81,20 @@ export class ModuleLoader {
       if (existing?.instance) return existing.instance;
     }
 
+    // B2: deduplicate concurrent loads — the second caller awaits the same
+    // promise instead of racing past the `loaded.has` check and mounting
+    // a second sandbox that overwrites (leaks) the first.
+    const pending = this.inFlight.get(id);
+    if (pending) return pending;
+
+    const promise = this.doLoad(id, params).finally(() => {
+      this.inFlight.delete(id);
+    });
+    this.inFlight.set(id, promise);
+    return promise;
+  }
+
+  private async doLoad(id: string, params?: Record<string, unknown>): Promise<ModuleInstance> {
     const entry = this.registry.get(id);
     if (!entry) {
       throw new Error(`Module '${id}' is not registered`);

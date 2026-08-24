@@ -102,16 +102,19 @@ export const useNativeFSStore = create<NativeFSState>((set, get) => ({
 
   unmountDrive: (id: string) => {
     driveHandles.delete(id);
-    if (activeDriveId === id) {
+    // B3: capture BEFORE mutating the module variables — the comparisons
+    // inside set() would always be false otherwise, leaving stale UI state.
+    const wasActive = activeDriveId === id;
+    if (wasActive) {
       activeDriveId = null;
       currentHandle = null;
       handleStack.length = 0;
     }
     set((s) => ({
       drives: s.drives.filter((d) => d.id !== id),
-      activeDriveId: activeDriveId === id ? null : s.activeDriveId,
-      currentPath: activeDriveId === id ? [] : s.currentPath,
-      entries: activeDriveId === id ? [] : s.entries,
+      activeDriveId: wasActive ? null : s.activeDriveId,
+      currentPath: wasActive ? [] : s.currentPath,
+      entries: wasActive ? [] : s.entries,
     }));
   },
 

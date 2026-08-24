@@ -7,6 +7,9 @@ export class ThemeService {
   private bus: EventBus;
   private settings: SettingsService;
   private currentMode: ThemeMode = 'system';
+  private disposeSettingsListener: (() => void) | null = null;
+  private mediaQuery: MediaQueryList | null = null;
+  private mediaListener: ((e: MediaQueryListEvent) => void) | null = null;
 
   constructor(settings: SettingsService, bus: EventBus) {
     this.settings = settings;
@@ -14,13 +17,17 @@ export class ThemeService {
   }
 
   init(): void {
+    // B13: make init idempotent — calling it twice (StrictMode/HMR) used to
+    // stack duplicate settings listeners.
+    if (this.disposeSettingsListener) return;
+
     this.currentMode = this.settings.get('theme');
     this.applyTheme(this.currentMode);
 
-    this.bus.on('settings:updated', (payload: { key?: string }) => {
+    this.disposeSettingsListener = this.bus.on('settings:updated', (payload: { key?: string }) => {
       if (payload.key === 'theme') {
         const mode = this.settings.get('theme') as ThemeMode;
-        this.setMode(mode);
+        void this.setMode(mode);
       }
     });
   }
@@ -69,6 +76,37 @@ export class ThemeService {
         );
         break;
     }
+
+    // B13: in 'system' mode, follow OS theme switches live.
+    this.syncSystemListener(mode);
+  }
+
+  private syncSystemListener(mode: ThemeMode): void {
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+
+    if (mode === 'system') {
+      if (this.mediaQuery) return;
+      const mq = window.matchMedia('(prefers-color-scheme: dark)');
+      this.mediaQuery = mq;
+      this.mediaListener = () => {
+        if (this.currentMode === 'system') this.applyTheme('system');
+      };
+      mq.addEventListener('change', this.mediaListener);
+    } else if (this.mediaQuery && this.mediaListener) {
+      this.mediaQuery.removeEventListener('change', this.mediaListener);
+      this.mediaQuery = null;
+      this.mediaListener = null;
+    }
+  }
+
+  dispose(): void {
+    this.disposeSettingsListener?.();
+    this.disposeSettingsListener = null;
+    if (this.mediaQuery && this.mediaListener) {
+      this.mediaQuery.removeEventListener('change', this.mediaListener);
+    }
+    this.mediaQuery = null;
+    this.mediaListener = null;
   }
 
   private applyColorScheme(scheme: 'light' | 'dark'): void {

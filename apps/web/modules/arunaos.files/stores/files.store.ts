@@ -15,7 +15,8 @@ interface FilesState {
   nextId: number;
 
   createItem: (name: string, type: 'file' | 'folder', parentId: string | null) => string;
-  deleteItem: (id: string) => void;
+  /** Removes an item and all descendants; returns every removed id (B12). */
+  deleteItem: (id: string) => string[];
   renameItem: (id: string, name: string) => void;
   getChildren: (parentId: string | null) => FileItem[];
 }
@@ -70,23 +71,29 @@ export const useFilesStore = create<FilesState>()(
         return id;
       },
 
-      deleteItem: (id) =>
-        set((s) => {
-          const items = { ...s.items };
-          const toRemove = [id];
-          const queue = [id];
-          while (queue.length > 0) {
-            const current = queue.pop()!;
-            Object.values(items).forEach((item) => {
-              if (item.parentId === current) {
-                toRemove.push(item.id);
-                queue.push(item.id);
-              }
-            });
-          }
+      deleteItem: (id) => {
+        // B12: collect every removed descendant id so callers can clean up
+        // their IndexedDB blobs too (previously only the top-level id was
+        // known and children blobs leaked forever).
+        const s = get();
+        const toRemove = [id];
+        const queue = [id];
+        while (queue.length > 0) {
+          const current = queue.pop()!;
+          Object.values(s.items).forEach((item) => {
+            if (item.parentId === current) {
+              toRemove.push(item.id);
+              queue.push(item.id);
+            }
+          });
+        }
+        set((prev) => {
+          const items = { ...prev.items };
           toRemove.forEach((rid) => delete items[rid]);
           return { items };
-        }),
+        });
+        return toRemove;
+      },
 
       renameItem: (id, name) =>
         set((s) => ({

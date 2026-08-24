@@ -1,5 +1,15 @@
 type EventHandler<T = unknown> = (payload: T) => void;
 
+// B9: one throwing handler must not abort the remaining handlers or leak
+// the error into the emitter's control flow.
+function safeInvoke(handler: EventHandler<never>, payload: never): void {
+  try {
+    (handler as EventHandler)(payload);
+  } catch (err) {
+    console.error('[EventBus] handler error:', err);
+  }
+}
+
 export class EventBus {
   private listeners = new Map<string, Set<EventHandler>>();
   private wildcard: Set<EventHandler<{ event: string; payload: unknown }>> | null = null;
@@ -8,12 +18,12 @@ export class EventBus {
     const handlers = this.listeners.get(event);
     if (handlers) {
       for (const handler of handlers) {
-        handler(payload);
+        safeInvoke(handler as EventHandler<never>, payload as never);
       }
     }
     if (this.wildcard) {
       for (const handler of this.wildcard) {
-        handler({ event, payload });
+        safeInvoke(handler as EventHandler<never>, { event, payload } as never);
       }
     }
   }
@@ -42,8 +52,9 @@ export class EventBus {
 
   once<T>(event: string, handler: EventHandler<T>): void {
     const wrapper: EventHandler<T> = (payload) => {
-      handler(payload);
+      // B9: unwrap even if the user handler throws
       this.off(event, wrapper as EventHandler);
+      handler(payload);
     };
     this.on(event, wrapper as EventHandler);
   }

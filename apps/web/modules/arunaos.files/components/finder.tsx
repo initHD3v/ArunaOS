@@ -406,6 +406,7 @@ export const Finder = memo(function Finder() {
 
   const handleNativePaste = useCallback(async () => {
     if (clipboard.items.length === 0) return;
+    const isCut = clipboard.mode === 'cut';
     for (const item of clipboard.items) {
       if (item.sourceType === 'native' && item.nativeSourceHandleId) {
         const srcHandle = clipboardHandleMap.get(item.nativeSourceHandleId);
@@ -413,29 +414,57 @@ export const Finder = memo(function Finder() {
         try {
           if (item.isDir) {
             await nativeFS.createFolder(item.name);
+            // B4: recursive copy/move of native directories is not yet
+            // supported by the File System Access API here — content is not
+            // duplicated for folders.
           } else {
             const fileHandle = await srcHandle.getFileHandle(item.name);
             const file = await fileHandle.getFile();
             const buf = await file.arrayBuffer();
             await nativeFS.writeFileBuffer(item.name, buf);
           }
+          // B4: cut means move — remove the source after a successful paste
+          if (isCut && !item.isDir) {
+            try {
+              await srcHandle.removeEntry(item.name);
+            } catch {
+              /* source removal failed — keep the original */
+            }
+          }
         } catch {
           /* skip */
         }
       } else if (item.sourceType === 'virtual') {
-        await nativeFS.createFile(item.name);
+        // B4: carry the blob content over instead of creating an empty file
+        const blob = item.virtualItemId ? await getBlob(item.virtualItemId) : null;
+        if (blob) {
+          const buf = await blob.arrayBuffer();
+          await nativeFS.writeFileBuffer(item.name, buf);
+        } else {
+          await nativeFS.createFile(item.name);
+        }
       }
     }
-    if (clipboard.mode === 'cut') clipboard.clear();
+    if (isCut) clipboard.clear();
   }, [clipboard, nativeFS]);
 
   const handleVirtualPaste = useCallback(async () => {
     if (clipboard.items.length === 0) return;
+    const isCut = clipboard.mode === 'cut';
+    const processedSourceIds: string[] = [];
     for (const item of clipboard.items) {
       if (item.sourceType === 'virtual' && item.virtualItemId) {
         const src = fileItems[item.virtualItemId];
         if (!src) continue;
-        createItem(src.name, src.type as 'file' | 'folder', currentFolderId);
+        // B4: duplicate the blob along with the metadata
+        const newId = createItem(src.name, src.type as 'file' | 'folder', currentFolderId);
+        try {
+          const blob = await getBlob(src.id);
+          if (blob) await putBlob(newId, blob);
+        } catch {
+          /* blob copy failed — metadata-only copy remains */
+        }
+        processedSourceIds.push(src.id);
       } else if (item.sourceType === 'native' && item.nativeSourceHandleId) {
         const srcHandle = clipboardHandleMap.get(item.nativeSourceHandleId);
         if (!srcHandle) continue;
@@ -452,13 +481,27 @@ export const Finder = memo(function Finder() {
               /* blob storage failed, metadata saved */
             }
           }
+          // B4: cut from native source removes the original
+          if (isCut && !item.isDir) {
+            try {
+              await srcHandle.removeEntry(item.name);
+            } catch {
+              /* keep the original on failure */
+            }
+          }
         } catch {
           /* skip */
         }
       }
     }
-    if (clipboard.mode === 'cut') clipboard.clear();
-  }, [clipboard, fileItems, createItem, currentFolderId]);
+    // B4: cut within virtual FS deletes the sources only after successful copies
+    if (isCut) {
+      for (const id of processedSourceIds) {
+        deleteItem(id);
+      }
+      clipboard.clear();
+    }
+  }, [clipboard, fileItems, createItem, currentFolderId, deleteItem]);
 
   const isRoot = currentFolderId === 'root';
 
@@ -550,12 +593,15 @@ export const Finder = memo(function Finder() {
             label: `Delete ${count} Items`,
             action: async () => {
               for (const id of selectedIds) {
-                try {
-                  await deleteBlob(id);
-                } catch {
-                  /* skip */
+                // B12: delete blobs for the item AND all its descendants
+                const removedIds = deleteItem(id);
+                for (const rid of removedIds) {
+                  try {
+                    await deleteBlob(rid);
+                  } catch {
+                    /* blob already gone */
+                  }
                 }
-                deleteItem(id);
               }
               setSelectedIds(new Set());
             },
@@ -604,12 +650,15 @@ export const Finder = memo(function Finder() {
             id: 'delete',
             label: 'Delete',
             action: async () => {
-              try {
-                await deleteBlob(fi.id);
-              } catch {
-                /* skip */
+              // B12: delete blobs for the item AND all its descendants
+              const removedIds = deleteItem(fi.id);
+              for (const rid of removedIds) {
+                try {
+                  await deleteBlob(rid);
+                } catch {
+                  /* blob already gone */
+                }
               }
-              deleteItem(fi.id);
             },
           },
           ...(aiActions.length > 0

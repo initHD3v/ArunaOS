@@ -14,7 +14,6 @@ import {
   Wifi,
   Globe,
   Trash2,
-  RotateCcw,
 } from 'lucide-react';
 import { TestConnectionModal, type TestStep } from './test-connection-modal';
 import { ModelDownloadModal } from './model-download-modal';
@@ -152,7 +151,9 @@ function saveSingleConfig(data: {
   baseUrl: string;
   model: string;
 }) {
-  const configs = PROVIDER_ORDER.map((type) => {
+  // Permanently deleted providers are never re-added by saving.
+  const deleted = loadHiddenProviders();
+  const configs = PROVIDER_ORDER.filter((type) => !deleted.includes(type)).map((type) => {
     const m = PROVIDER_META[type]!;
     return type === data.provider
       ? { type, apiKey: data.apiKey, baseUrl: data.baseUrl, model: data.model }
@@ -204,7 +205,6 @@ export function AIChatSettingsPanel({ onClose }: AIChatSettingsPanelProps) {
   const meta = PROVIDER_META[provider];
   const hasKey = apiKey.length > 0;
   const visibleProviders = PROVIDER_ORDER.filter((t) => !hiddenProviders.includes(t));
-  const restorableProviders = PROVIDER_ORDER.filter((t) => hiddenProviders.includes(t));
 
   const selectProvider = (type: string) => {
     const m = PROVIDER_META[type];
@@ -270,12 +270,6 @@ export function AIChatSettingsPanel({ onClose }: AIChatSettingsPanelProps) {
     } catch {
       /* ignore */
     }
-  };
-
-  const handleRestoreProvider = (type: string) => {
-    const next = hiddenProviders.filter((t) => t !== type);
-    setHiddenProviders(next);
-    saveHiddenProviders(next);
   };
 
   const toggleFreeOnly = () => {
@@ -496,8 +490,8 @@ export function AIChatSettingsPanel({ onClose }: AIChatSettingsPanelProps) {
                         {isConfirming ? (
                           <>
                             <span className="text-foreground/60 flex-1 px-2.5 py-2 text-[10px] leading-snug">
-                              Hapus <span className="font-medium">{m?.label ?? type}</span>? API key
-                              tersimpan juga akan dihapus.
+                              Hapus permanen <span className="font-medium">{m?.label ?? type}</span>
+                              ? API key tersimpan juga akan dihapus dan tidak bisa dipulihkan.
                             </span>
                             <button
                               onClick={() => void handleDeleteProvider(type)}
@@ -541,25 +535,6 @@ export function AIChatSettingsPanel({ onClose }: AIChatSettingsPanelProps) {
                       </div>
                     );
                   })}
-                  {restorableProviders.length > 0 && (
-                    <div className="border-border/10 border-t px-2.5 py-2">
-                      <p className="text-foreground/30 mb-1 text-[9px] font-semibold uppercase tracking-wider">
-                        Dihapus — klik untuk pulihkan
-                      </p>
-                      <div className="flex flex-wrap gap-1">
-                        {restorableProviders.map((type) => (
-                          <button
-                            key={type}
-                            onClick={() => handleRestoreProvider(type)}
-                            className="border-border/20 text-foreground/50 hover:border-primary/40 hover:text-foreground flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] transition-colors"
-                          >
-                            <RotateCcw className="h-2.5 w-2.5" />
-                            {PROVIDER_META[type]?.label ?? type}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                 </div>
               </>
             )}

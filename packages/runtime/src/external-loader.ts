@@ -21,6 +21,13 @@ async function sha256(data: string): Promise<string> {
   return hex;
 }
 
+function base64ToArrayBuffer(b64: string): ArrayBuffer {
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes.buffer;
+}
+
 export interface ExternalModuleResult {
   entry: ExternalModuleEntry;
   code: string;
@@ -31,6 +38,10 @@ export class ExternalModuleLoader {
   private permissions: ModulePermissions;
   private entries = new Map<string, ExternalModuleEntry>();
   private codeCache = new Map<string, string>();
+  /** SECURITY (TOFU): checksum of the first installed version per module.
+   * Updates that change the code require a valid publisher signature or
+   * explicit user consent. */
+  private anchors = new Map<string, string>();
 
   private fetchWithRetry = async (url: string, retries = 2): Promise<Response> => {
     let lastError: Error | null = null;
@@ -179,6 +190,7 @@ export class ExternalModuleLoader {
       );
     }
 
+    this.anchors.set(manifest.id, actualHash);
     this.permissions.autoGrant(manifest.id);
 
     this.registry.register(manifest);
@@ -222,6 +234,7 @@ export class ExternalModuleLoader {
       );
     }
 
+    this.anchors.set(manifest.id, actualHash);
     this.permissions.autoGrant(manifest.id);
     this.registry.register(manifest);
 
@@ -282,16 +295,113 @@ export class ExternalModuleLoader {
     return null;
   }
 
-  async update(id: string): Promise<ExternalModuleResult> {
+  /**
+   * Update an installed module to the latest version.
+   *
+   * SECURITY: the new bundle is downloaded and integrity-checked BEFORE the
+   * old version is removed, so a failed download never leaves the module
+   * uninstalled. If the new checksum differs from the first-install anchor,
+   * a valid publisher signature (or explicit `allowUnverifiedUpdate`)
+   * is required.
+   */
+  async update(
+    id: string,
+    options?: { allowUnverifiedUpdate?: boolean },
+  ): Promise<ExternalModuleResult> {
+    const existing = this.entries.get(id);
+    if (!existing) {
+      throw new Error(`External module '${id}' is not installed`);
+    }
+
     const info = await this.checkForUpdates(id);
     if (!info) {
       throw new Error(`Module '${id}' is already up-to-date`);
     }
 
+    // Fetch + validate the replacement bundle first (B7: no destructive step
+    // before we know the update is complete and valid).
+    const res = await this.fetchWithRetry(info.manifestUrl);
+    const raw = await res.json();
+    if (!raw.manifestUrl) {
+      raw.manifestUrl = info.manifestUrl;
+    }
+    const manifest = this.validateManifest(raw);
+
+    const bundleUrl = new URL(manifest.entry, info.manifestUrl).href;
+    const bundleRes = await this.fetchWithRetry(bundleUrl);
+    const code = await bundleRes.text();
+
+    const actualHash = await sha256(code);
+    if (actualHash !== manifest.checksum) {
+      throw new Error(
+        `Integrity check failed for '${id}': expected ${manifest.checksum}, got ${actualHash}`,
+      );
+    }
+
+    // TOFU anchor check
+    const anchor = this.anchors.get(id);
+    if (anchor && actualHash !== anchor) {
+      const verified = await this.verifyModuleSignature(manifest, code);
+      if (!verified && !options?.allowUnverifiedUpdate) {
+        throw new Error(
+          `Update for '${id}' changes code from the originally installed version and has no valid publisher signature. Pass allowUnverifiedUpdate to accept.`,
+        );
+      }
+    }
+
+    const source = existing.source;
+    const prevManifest = existing.manifest;
+    const prevCode = this.codeCache.get(id);
+
     await this.uninstall(id);
-    return this.installFromUrl(info.manifestUrl, {
-      source: this.entries.get(id)?.source === 'registry' ? 'registry' : 'url',
-    });
+
+    try {
+      return await this.installFromCode(manifest, code, { source });
+    } catch (err) {
+      // Rollback to the previous version so a failed install never loses
+      // the module entirely.
+      if (prevCode) {
+        this.registry.register(prevManifest);
+        this.entries.set(id, existing);
+        this.codeCache.set(id, prevCode);
+      }
+      throw err;
+    }
+  }
+
+  /** Verify an Ed25519 publisher signature (`signature` + `publicKey`). */
+  private async verifyModuleSignature(
+    manifest: ExternalModuleManifest,
+    code: string,
+  ): Promise<boolean> {
+    const sig = manifest.signature ?? '';
+    const publicKeyB64 = manifest.publicKey;
+    if (!sig || !publicKeyB64) return false;
+
+    try {
+      const [alg, b64sig] = sig.split(':');
+      if (alg !== 'ed25519' || !b64sig) return false;
+
+      const key = await crypto.subtle.importKey(
+        'spki',
+        base64ToArrayBuffer(publicKeyB64),
+        { name: 'Ed25519' } as AlgorithmIdentifier,
+        false,
+        ['verify'],
+      );
+      return await crypto.subtle.verify(
+        { name: 'Ed25519' } as AlgorithmIdentifier,
+        key,
+        base64ToArrayBuffer(b64sig),
+        new TextEncoder().encode(code),
+      );
+    } catch {
+      return false;
+    }
+  }
+
+  getIntegrityAnchor(id: string): string | null {
+    return this.anchors.get(id) ?? null;
   }
 
   async reinstall(id: string): Promise<ExternalModuleResult> {

@@ -2,8 +2,18 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getRegistryStore } from '@arunaos/registry-api';
 
 export async function POST(request: NextRequest) {
+  // Fail closed: without a configured key the endpoint must reject everything
+  // (previously `Bearer undefined` authenticated successfully).
+  const apiKey = process.env.REGISTRY_API_KEY;
+  if (!apiKey) {
+    return NextResponse.json(
+      { error: 'Publishing is disabled: REGISTRY_API_KEY is not configured' },
+      { status: 503 },
+    );
+  }
+
   const auth = request.headers.get('authorization');
-  if (auth !== `Bearer ${process.env.REGISTRY_API_KEY}`) {
+  if (auth !== `Bearer ${apiKey}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

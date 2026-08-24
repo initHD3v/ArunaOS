@@ -14,6 +14,9 @@ export class ModuleSettings {
   private bus: EventBus;
   private storage: StorageBackend;
   private cache = new Map<string, Map<string, unknown>>();
+  /** B8: memoize the load promise so concurrent ensureCache calls for the
+   * same module await a single read instead of racing stale writes. */
+  private loading = new Map<string, Promise<Map<string, unknown>>>();
 
   constructor(bus: EventBus, storage: StorageBackend) {
     this.bus = bus;
@@ -25,13 +28,24 @@ export class ModuleSettings {
   }
 
   private async ensureCache(moduleId: string): Promise<Map<string, unknown>> {
-    let cached = this.cache.get(moduleId);
-    if (!cached) {
-      const raw = await this.storage.get<Record<string, unknown>>(this.storageKey(moduleId));
-      cached = new Map(Object.entries(raw ?? {}));
-      this.cache.set(moduleId, cached);
+    const cached = this.cache.get(moduleId);
+    if (cached) return cached;
+
+    let pending = this.loading.get(moduleId);
+    if (!pending) {
+      pending = this.storage
+        .get<Record<string, unknown>>(this.storageKey(moduleId))
+        .then((raw) => {
+          const map = new Map(Object.entries(raw ?? {}));
+          this.cache.set(moduleId, map);
+          return map;
+        })
+        .finally(() => {
+          this.loading.delete(moduleId);
+        });
+      this.loading.set(moduleId, pending);
     }
-    return cached;
+    return pending;
   }
 
   async get<T>(moduleId: string, key: string): Promise<T | undefined> {

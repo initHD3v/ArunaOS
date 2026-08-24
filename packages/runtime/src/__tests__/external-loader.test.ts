@@ -358,7 +358,7 @@ describe('ExternalModuleLoader', () => {
       mockSha256(newHash);
       mockSha256(newHash);
 
-      const result = await loader.update('my.external.mod');
+      const result = await loader.update('my.external.mod', { allowUnverifiedUpdate: true });
       expect(result.entry.manifest.version).toBe('2.0.0');
     });
 
@@ -454,4 +454,85 @@ describe('ExternalModuleLoader', () => {
 
     return loader.installFromUrl('https://example.com/module.json');
   }
+
+  // ── update(): rollback + TOFU (prdbugfix B7/S4) ──
+
+  describe('update', () => {
+    const NEW_CHECKSUM = 'b'.repeat(64);
+    const NEW_CODE = 'export default { mount: () => "v2" };';
+    const manifestV2 = () => makeValidManifest({ version: '2.0.0', checksum: NEW_CHECKSUM });
+
+    async function installV1(source?: 'url' | 'registry') {
+      const manifest = makeValidManifest();
+      mockFetchOnce('https://example.com/module.json', manifest);
+      mockFetchOnce('https://example.com/bundle.js', makeBundleCode());
+      mockSha256(FAKE_CHECKSUM);
+      await loader.installFromUrl('https://example.com/module.json', { source });
+    }
+
+    function mockUpdateFetches() {
+      // checkForUpdates + update both fetch the remote manifest
+      mockFetchOnce('https://example.com/module.json', manifestV2());
+      mockFetchOnce('https://example.com/module.json', manifestV2());
+      mockFetchOnce('https://example.com/bundle.js', NEW_CODE);
+    }
+
+    it('keeps the module installed when the new bundle cannot be fetched', async () => {
+      await installV1();
+
+      mockUpdateFetches();
+      // Bundle fetch fails on all retry attempts
+      mockFetchOnce('https://example.com/bundle.js', 'err', false);
+      mockFetchOnce('https://example.com/bundle.js', 'err', false);
+      mockFetchOnce('https://example.com/bundle.js', 'err', false);
+
+      await expect(loader.update('my.external.mod')).rejects.toThrow();
+
+      expect(loader.getInstalledModule('my.external.mod')).not.toBeNull();
+      expect(registry.get('my.external.mod')).not.toBeNull();
+    });
+
+    it('rejects anchor-breaking updates without signature or explicit consent', async () => {
+      await installV1();
+
+      mockUpdateFetches();
+      mockSha256(NEW_CHECKSUM); // differs from FAKE_CHECKSUM anchor
+
+      await expect(loader.update('my.external.mod')).rejects.toThrow(/allowUnverifiedUpdate/);
+
+      // Module must remain intact at v1
+      expect(loader.getInstalledModule('my.external.mod')!.manifest.version).toBe('1.0.0');
+    });
+
+    it('accepts unverified anchor-breaking update with explicit consent', async () => {
+      await installV1();
+
+      mockUpdateFetches();
+      mockSha256(NEW_CHECKSUM); // TOFU check
+      mockSha256(NEW_CHECKSUM); // installFromCode integrity re-check
+
+      const result = await loader.update('my.external.mod', { allowUnverifiedUpdate: true });
+      expect(result.entry.manifest.version).toBe('2.0.0');
+      expect(result.code).toBe(NEW_CODE);
+    });
+
+    it('preserves original install source through an update', async () => {
+      await installV1('registry');
+
+      // New version, same checksum as the install anchor → no consent needed
+      mockFetchOnce('https://example.com/module.json', makeValidManifest({ version: '2.0.0' }));
+      mockFetchOnce('https://example.com/module.json', makeValidManifest({ version: '2.0.0' }));
+      mockFetchOnce('https://example.com/bundle.js', NEW_CODE);
+      mockSha256(FAKE_CHECKSUM); // TOFU check
+      mockSha256(FAKE_CHECKSUM); // installFromCode re-check
+
+      const result = await loader.update('my.external.mod');
+      expect(result.entry.source).toBe('registry');
+    });
+
+    it('stores an integrity anchor on first install', async () => {
+      await installV1();
+      expect(loader.getIntegrityAnchor('my.external.mod')).toBe(FAKE_CHECKSUM);
+    });
+  });
 });

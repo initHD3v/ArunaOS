@@ -100,6 +100,68 @@ describe('ModuleLoader', () => {
     expect(instance2).toBe(instance1);
   });
 
+  it('should deduplicate concurrent load calls into a single factory run (B2)', async () => {
+    registry.register(makeManifest());
+    let factoryRuns = 0;
+    let resolveFactory: (v: Record<string, unknown>) => void;
+    loader.registerFactory(
+      'test.mod',
+      () =>
+        new Promise((resolve) => {
+          factoryRuns++;
+          resolveFactory = resolve;
+        }),
+    );
+
+    const p1 = loader.load('test.mod');
+    const p2 = loader.load('test.mod');
+    const p3 = loader.load('test.mod');
+
+    resolveFactory!({ shared: true });
+    const [r1, r2, r3] = await Promise.all([p1, p2, p3]);
+
+    expect(factoryRuns).toBe(1);
+    expect(r1).toBe(r2);
+    expect(r2).toBe(r3);
+  });
+
+  it('invokes module API methods with the instance as receiver (B6)', async () => {
+    registry.register(makeManifest());
+    await loader.load('test.mod');
+
+    // Swap in an API whose method depends on `this`
+    const entry = registry.get('test.mod')!;
+    entry.instance = {
+      api: {
+        counter: 41,
+        increment() {
+          return this.counter + 1;
+        },
+      },
+    } as unknown as Record<string, unknown>;
+
+    const responses: Array<{ payload?: unknown; error?: string }> = [];
+    eventBus.on('module:ipc', (msg) => {
+      const m = msg as { type?: string; payload?: unknown; error?: string };
+      if (m.type === 'response') responses.push({ payload: m.payload, error: m.error });
+    });
+
+    eventBus.emit('module:ipc', {
+      id: 'req-b6',
+      type: 'request',
+      source: 'caller',
+      target: 'test.mod',
+      method: 'increment',
+      payload: null,
+      timestamp: Date.now(),
+    });
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(responses).toHaveLength(1);
+    expect(responses[0]!.error).toBeUndefined();
+    expect(responses[0]!.payload).toBe(42);
+  });
+
   it('should unload a module', async () => {
     registry.register(makeManifest());
     await loader.load('test.mod');

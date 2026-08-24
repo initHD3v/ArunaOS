@@ -67,6 +67,23 @@ const PROVIDER_META: Record<
 };
 
 const PROVIDER_ORDER = ['openai', 'anthropic', 'openrouter', 'deepseek', 'ollama'];
+
+/** Providers permanently deleted via the AI Chat settings panel. Deletion is
+ * permanent: these types are hidden here and never re-added by saving. */
+function getDeletedProviders(): string[] {
+  try {
+    const raw = localStorage.getItem('ai-hidden-providers');
+    if (raw) {
+      const parsed: unknown = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return parsed.filter((t): t is string => typeof t === 'string');
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+  return [];
+}
 const KEYLESS_PROVIDERS = new Set(['ollama', 'deepseek']);
 
 export function AISettingsPanel() {
@@ -87,6 +104,7 @@ export function AISettingsPanel() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [showKeys, setShowKeys] = useState<Set<string>>(new Set());
   const [webSearchEnabled, setWebSearchEnabled] = useState(true);
+  const [deletedProviders, setDeletedProviders] = useState<string[]>([]);
 
   const fetchStatus = useCallback(async () => {
     setLoading(true);
@@ -157,6 +175,8 @@ export function AISettingsPanel() {
       fetch(`/api/ai/settings?sessionId=${sid}`)
         .then((r) => r.json())
         .then((data) => {
+          // Server no longer returns API keys (redacted) — only fill fields
+          // that are still empty locally; never overwrite user input.
           if (data.providers?.length) {
             setConfigs((prev) =>
               prev.map((cfg) => {
@@ -164,10 +184,9 @@ export function AISettingsPanel() {
                 if (saved) {
                   return {
                     ...cfg,
-                    apiKey: saved.apiKey ?? '',
                     baseUrl:
-                      saved.baseUrl ?? PROVIDER_META[cfg.type]?.defaultBaseUrl ?? cfg.baseUrl,
-                    model: saved.model ?? cfg.model,
+                      cfg.baseUrl || saved.baseUrl || PROVIDER_META[cfg.type]?.defaultBaseUrl || '',
+                    model: cfg.model || saved.model || '',
                   };
                 }
                 return cfg;
@@ -177,6 +196,7 @@ export function AISettingsPanel() {
         })
         .catch(() => {});
     }
+    setDeletedProviders(getDeletedProviders());
     fetchStatus();
     setWebSearchEnabled(localStorage.getItem('ai-web-search') !== 'false');
   }, [fetchStatus]);
@@ -205,12 +225,15 @@ export function AISettingsPanel() {
     setSaving(true);
     setSaveStatus('idle');
     try {
-      const providersPayload = configs.map((cfg) => ({
-        type: cfg.type,
-        apiKey: cfg.apiKey || undefined,
-        baseUrl: cfg.baseUrl,
-        model: cfg.model,
-      }));
+      // Permanently deleted providers are never re-added by saving
+      const providersPayload = configs
+        .filter((cfg) => !deletedProviders.includes(cfg.type))
+        .map((cfg) => ({
+          type: cfg.type,
+          apiKey: cfg.apiKey || undefined,
+          baseUrl: cfg.baseUrl,
+          model: cfg.model,
+        }));
 
       // Persist full config to localStorage (survives refresh)
       localStorage.setItem('ai-provider-configs', JSON.stringify(providersPayload));
@@ -323,132 +346,136 @@ export function AISettingsPanel() {
           </div>
         )}
 
-        {configs.map((cfg) => {
-          const detected = providers.find((p) => p.type === cfg.type);
-          const meta = PROVIDER_META[cfg.type]!;
-          return (
-            <div
-              key={cfg.type}
-              className="border-border/20 bg-muted/50 overflow-hidden rounded-lg border"
-            >
-              <button
-                onClick={() => toggleExpanded(cfg.type)}
-                className="hover:bg-muted/30 flex w-full items-center gap-3 px-3 py-2.5 text-left"
+        {configs
+          .filter((cfg) => !deletedProviders.includes(cfg.type))
+          .map((cfg) => {
+            const detected = providers.find((p) => p.type === cfg.type);
+            const meta = PROVIDER_META[cfg.type]!;
+            return (
+              <div
+                key={cfg.type}
+                className="border-border/20 bg-muted/50 overflow-hidden rounded-lg border"
               >
-                <div
-                  className={cn(
-                    'h-2 w-2 shrink-0 rounded-full',
-                    detected?.available
-                      ? 'bg-success shadow-success/50 shadow-sm'
-                      : cfg.apiKey
-                        ? 'bg-warning'
-                        : 'bg-foreground/30',
-                  )}
-                />
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-foreground text-sm font-medium capitalize">
-                      {meta?.label ?? cfg.type}
-                    </span>
-                    <span className="bg-muted text-foreground/50 rounded px-1.5 py-0.5 font-mono text-[10px]">
-                      {cfg.model || (detected?.model ?? meta?.defaultModel ?? '—')}
-                    </span>
-                  </div>
-                  {cfg.apiKey && (
-                    <p className="text-foreground/30 mt-0.5 text-[10px]">Custom config applied</p>
-                  )}
-                </div>
-                {cfg.expanded ? (
-                  <ChevronDown size={14} className="text-foreground/30" />
-                ) : (
-                  <ChevronRight size={14} className="text-foreground/30" />
-                )}
-              </button>
-
-              {cfg.expanded && (
-                <div className="border-border/10 space-y-2.5 border-t px-3 py-3">
-                  <div>
-                    <label className="text-foreground/40 mb-1 block text-[10px] font-medium">
-                      API Key{' '}
-                      {detected?.available && (
-                        <span className="text-foreground/20">(env var active)</span>
-                      )}
-                    </label>
-                    <a
-                      href={meta.getApiKeyUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-primary mb-1.5 inline-flex items-center gap-1 text-[10px] hover:underline"
-                    >
-                      <ExternalLink size={10} />
-                      {meta.label} API Key
-                    </a>
-                    {KEYLESS_PROVIDERS.has(cfg.type) && (
-                      <p className="text-foreground/30 mb-1.5 text-[10px]">No API key required.</p>
+                <button
+                  onClick={() => toggleExpanded(cfg.type)}
+                  className="hover:bg-muted/30 flex w-full items-center gap-3 px-3 py-2.5 text-left"
+                >
+                  <div
+                    className={cn(
+                      'h-2 w-2 shrink-0 rounded-full',
+                      detected?.available
+                        ? 'bg-success shadow-success/50 shadow-sm'
+                        : cfg.apiKey
+                          ? 'bg-warning'
+                          : 'bg-foreground/30',
                     )}
-                    <div className="relative">
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-foreground text-sm font-medium capitalize">
+                        {meta?.label ?? cfg.type}
+                      </span>
+                      <span className="bg-muted text-foreground/50 rounded px-1.5 py-0.5 font-mono text-[10px]">
+                        {cfg.model || (detected?.model ?? meta?.defaultModel ?? '—')}
+                      </span>
+                    </div>
+                    {cfg.apiKey && (
+                      <p className="text-foreground/30 mt-0.5 text-[10px]">Custom config applied</p>
+                    )}
+                  </div>
+                  {cfg.expanded ? (
+                    <ChevronDown size={14} className="text-foreground/30" />
+                  ) : (
+                    <ChevronRight size={14} className="text-foreground/30" />
+                  )}
+                </button>
+
+                {cfg.expanded && (
+                  <div className="border-border/10 space-y-2.5 border-t px-3 py-3">
+                    <div>
+                      <label className="text-foreground/40 mb-1 block text-[10px] font-medium">
+                        API Key{' '}
+                        {detected?.available && (
+                          <span className="text-foreground/20">(env var active)</span>
+                        )}
+                      </label>
+                      <a
+                        href={meta.getApiKeyUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary mb-1.5 inline-flex items-center gap-1 text-[10px] hover:underline"
+                      >
+                        <ExternalLink size={10} />
+                        {meta.label} API Key
+                      </a>
+                      {KEYLESS_PROVIDERS.has(cfg.type) && (
+                        <p className="text-foreground/30 mb-1.5 text-[10px]">
+                          No API key required.
+                        </p>
+                      )}
+                      <div className="relative">
+                        <input
+                          type={showKeys.has(cfg.type) ? 'text' : 'password'}
+                          value={cfg.apiKey}
+                          onChange={(e) => updateConfig(cfg.type, 'apiKey', e.target.value)}
+                          placeholder={detected?.available ? 'Using env var' : 'sk-...'}
+                          className={cn(
+                            'w-full rounded-lg px-2.5 py-1.5 text-xs',
+                            'bg-background text-foreground',
+                            'border-border/20 focus:border-primary/30 border focus:outline-none',
+                            'placeholder:text-foreground/20',
+                          )}
+                        />
+                        <button
+                          onClick={() => toggleKeyVisibility(cfg.type)}
+                          className="text-foreground/30 hover:text-foreground/60 absolute right-2 top-1/2 -translate-y-1/2"
+                          tabIndex={-1}
+                        >
+                          {showKeys.has(cfg.type) ? <EyeOff size={14} /> : <Eye size={14} />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-foreground/40 mb-1 block text-[10px] font-medium">
+                        Base URL
+                      </label>
                       <input
-                        type={showKeys.has(cfg.type) ? 'text' : 'password'}
-                        value={cfg.apiKey}
-                        onChange={(e) => updateConfig(cfg.type, 'apiKey', e.target.value)}
-                        placeholder={detected?.available ? 'Using env var' : 'sk-...'}
+                        type="text"
+                        value={cfg.baseUrl}
+                        onChange={(e) => updateConfig(cfg.type, 'baseUrl', e.target.value)}
+                        placeholder={meta?.defaultBaseUrl}
                         className={cn(
-                          'w-full rounded-lg px-2.5 py-1.5 text-xs',
+                          'w-full rounded-lg px-2.5 py-1.5 font-mono text-xs',
                           'bg-background text-foreground',
                           'border-border/20 focus:border-primary/30 border focus:outline-none',
                           'placeholder:text-foreground/20',
                         )}
                       />
-                      <button
-                        onClick={() => toggleKeyVisibility(cfg.type)}
-                        className="text-foreground/30 hover:text-foreground/60 absolute right-2 top-1/2 -translate-y-1/2"
-                        tabIndex={-1}
-                      >
-                        {showKeys.has(cfg.type) ? <EyeOff size={14} /> : <Eye size={14} />}
-                      </button>
+                    </div>
+
+                    <div>
+                      <label className="text-foreground/40 mb-1 block text-[10px] font-medium">
+                        Model
+                      </label>
+                      <input
+                        type="text"
+                        value={cfg.model}
+                        onChange={(e) => updateConfig(cfg.type, 'model', e.target.value)}
+                        placeholder={meta?.defaultModel}
+                        className={cn(
+                          'w-full rounded-lg px-2.5 py-1.5 font-mono text-xs',
+                          'bg-background text-foreground',
+                          'border-border/20 focus:border-primary/30 border focus:outline-none',
+                          'placeholder:text-foreground/20',
+                        )}
+                      />
                     </div>
                   </div>
-
-                  <div>
-                    <label className="text-foreground/40 mb-1 block text-[10px] font-medium">
-                      Base URL
-                    </label>
-                    <input
-                      type="text"
-                      value={cfg.baseUrl}
-                      onChange={(e) => updateConfig(cfg.type, 'baseUrl', e.target.value)}
-                      placeholder={meta?.defaultBaseUrl}
-                      className={cn(
-                        'w-full rounded-lg px-2.5 py-1.5 font-mono text-xs',
-                        'bg-background text-foreground',
-                        'border-border/20 focus:border-primary/30 border focus:outline-none',
-                        'placeholder:text-foreground/20',
-                      )}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-foreground/40 mb-1 block text-[10px] font-medium">
-                      Model
-                    </label>
-                    <input
-                      type="text"
-                      value={cfg.model}
-                      onChange={(e) => updateConfig(cfg.type, 'model', e.target.value)}
-                      placeholder={meta?.defaultModel}
-                      className={cn(
-                        'w-full rounded-lg px-2.5 py-1.5 font-mono text-xs',
-                        'bg-background text-foreground',
-                        'border-border/20 focus:border-primary/30 border focus:outline-none',
-                        'placeholder:text-foreground/20',
-                      )}
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })}
+                )}
+              </div>
+            );
+          })}
       </div>
 
       {/* Web Search Toggle */}

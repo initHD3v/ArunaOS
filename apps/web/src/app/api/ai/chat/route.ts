@@ -16,16 +16,27 @@ const fallback = new ChatFallback(getDefaultTools());
 
 function hasConfiguredProvider(
   providerConfig?: { type: AIProviderType } & AIProviderConfig,
+  requestedProvider?: AIProviderType,
 ): boolean {
+  // A specific provider type was requested but its credentials were not sent
+  // (e.g. client localStorage lost the key). Env fallbacks must not silently
+  // authorize a DIFFERENT provider type — that produced requests without an
+  // Authorization header (401 "Missing Authentication header").
+  const effectiveType = providerConfig?.type ?? requestedProvider;
+  if (effectiveType && !providerConfig?.apiKey) {
+    if (
+      effectiveType === 'ollama' ||
+      effectiveType === 'lmstudio' ||
+      effectiveType === 'deepseek'
+    ) {
+      return !!providerConfig?.baseUrl;
+    }
+    if (effectiveType === 'native') return true;
+    return false;
+  }
+
   if (!providerConfig) return aiService.getAvailableProviders().length > 0;
   if (providerConfig.apiKey) return true;
-  if (
-    providerConfig.type === 'ollama' ||
-    providerConfig.type === 'lmstudio' ||
-    providerConfig.type === 'deepseek'
-  )
-    return !!providerConfig.baseUrl;
-  if (providerConfig.type === 'native') return true;
   return false;
 }
 
@@ -73,7 +84,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    if (!hasConfiguredProvider(providerConfig)) {
+    if (!hasConfiguredProvider(providerConfig, provider as AIProviderType | undefined)) {
       const reply = await fallback.respond(message);
       return new Response(
         JSON.stringify({
@@ -178,7 +189,7 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  if (!hasConfiguredProvider(providerConfig)) {
+  if (!hasConfiguredProvider(providerConfig, providerRaw as AIProviderType | undefined)) {
     const stream = new ReadableStream({
       async start(controller) {
         const generator = fallback.respondStream(message);

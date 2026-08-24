@@ -53,7 +53,9 @@ export class ModuleRegistry {
     const entry = this.entries.get(id);
     if (!entry) return;
     entry.status = status;
+    // B16: clear stale errors when the module transitions away from 'error'
     if (error) entry.error = error;
+    else entry.error = undefined;
     this.onStatusChangeCallbacks.forEach((cb) => cb(id, status));
   }
 

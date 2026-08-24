@@ -131,7 +131,10 @@ export interface ExternalModuleManifest extends ModuleManifest {
   manifestUrl: string;
   registry?: string;
   updatedAt?: string;
+  /** Publisher signature, format: `ed25519:<base64 signature over the bundle code>` */
   signature?: string;
+  /** Publisher public key (SPKI, base64) used to verify `signature` */
+  publicKey?: string;
   homepage?: string;
   author?: string;
   categories?: string[];

@@ -7,6 +7,7 @@ import { ChatInput } from './components/chat-input';
 import { AIChatSettingsPanel } from './components/ai-chat-settings-panel';
 import { ModelDownloadProgress } from './components/model-download-progress';
 import { useLocationStore } from '@/stores/location.store';
+import { useAIHealth } from './use-ai-health';
 import {
   PanelLeftClose,
   PanelLeft,
@@ -182,15 +183,12 @@ function loadActiveProvider(): string | null {
   }
 }
 
-type AIHealth = 'full' | 'limited' | 'none';
-
 export function AIChat() {
   const [sessions, setSessions] = useState<ChatSessionData[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [modelLoading, setModelLoading] = useState(false);
   const [provider, setProvider] = useState<string | null>(null);
-  const [aiHealth, setAIHealth] = useState<AIHealth>('none');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const sessionIdRef = useRef<string | null>(null);
@@ -231,41 +229,38 @@ export function AIChat() {
     return () => window.removeEventListener('ai-provider-config-changed', handler);
   }, []);
 
-  // Periodic health check
-  useEffect(() => {
-    const check = () => {
-      const online = navigator.onLine;
-      const providerCfg = provider ? getProviderConfig(provider) : null;
-      const params = new URLSearchParams();
-      if (providerCfg) params.set('providerConfig', JSON.stringify(providerCfg));
-      if (!online) params.set('online', 'false');
-
-      fetch(`/api/ai/health?${params}`)
-        .then((r) => r.json())
-        .then((d) => setAIHealth(d.status as AIHealth))
-        .catch(() => setAIHealth('none'));
-    };
-    check();
-    const interval = setInterval(check, 30000);
-    const onOnline = () => check();
-    const onOffline = () => check();
-    window.addEventListener('online', onOnline);
-    window.addEventListener('offline', onOffline);
-    window.addEventListener('ai-provider-config-changed', check);
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener('online', onOnline);
-      window.removeEventListener('offline', onOffline);
-      window.removeEventListener('ai-provider-config-changed', check);
-    };
-  }, [provider]);
+  // P4: shared health poller (single fetch loop for the whole app)
+  const aiHealth = useAIHealth();
 
   // Persist sessions on changes
+  // P1: debounced — persisting the entire history synchronously on every
+  // state change (and previously, every streamed token) stalls the UI.
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
-    if (initialized.current) {
-      saveSessions(sessions);
-    }
+    if (!initialized.current) return;
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => saveSessions(sessions), 800);
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
   }, [sessions]);
+
+  // Flush pending chat history when leaving the page
+  const sessionsRef = useRef(sessions);
+  useEffect(() => {
+    sessionsRef.current = sessions;
+  }, [sessions]);
+  useEffect(() => {
+    const flush = () => {
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+      }
+      saveSessions(sessionsRef.current);
+    };
+    window.addEventListener('beforeunload', flush);
+    return () => window.removeEventListener('beforeunload', flush);
+  }, []);
 
   // Persist active session ID
   useEffect(() => {
@@ -453,7 +448,7 @@ export function AIChat() {
       abortRef.current = abortController;
 
       if (provider === 'native') {
-        const currentMessages = sessions.find((s) => s.id === targetId)?.messages ?? [];
+        const currentMessages = sessionsRef.current.find((s) => s.id === targetId)?.messages ?? [];
         const allMessages = [...currentMessages, userMsg]
           .filter((m) => m.role !== 'error')
           .map((m) => ({ role: m.role as 'user' | 'assistant' | 'tool', content: m.content }));
@@ -504,7 +499,10 @@ export function AIChat() {
       try {
         const params = new URLSearchParams({ message: content });
         if (sessionIdRef.current) params.set('sessionId', sessionIdRef.current);
-        if (provider) params.set('provider', provider);
+        // Only send `provider` together with its full config — a bare provider
+        // type without credentials caused 401 "Missing Authentication header"
+        // on the server (it built the provider with no API key).
+        if (provider && providerCfg) params.set('provider', provider);
         if (providerCfg) params.set('providerConfig', JSON.stringify(providerCfg));
 
         const webSearchEnabled = localStorage.getItem('ai-web-search') !== 'false';
@@ -532,6 +530,38 @@ export function AIChat() {
         const decoder = new TextDecoder();
         let buffer = '';
         let fullReply = '';
+        // P1: commit streamed tokens to React state at most every ~80ms —
+        // a full session-array rebuild per SSE token caused jank and
+        // synchronous localStorage writes on the hot path.
+        let lastCommit = 0;
+        const commitStream = (force = false) => {
+          const now = performance.now();
+          if (!force && now - lastCommit < 80) return;
+          lastCommit = now;
+          updateSession(targetId, (s) => {
+            const msgs = [...s.messages];
+            const pendingId = streamMsgIdRef.current;
+            if (pendingId) {
+              const idx = msgs.findIndex((m) => m.id === pendingId);
+              const existing = msgs[idx];
+              if (existing) {
+                msgs[idx] = { ...existing, content: fullReply };
+              } else {
+                msgs.push({ role: 'assistant', content: fullReply, id: pendingId });
+              }
+            } else {
+              const newId = `stream-${Date.now()}-${++msgIdCounter}`;
+              streamMsgIdRef.current = newId;
+              msgs.push({
+                role: 'assistant',
+                content: fullReply,
+                id: newId,
+                createdAt: Date.now(),
+              });
+            }
+            return { ...s, messages: msgs, updatedAt: Date.now() };
+          });
+        };
 
         while (true) {
           const { done, value } = await reader.read();
@@ -574,29 +604,7 @@ export function AIChat() {
 
               if (parsed.type === 'text' && parsed.content) {
                 fullReply += parsed.content;
-                updateSession(targetId, (s) => {
-                  const msgs = [...s.messages];
-                  const pendingId = streamMsgIdRef.current;
-                  if (pendingId) {
-                    const idx = msgs.findIndex((m) => m.id === pendingId);
-                    const existing = msgs[idx];
-                    if (existing) {
-                      msgs[idx] = { ...existing, content: fullReply };
-                    } else {
-                      msgs.push({ role: 'assistant', content: fullReply, id: pendingId });
-                    }
-                  } else {
-                    const newId = `stream-${Date.now()}-${++msgIdCounter}`;
-                    streamMsgIdRef.current = newId;
-                    msgs.push({
-                      role: 'assistant',
-                      content: fullReply,
-                      id: newId,
-                      createdAt: Date.now(),
-                    });
-                  }
-                  return { ...s, messages: msgs, updatedAt: Date.now() };
-                });
+                commitStream();
               }
 
               if (parsed.type === 'status') {
@@ -674,7 +682,7 @@ export function AIChat() {
         try {
           const body: Record<string, unknown> = { message: content };
           if (sessionIdRef.current) body.sessionId = sessionIdRef.current;
-          if (provider) body.provider = provider;
+          if (provider && providerCfg) body.provider = provider;
           if (providerCfg) body.providerConfig = providerCfg;
 
           const res = await fetch('/api/ai/chat', {
@@ -722,7 +730,7 @@ export function AIChat() {
         abortRef.current = null;
       }
     },
-    [activeSessionId, provider, updateSession, ensureTitle, sessions],
+    [activeSessionId, provider, updateSession, ensureTitle],
   );
 
   return (

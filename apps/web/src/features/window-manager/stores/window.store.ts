@@ -202,6 +202,34 @@ export const useWindowStore = create<WindowStore>()(
         nextZIndex: state.nextZIndex,
         savedStates: state.savedStates,
       }),
+      // P3: clamp restored windows to the CURRENT viewport — without this,
+      // windows restored on a smaller screen / different monitor can end up
+      // fully off-screen.
+      merge: (persisted, current) => {
+        const base = { ...current, ...(persisted as Partial<WindowStore>) } as WindowStore;
+        const vw = typeof window !== 'undefined' ? window.innerWidth : 1920;
+        const vh = typeof window !== 'undefined' ? window.innerHeight : 1080;
+
+        for (const win of Object.values(base.windows ?? {})) {
+          if (!win) continue;
+          if (win.state === 'maximized') {
+            win.position = { x: 0, y: MENUBAR_HEIGHT };
+            win.size = { width: vw, height: vh - MENUBAR_HEIGHT };
+            continue;
+          }
+          const width = Math.min(win.size.width, vw);
+          const height = Math.min(win.size.height, vh - MENUBAR_HEIGHT);
+          win.position = {
+            x: Math.max(0, Math.min(win.position.x, Math.max(0, vw - width))),
+            y: Math.max(
+              MENUBAR_HEIGHT,
+              Math.min(win.position.y, Math.max(MENUBAR_HEIGHT, vh - height)),
+            ),
+          };
+          win.size = { width, height };
+        }
+        return base;
+      },
     },
   ),
 );

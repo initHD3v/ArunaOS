@@ -37,9 +37,24 @@ function formatHour(time: string) {
   return d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
 }
 
+// B11: Open-Meteo dates are date-only ("YYYY-MM-DD"); new Date(str) parses
+// them as UTC midnight, which shifts weekday labels one day back in
+// negative-UTC-offset timezones. Parse explicitly as local dates instead.
+function parseLocalDate(date: string): Date {
+  const [y, m, d] = date.split('-').map(Number);
+  return new Date(y ?? 1970, (m ?? 1) - 1, d ?? 1);
+}
+
+function todayLocalISO(): string {
+  const now = new Date();
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const dd = String(now.getDate()).padStart(2, '0');
+  return `${now.getFullYear()}-${mm}-${dd}`;
+}
+
 function formatDay(date: string) {
   const days = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
-  return days[new Date(date).getDay()];
+  return days[parseLocalDate(date).getDay()];
 }
 
 function formatTime(iso: string) {
@@ -372,7 +387,7 @@ function WeatherExpandedView({
             <div className="space-y-0.5">
               {w.daily.map((d) => {
                 const cond = getCondition(d.weatherCode);
-                const isToday = d.date === new Date().toISOString().slice(0, 10);
+                const isToday = d.date === todayLocalISO();
                 return (
                   <div
                     key={d.date}
