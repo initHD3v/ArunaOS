@@ -175,6 +175,7 @@ export function AIChatSettingsPanel({ onClose }: AIChatSettingsPanelProps) {
   const [model, setModel] = useState('');
   const [showKey, setShowKey] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [invalidKey, setInvalidKey] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [providerOpen, setProviderOpen] = useState(false);
   const [availableModels, setAvailableModels] = useState<string[]>([]);
@@ -208,11 +209,34 @@ export function AIChatSettingsPanel({ onClose }: AIChatSettingsPanelProps) {
 
   const selectProvider = (type: string) => {
     const m = PROVIDER_META[type];
+    // Load the saved config of the selected provider (if any) so stale form
+    // values from the previously-selected provider can never leak into a
+    // different provider's entry when saving (this previously wrote LM Studio
+    // URLs into OpenRouter's apiKey field).
+    let saved: { apiKey?: string; baseUrl?: string; model?: string } | null = null;
+    try {
+      const raw = localStorage.getItem('ai-provider-configs');
+      const parsed = raw
+        ? (JSON.parse(raw) as Array<{
+            type: string;
+            apiKey?: string;
+            baseUrl?: string;
+            model?: string;
+          }>)
+        : [];
+      if (Array.isArray(parsed)) {
+        saved = parsed.find((c) => c.type === type) ?? null;
+      }
+    } catch {
+      /* ignore */
+    }
     setProvider(type);
     setProviderOpen(false);
     setConfirmDelete(null);
-    setBaseUrl(m?.defaultBaseUrl ?? '');
-    setModel(m?.defaultModel ?? '');
+    setApiKey(saved?.apiKey ?? '');
+    setInvalidKey(false);
+    setBaseUrl(saved?.baseUrl ?? m?.defaultBaseUrl ?? '');
+    setModel(saved?.model ?? m?.defaultModel ?? '');
     setShowKey(KEYLESS_PROVIDERS.has(type));
     setAvailableModels([]);
     setModelQuery('');
@@ -300,6 +324,13 @@ export function AIChatSettingsPanel({ onClose }: AIChatSettingsPanelProps) {
   })();
 
   const handleSave = () => {
+    // Guard: a URL is never a valid API key. This blocks the exact corruption
+    // seen when a baseUrl (e.g. LM Studio's http://127.0.0.1:1234) ends up in
+    // the key field — OpenRouter then answers 401 "Missing Authentication header".
+    if (!KEYLESS_PROVIDERS.has(provider) && /^https?:\/\//i.test(apiKey.trim())) {
+      setInvalidKey(true);
+      return;
+    }
     saveSingleConfig({ provider, apiKey, baseUrl, model });
     setSaved(true);
     setTimeout(() => {
@@ -616,7 +647,10 @@ export function AIChatSettingsPanel({ onClose }: AIChatSettingsPanelProps) {
                 <input
                   type="text"
                   value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
+                  onChange={(e) => {
+                    setApiKey(e.target.value);
+                    setInvalidKey(false);
+                  }}
                   onKeyDown={handleKeyDown}
                   placeholder={
                     KEYLESS_PROVIDERS.has(provider)
@@ -814,6 +848,12 @@ export function AIChatSettingsPanel({ onClose }: AIChatSettingsPanelProps) {
 
       {/* Save */}
       <div className="border-border/20 border-t p-4">
+        {invalidKey && (
+          <p className="text-destructive mb-2 text-[10px] leading-snug">
+            API key tidak valid — nilai tersebut berupa URL. Paste API key (mis. sk-or-v1-...) dari
+            dashboard provider, bukan Base URL.
+          </p>
+        )}
         <button
           onClick={handleSave}
           disabled={testResult === 'idle' && !hasKey && !KEYLESS_PROVIDERS.has(provider)}
@@ -821,13 +861,17 @@ export function AIChatSettingsPanel({ onClose }: AIChatSettingsPanelProps) {
             'flex w-full items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-all',
             saved
               ? 'bg-green-500/15 text-green-600'
-              : 'bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40',
+              : invalidKey
+                ? 'bg-destructive/15 text-destructive hover:bg-destructive/25'
+                : 'bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40',
           )}
         >
           {saved ? (
             <>
               <CheckCircle className="h-3 w-3" /> Saved
             </>
+          ) : invalidKey ? (
+            'API Key Invalid'
           ) : (
             'Save Settings'
           )}
