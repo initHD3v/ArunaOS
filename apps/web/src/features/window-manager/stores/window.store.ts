@@ -13,6 +13,9 @@ interface WindowStore {
   focusedWindowId: string | null;
   nextZIndex: number;
   savedStates: Record<string, SavedState>;
+  /** Pre-zoom geometry for ⌥+click "fill" zoom — persisted so a reload
+   * doesn't strand a fullscreen-sized window that can't be un-zoomed. */
+  zoomOrigins: Record<string, SavedState>;
 
   openWindow: (win: WindowData) => void;
   closeWindow: (id: string) => void;
@@ -23,6 +26,8 @@ interface WindowStore {
   moveWindow: (id: string, position: Position) => void;
   resizeWindow: (id: string, size: Size) => void;
   setWindowState: (id: string, state: WindowState) => void;
+  setZoomOrigin: (id: string, origin: SavedState) => void;
+  clearZoomOrigin: (id: string) => void;
 }
 
 export const useWindowStore = create<WindowStore>()(
@@ -32,6 +37,7 @@ export const useWindowStore = create<WindowStore>()(
       focusedWindowId: null,
       nextZIndex: 1,
       savedStates: {},
+      zoomOrigins: {},
 
       openWindow: (win) =>
         set((s) => ({
@@ -42,16 +48,27 @@ export const useWindowStore = create<WindowStore>()(
 
       closeWindow: (id) =>
         set((s) => {
-          const nextFocused = s.focusedWindowId === id ? null : s.focusedWindowId;
           const windows = { ...s.windows };
           delete windows[id];
           const savedStates = { ...s.savedStates };
           delete savedStates[id];
+          const zoomOrigins = { ...s.zoomOrigins };
+          delete zoomOrigins[id];
+          // Auto-focus the topmost remaining visible window — otherwise
+          // closing the focused window left every window unfocused.
+          let nextFocused = s.focusedWindowId === id ? null : s.focusedWindowId;
+          if (nextFocused === null) {
+            const top = Object.values(windows)
+              .filter((w) => w.state !== 'minimized')
+              .sort((a, b) => b.zIndex - a.zIndex)[0];
+            if (top) nextFocused = top.id;
+          }
           return {
             windows,
             focusedWindowId: nextFocused,
             nextZIndex: Object.keys(windows).length === 0 ? 1 : s.nextZIndex,
             savedStates,
+            zoomOrigins,
           };
         }),
 
@@ -62,7 +79,15 @@ export const useWindowStore = create<WindowStore>()(
           return {
             windows: {
               ...s.windows,
-              [id]: { ...target, state: 'active' as WindowState, zIndex: s.nextZIndex },
+              [id]: {
+                ...target,
+                // A maximized window must stay maximized — bumping it to
+                // 'active' here silently un-maximized it on every click while
+                // keeping fullscreen geometry, corrupting savedStates on the
+                // next maximize.
+                state: (target.state === 'maximized' ? 'maximized' : 'active') as WindowState,
+                zIndex: s.nextZIndex,
+              },
             },
             focusedWindowId: id,
             nextZIndex: s.nextZIndex + 1,
@@ -193,6 +218,16 @@ export const useWindowStore = create<WindowStore>()(
           if (!target) return s;
           return { windows: { ...s.windows, [id]: { ...target, state } } };
         }),
+
+      setZoomOrigin: (id, origin) =>
+        set((s) => ({ zoomOrigins: { ...s.zoomOrigins, [id]: origin } })),
+
+      clearZoomOrigin: (id) =>
+        set((s) => {
+          const zoomOrigins = { ...s.zoomOrigins };
+          delete zoomOrigins[id];
+          return { zoomOrigins };
+        }),
     }),
     {
       name: 'arunaos-windows',
@@ -201,6 +236,7 @@ export const useWindowStore = create<WindowStore>()(
         focusedWindowId: state.focusedWindowId,
         nextZIndex: state.nextZIndex,
         savedStates: state.savedStates,
+        zoomOrigins: state.zoomOrigins,
       }),
       // P3: clamp restored windows to the CURRENT viewport — without this,
       // windows restored on a smaller screen / different monitor can end up

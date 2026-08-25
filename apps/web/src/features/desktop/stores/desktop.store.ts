@@ -15,8 +15,26 @@ export interface DesktopState {
   removeIcon: (id: string) => void;
   renameIcon: (id: string, title: string) => void;
   moveIcon: (fromIndex: number, toIndex: number) => void;
+  /** Free positioning: pindahkan ikon ke sel grid (kolom/baris) mana pun. */
+  moveIconToCell: (id: string, col: number, row: number) => void;
   toggleDesktopIcons: () => void;
   triggerRefresh: () => void;
+}
+
+/** Ukuran sel grid desktop — ikon w-20 (80px) + gap 8. */
+export const DESKTOP_CELL_W = 88;
+export const DESKTOP_CELL_H = 96;
+export const DESKTOP_GRID_COLS = 4;
+
+/** Cari sel kosong pertama (scan urutan baca) untuk ikon baru. */
+function firstFreeCell(icons: DesktopIconData[]): { position: number; row: number } {
+  const taken = new Set(icons.map((i) => `${i.position}:${i.row ?? 0}`));
+  for (let row = 0; row < 100; row++) {
+    for (let col = 0; col < DESKTOP_GRID_COLS; col++) {
+      if (!taken.has(`${col}:${row}`)) return { position: col, row };
+    }
+  }
+  return { position: 0, row: 0 };
 }
 
 export const useDesktopStore = create<DesktopState>()(
@@ -37,9 +55,12 @@ export const useDesktopStore = create<DesktopState>()(
       setRenamingIcon: (id) => set({ renamingIconId: id }),
 
       addIcon: (icon) =>
-        set((s) => ({
-          icons: [...s.icons, { ...icon, position: s.icons.length }],
-        })),
+        set((s) => {
+          const cell = firstFreeCell(s.icons);
+          return {
+            icons: [...s.icons, { ...icon, position: cell.position, row: cell.row }],
+          };
+        }),
 
       removeIcon: (id) =>
         set((s) => ({
@@ -61,9 +82,14 @@ export const useDesktopStore = create<DesktopState>()(
           if (!moved) return s;
           icons.splice(toIndex, 0, moved);
           return {
-            icons: icons.map((icon, i) => ({ ...icon, position: i })),
+            icons: icons.map((icon, i) => ({ ...icon, position: i, row: 0 })),
           };
         }),
+
+      moveIconToCell: (id, col, row) =>
+        set((s) => ({
+          icons: s.icons.map((icon) => (icon.id === id ? { ...icon, position: col, row } : icon)),
+        })),
 
       toggleDesktopIcons: () => set((s) => ({ desktopIconsHidden: !s.desktopIconsHidden })),
 
@@ -75,6 +101,16 @@ export const useDesktopStore = create<DesktopState>()(
         icons: state.icons,
         desktopIconsHidden: state.desktopIconsHidden,
       }),
+      // Migrasi ikon lama (position = indeks baris tunggal) ke grid bebas.
+      merge: (persisted, current) => {
+        const base = { ...current, ...(persisted as Partial<DesktopState>) } as DesktopState;
+        base.icons = (base.icons ?? []).map((i) => ({
+          ...i,
+          position: ((i.position % DESKTOP_GRID_COLS) + DESKTOP_GRID_COLS) % DESKTOP_GRID_COLS,
+          row: i.row ?? Math.floor(i.position / DESKTOP_GRID_COLS),
+        }));
+        return base;
+      },
     },
   ),
 );

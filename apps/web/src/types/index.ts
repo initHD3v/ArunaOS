@@ -34,7 +34,10 @@ export interface DesktopIconData {
   id: string;
   title: string;
   icon: string;
+  /** Grid cell column (free positioning). */
   position: number;
+  /** Grid cell row (free positioning). */
+  row?: number;
   appId: string;
 }
 
