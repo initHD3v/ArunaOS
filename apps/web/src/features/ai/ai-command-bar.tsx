@@ -65,6 +65,48 @@ function readActiveProvider(): ActiveProviderInfo | null {
 
 type BarMode = 'input' | 'loading' | 'result' | 'error';
 
+const AUTH_ERROR_RE =
+  /(401|403|invalid_api_key|invalid\s+api\s+key|incorrect\s+api\s+key|missing\s+(api\s+)?key|no\s+api\s+key|unauthorized|authentication|permission|quota|billing)/i;
+
+const KEYLESS_PROVIDERS_SET = new Set(['ollama', 'lmstudio', 'native', 'deepseek']);
+
+function openAppWindow(appId: string): void {
+  const shortId = MODULE_APP_ID_MAP[appId] ?? appId.replace(/^arunaos\./, '');
+  const { width, height, x, y } = createWindowConfig(800, 560);
+  useWindowStore.getState().openWindow({
+    id: `window-${shortId}-${Date.now()}`,
+    title: shortId.charAt(0).toUpperCase() + shortId.slice(1),
+    icon: shortId,
+    appId: shortId,
+    position: { x, y },
+    size: { width, height },
+    zIndex: 1,
+    state: 'active',
+  });
+}
+
+/**
+ * Maps raw provider errors (often verbose JSON like OpenAI's 401 payload)
+ * to a short, actionable message for the command bar.
+ */
+function parseProviderError(
+  raw: string,
+  providerType?: string,
+): { isAuthError: boolean; message: string } {
+  if (AUTH_ERROR_RE.test(raw)) {
+    const provider = providerType ?? 'provider AI';
+    return {
+      isAuthError: true,
+      message:
+        `API key untuk ${provider} tidak ada atau tidak valid. ` +
+        'Perbarui API key di Settings → AI, lalu coba lagi.',
+    };
+  }
+  // Collapse multi-line provider JSON payloads into one readable line.
+  const singleLine = raw.replace(/\s+/g, ' ').trim();
+  return { isAuthError: false, message: singleLine };
+}
+
 /**
  * The answer bubble renders plain text — strip lightweight Markdown markers
  * (**bold**, *italic*, __underline__, `code`) that models emit by default.
@@ -81,6 +123,7 @@ export function AICommandBar({ open, onClose }: AICommandBarProps) {
   const [query, setQuery] = useState('');
   const [mode, setMode] = useState<BarMode>('input');
   const [result, setResult] = useState('');
+  const [isAuthError, setIsAuthError] = useState(false);
   const [providerInfo, setProviderInfo] = useState<ActiveProviderInfo | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -159,27 +202,26 @@ export function AICommandBar({ open, onClose }: AICommandBarProps) {
 
       setMode('loading');
       setQuery('');
+      setIsAuthError(false);
+      // Pre-flight: provider explicitly selected but has no usable key —
+      // fail fast with guidance instead of a raw 401 from the server.
+      if (providerInfo && !KEYLESS_PROVIDERS_SET.has(providerInfo.type) && !providerInfo.apiKey) {
+        setResult(
+          `API key untuk ${providerInfo.type} belum diatur. Buka Settings → AI untuk menambahkannya.`,
+        );
+        setIsAuthError(true);
+        setMode('error');
+        return;
+      }
 
-      const openAppWindow = (content: string) => {
+      const handleToolResult = (content: string) => {
         try {
           const result = JSON.parse(content) as {
             success?: boolean;
             data?: { appId?: string };
           };
-          const fullAppId = result.data?.appId;
-          if (result.success && fullAppId) {
-            const shortId = MODULE_APP_ID_MAP[fullAppId] ?? fullAppId.replace(/^arunaos\./, '');
-            const { width, height, x, y } = createWindowConfig(800, 560);
-            useWindowStore.getState().openWindow({
-              id: `window-${shortId}-${Date.now()}`,
-              title: shortId.charAt(0).toUpperCase() + shortId.slice(1),
-              icon: shortId,
-              appId: shortId,
-              position: { x, y },
-              size: { width, height },
-              zIndex: 1,
-              state: 'active',
-            });
+          if (result.success && result.data?.appId) {
+            openAppWindow(result.data.appId);
           }
         } catch {
           // bukan payload open_app yang valid — abaikan
@@ -247,7 +289,7 @@ export function AICommandBar({ open, onClose }: AICommandBarProps) {
               }
               if (parsed.type === 'tool-result') {
                 if (parsed.toolName === 'open_app' && parsed.content) {
-                  openAppWindow(parsed.content);
+                  handleToolResult(parsed.content);
                 }
               }
               if (parsed.type === 'error' && parsed.content) {
@@ -262,10 +304,13 @@ export function AICommandBar({ open, onClose }: AICommandBarProps) {
         if (controller.signal.aborted) return;
 
         if (streamError && !fullReply) {
-          setResult(streamError);
+          const parsed = parseProviderError(streamError, providerInfo?.type);
+          setResult(parsed.message);
+          setIsAuthError(parsed.isAuthError);
           setMode('error');
         } else if (fullReply) {
           setResult(fullReply);
+          setIsAuthError(false);
           setMode('result');
           eventBus.emit('notification:send', {
             type: 'info',
@@ -274,12 +319,15 @@ export function AICommandBar({ open, onClose }: AICommandBarProps) {
           });
         } else {
           setResult('No response from AI provider');
+          setIsAuthError(false);
           setMode('error');
         }
       } catch (err: unknown) {
         if (controller.signal.aborted) return;
         const errMsg = err instanceof Error ? err.message : 'Command failed';
-        setResult(errMsg);
+        const parsed = parseProviderError(errMsg, providerInfo?.type);
+        setResult(parsed.message);
+        setIsAuthError(parsed.isAuthError);
         setMode('error');
       }
     },
@@ -425,17 +473,41 @@ export function AICommandBar({ open, onClose }: AICommandBarProps) {
                       'max-w-lg rounded-2xl border px-5 py-4 backdrop-blur-xl',
                       mode === 'result'
                         ? 'border-white/12 bg-white/[0.06] shadow-[0_8px_32px_rgba(0,0,0,0.3)]'
-                        : 'border-red-400/25 bg-red-500/[0.08]',
+                        : isAuthError
+                          ? 'border-amber-400/25 bg-amber-500/[0.08]'
+                          : 'border-red-400/25 bg-red-500/[0.08]',
                     )}
                   >
                     <p
                       className={cn(
                         'whitespace-pre-wrap text-sm leading-relaxed',
-                        mode === 'result' ? 'text-white/85' : 'text-red-300/90',
+                        mode === 'result'
+                          ? 'text-white/85'
+                          : isAuthError
+                            ? 'text-amber-200/90'
+                            : 'text-red-300/90',
                       )}
                     >
                       {stripMarkdown(result)}
                     </p>
+                    {mode === 'error' && isAuthError && (
+                      <motion.button
+                        type="button"
+                        whileHover={{ scale: 1.03 }}
+                        whileTap={{ scale: 0.97 }}
+                        className={cn(
+                          'mt-3 rounded-full border px-4 py-1.5 text-xs transition-colors',
+                          'border-amber-300/30 bg-amber-400/10 text-amber-100',
+                          'hover:bg-amber-400/20',
+                        )}
+                        onClick={() => {
+                          openAppWindow('arunaos.settings');
+                          onClose();
+                        }}
+                      >
+                        Buka Settings → AI
+                      </motion.button>
+                    )}
                   </motion.div>
                 )}
               </AnimatePresence>
