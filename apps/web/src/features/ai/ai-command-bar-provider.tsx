@@ -17,7 +17,7 @@ export function AICommandBarProvider() {
   }, [quickAskOpen]);
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'i') {
+    if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'i') {
       e.preventDefault();
       setOpen((p) => !p);
     }
