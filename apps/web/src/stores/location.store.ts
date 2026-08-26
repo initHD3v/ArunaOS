@@ -2,12 +2,14 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { getAccuratePosition, reverseGeocode } from '@/lib/geolocation';
 
 export interface LocationState {
   enabled: boolean;
   permissionAsked: boolean;
   latitude: number | null;
   longitude: number | null;
+  accuracy: number | null;
   city: string | null;
   error: string | null;
   loading: boolean;
@@ -20,59 +22,6 @@ export interface LocationActions {
   reset: () => void;
 }
 
-function formatLocationName(addr: Record<string, string> | undefined): string | null {
-  if (!addr) return null;
-
-  const specific = addr.hamlet || addr.suburb || addr.neighbourhood || addr.isolated_dwelling || '';
-  const local = addr.village || addr.town || addr.city || '';
-  const county = addr.county || addr.state_district || '';
-  const state = addr.state || '';
-  const country = addr.country || '';
-
-  let name: string;
-  if (specific && local && specific !== local) {
-    name = `${specific}, ${local}`;
-  } else if (specific) {
-    name = specific;
-  } else if (local) {
-    name = local;
-  } else if (county) {
-    name = county;
-  } else if (state) {
-    name = state;
-  } else {
-    return null;
-  }
-
-  return country ? `${name}, ${country}` : name;
-}
-
-async function reverseGeocode(lat: number, lon: number): Promise<string | null> {
-  try {
-    const res = await fetch(
-      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=id`,
-      {
-        headers: { 'User-Agent': 'arunaOS/1.0' },
-        signal: AbortSignal.timeout(5000),
-      },
-    );
-    if (!res.ok) return null;
-    const data = await res.json();
-    const result = formatLocationName(data.address);
-    if (result) return result;
-    if (data.display_name) return data.display_name.split(', ').slice(0, 2).join(', ');
-    return null;
-  } catch {
-    return null;
-  }
-}
-
-function getPosition(options?: PositionOptions): Promise<GeolocationPosition> {
-  return new Promise((resolve, reject) => {
-    navigator.geolocation.getCurrentPosition(resolve, reject, options);
-  });
-}
-
 export const useLocationStore = create<LocationState & LocationActions>()(
   persist(
     (set, get) => ({
@@ -80,6 +29,7 @@ export const useLocationStore = create<LocationState & LocationActions>()(
       permissionAsked: false,
       latitude: null,
       longitude: null,
+      accuracy: null,
       city: null,
       error: null,
       loading: false,
@@ -97,15 +47,16 @@ export const useLocationStore = create<LocationState & LocationActions>()(
         set({ loading: true, error: null });
 
         try {
-          const pos = await getPosition({ enableHighAccuracy: true, timeout: 10000 });
-          const lat = pos.coords.latitude;
-          const lon = pos.coords.longitude;
-          const city = await reverseGeocode(lat, lon);
+          // Multiple high-accuracy fixes — desktop WiFi/IP geolocation is
+          // often kilometers off on the first reading.
+          const fix = await getAccuratePosition({ attempts: 3 });
+          const city = await reverseGeocode(fix.lat, fix.lon);
           set({
             enabled: true,
             permissionAsked: true,
-            latitude: lat,
-            longitude: lon,
+            latitude: fix.lat,
+            longitude: fix.lon,
+            accuracy: fix.accuracy,
             city,
             loading: false,
             error: null,
@@ -131,11 +82,9 @@ export const useLocationStore = create<LocationState & LocationActions>()(
         if (!enabled || !permissionAsked) return;
 
         try {
-          const pos = await getPosition({ enableHighAccuracy: false, timeout: 5000 });
-          const lat = pos.coords.latitude;
-          const lon = pos.coords.longitude;
-          const city = await reverseGeocode(lat, lon);
-          set({ latitude: lat, longitude: lon, city, error: null });
+          const fix = await getAccuratePosition({ attempts: 2, timeoutMs: 8000 });
+          const city = await reverseGeocode(fix.lat, fix.lon);
+          set({ latitude: fix.lat, longitude: fix.lon, accuracy: fix.accuracy, city, error: null });
         } catch {
           // silent — keep old location
         }
@@ -156,6 +105,7 @@ export const useLocationStore = create<LocationState & LocationActions>()(
           permissionAsked: false,
           latitude: null,
           longitude: null,
+          accuracy: null,
           city: null,
           error: null,
         }),
@@ -167,6 +117,7 @@ export const useLocationStore = create<LocationState & LocationActions>()(
         permissionAsked: state.permissionAsked,
         latitude: state.latitude,
         longitude: state.longitude,
+        accuracy: state.accuracy,
         city: state.city,
         error: state.error,
       }),

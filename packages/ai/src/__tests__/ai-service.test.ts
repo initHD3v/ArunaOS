@@ -134,6 +134,74 @@ describe('AIService', () => {
 
       expect(result.message.content).toBe('AI response');
     });
+
+    it('executes native tool calls with stringified args and follows up', async () => {
+      const tool: AITool = {
+        id: 't2',
+        name: 'search',
+        description: '',
+        category: 'system',
+        parameters: [],
+        execute: async () => ({ success: true, data: { answer: 'Jakarta' } }),
+      };
+
+      const toolCallPayload = JSON.stringify([
+        { id: 'call-abc', name: 'search', args: JSON.stringify({ query: 'capital of Indonesia' }) },
+      ]);
+      let call = 0;
+      const mockFetch = vi.fn().mockImplementation(async () => {
+        call++;
+        return {
+          ok: true,
+          json: async () => ({
+            choices: [
+              {
+                message:
+                  call === 1
+                    ? { content: toolCallPayload }
+                    : { content: 'Ibukota Indonesia adalah Jakarta.' },
+              },
+            ],
+          }),
+        };
+      });
+      vi.stubGlobal('fetch', mockFetch);
+      vi.stubEnv('OPENROUTER_API_KEY', 'sk-test');
+
+      const service = new AIService({ tools: [tool] });
+      const result = await service.complete(
+        {
+          messages: [{ role: 'user', content: 'What is the capital of Indonesia?' }],
+          providerConfig: { type: 'openrouter', apiKey: 'sk-test', baseUrl: '', model: 'test' },
+        },
+        'openrouter',
+      );
+
+      expect(result.message.content).toBe('Ibukota Indonesia adalah Jakarta.');
+      // First request + tool-result follow-up
+      const followUpBody = JSON.parse(mockFetch.mock.calls[1]![1]!.body as string) as {
+        messages: Array<{ role: string; content: string }>;
+      };
+      expect(followUpBody.messages.some((m) => m.role === 'tool')).toBe(true);
+    });
+
+    it('never returns raw tool-call JSON when execution is not possible', async () => {
+      const rawJson = '[{"id":"call-1","name":"unknown_tool","args":"{\\"x\\":1}"}]';
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ choices: [{ message: { content: rawJson } }] }),
+      });
+      vi.stubGlobal('fetch', mockFetch);
+      vi.stubEnv('OPENAI_API_KEY', 'sk-test');
+
+      const service = new AIService();
+      const result = await service.complete({
+        messages: [{ role: 'user', content: 'do a thing' }],
+      });
+
+      expect(result.message.content).not.toContain('"name"');
+      expect(result.message.content).not.toContain('call-1');
+    });
   });
 
   describe('completeStream', () => {

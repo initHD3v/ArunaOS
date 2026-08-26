@@ -220,8 +220,32 @@ export class AIService {
   }
 
   /**
+   * Normalize a tool-call `args` value. OpenAI-compatible providers serialize
+   * native `function.arguments` as a JSON *string*, while the text-based
+   * convention uses an inline object — accept both.
+   */
+  private normalizeToolArgs(args: unknown): Record<string, unknown> | null {
+    if (typeof args === 'string') {
+      try {
+        const parsed = JSON.parse(args) as unknown;
+        if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
+          return parsed as Record<string, unknown>;
+        }
+      } catch {
+        /* not JSON */
+      }
+      return null;
+    }
+    if (typeof args === 'object' && args !== null && !Array.isArray(args)) {
+      return args as Record<string, unknown>;
+    }
+    return null;
+  }
+
+  /**
    * Extract JSON tool call(s) from text content.
-   * Supports both pure JSON and mixed text-with-embedded-JSON.
+   * Supports pure JSON (object or array, incl. OpenAI-style entries with extra
+   * fields like `id` and stringified `args`) and mixed text-with-embedded-JSON.
    * Returns tool results + cleaned content (JSON stripped).
    */
   private async extractToolCalls(content: string): Promise<{
@@ -240,19 +264,26 @@ export class AIService {
     // Try parsing the entire content as pure JSON first (fast path)
     const trimmed = content.trim();
     if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
-      let parsed: Array<{ name: string; args: Record<string, unknown> }>;
       try {
-        const raw = JSON.parse(trimmed) as
-          | Array<{ name: string; args: Record<string, unknown> }>
-          | { name: string; args: Record<string, unknown> };
-        parsed = Array.isArray(raw) ? raw : [raw];
-        const valid = parsed.every(
-          (c) => typeof c.name === 'string' && c.args && typeof c.args === 'object',
-        );
-        if (valid) {
+        const raw = JSON.parse(trimmed) as Array<Record<string, unknown>> | Record<string, unknown>;
+        const list = Array.isArray(raw) ? raw : [raw];
+        const calls: Array<{ name: string; args: Record<string, unknown> }> = [];
+        for (const item of list) {
+          if (!item || typeof item !== 'object' || typeof item.name !== 'string') {
+            calls.length = 0;
+            break;
+          }
+          const args = this.normalizeToolArgs(item.args) ?? this.normalizeToolArgs(item.arguments);
+          if (!args) {
+            calls.length = 0;
+            break;
+          }
+          calls.push({ name: item.name, args });
+        }
+        if (calls.length > 0) {
           found = true;
           cleanedContent = '';
-          for (const call of parsed) {
+          for (const call of calls) {
             await this.executeSingleTool(call, toolResults);
             if (call.name === 'get_system_context') contextUpdated = true;
           }
@@ -315,11 +346,32 @@ export class AIService {
       if (rawName === 'get_system_context') contextUpdated = true;
     }
 
+    // Mixed content (stringified args variant): {"name":"...","args":"{...}"}
+    const toolCallStrArgsRegex =
+      /\{"name"\s*:\s*"([^"]+)"\s*,\s*"args"\s*:\s*"((?:[^"\\]|\\.)*)"\s*\}/g;
+    let strMatch: RegExpExecArray | null;
+    while ((strMatch = toolCallStrArgsRegex.exec(content)) !== null) {
+      const rawName = strMatch[1];
+      const rawArgs = strMatch[2] ?? '';
+      if (!rawName || !rawArgs) continue;
+
+      const argsObj = this.normalizeToolArgs(rawArgs);
+      if (!argsObj) continue;
+
+      if (seenToolNames.has(rawName)) continue;
+      seenToolNames.add(rawName);
+
+      found = true;
+      await this.executeSingleTool({ name: rawName, args: argsObj }, toolResults);
+      if (rawName === 'get_system_context') contextUpdated = true;
+    }
+
     // Strip all JSON tool call patterns from the content
     if (found) {
       cleanedContent = content
         .replace(/<｜tool▁calls▁begin｜>[\s\S]*?<｜tool▁calls▁end｜>/g, '')
         .replace(toolCallRegex, '')
+        .replace(toolCallStrArgsRegex, '')
         .replace(/\n{3,}/g, '\n\n')
         .trim();
     }
@@ -546,7 +598,9 @@ export class AIService {
     });
 
     // Extract tool calls from response (handles both pure JSON and mixed content)
-    const { toolResults } = await this.extractToolCalls(response.message.content ?? '');
+    const { toolResults, cleanedContent } = await this.extractToolCalls(
+      response.message.content ?? '',
+    );
 
     if (toolResults.length > 0) {
       const followUpMessages: AIMessage[] = [
@@ -560,6 +614,23 @@ export class AIService {
         temperature: req.temperature,
       });
       return followUp;
+    }
+
+    // Safety net: if the whole reply was malformed tool-call JSON that could
+    // not be executed, never surface the raw JSON to the user.
+    if (
+      cleanedContent === '' &&
+      response.message.content &&
+      /^[[{]/.test(response.message.content.trim())
+    ) {
+      return {
+        ...response,
+        message: {
+          ...response.message,
+          content:
+            'Maaf, saya belum bisa memproses perintah tersebut. Coba rumuskan dengan cara lain.',
+        },
+      };
     }
 
     return response;

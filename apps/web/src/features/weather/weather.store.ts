@@ -1,6 +1,7 @@
 'use client';
 
 import { create } from 'zustand';
+import { reverseGeocode } from '@/lib/geolocation';
 
 export interface HourlyData {
   time: string;
@@ -118,51 +119,8 @@ async function resolveCityFromIP(): Promise<{ lat: number; lon: number; city: st
   }
 }
 
-function formatLocationName(addr: Record<string, string> | undefined): string | null {
-  if (!addr) return null;
-
-  const specific = addr.hamlet || addr.suburb || addr.neighbourhood || addr.isolated_dwelling || '';
-  const local = addr.village || addr.town || addr.city || '';
-  const county = addr.county || addr.state_district || '';
-  const state = addr.state || '';
-  const country = addr.country || '';
-
-  let name: string;
-  if (specific && local && specific !== local) {
-    name = `${specific}, ${local}`;
-  } else if (specific) {
-    name = specific;
-  } else if (local) {
-    name = local;
-  } else if (county) {
-    name = county;
-  } else if (state) {
-    name = state;
-  } else {
-    return null;
-  }
-
-  return country ? `${name}, ${country}` : name;
-}
-
 async function resolveCityFromCoords(lat: number, lon: number): Promise<string | null> {
-  try {
-    const res = await fetch(
-      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=id`,
-      {
-        headers: { 'User-Agent': 'arunaOS/1.0' },
-        signal: AbortSignal.timeout(5000),
-      },
-    );
-    if (!res.ok) return null;
-    const data = await res.json();
-    const result = formatLocationName(data.address);
-    if (result) return result;
-    if (data.display_name) return data.display_name.split(', ').slice(0, 2).join(', ');
-    return null;
-  } catch {
-    return null;
-  }
+  return reverseGeocode(lat, lon);
 }
 
 export const useWeatherStore = create<WeatherState & WeatherActions>()((set) => ({
