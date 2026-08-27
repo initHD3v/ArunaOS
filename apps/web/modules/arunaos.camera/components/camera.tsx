@@ -309,7 +309,29 @@ export const CameraApp = memo(function CameraApp() {
         </AnimatePresence>
       </div>
 
-      {/* Controls — collapsible with animation */}
+      {/* Shutter — always visible so photo can be taken even when settings hidden */}
+      <ShutterBar
+        mode={mode}
+        timer={timer}
+        showGrid={showGrid}
+        filter={filter}
+        mirror={mirror}
+        flash={flash}
+        recording={recording}
+        devicesCount={devices.length}
+        showSettings={showControls}
+        onCapture={handleCapture}
+        onToggleMode={() => setMode(mode === 'photo' ? 'video' : 'photo')}
+        onTimer={() => setTimer(timer === 0 ? 3 : timer === 3 ? 10 : 0)}
+        onGrid={toggleGrid}
+        onFilter={setFilter}
+        onMirror={toggleMirror}
+        onFlash={toggleFlash}
+        onFlip={switchCamera}
+        isMobile={!!isMobile}
+      />
+
+      {/* Gallery — collapsible, hide to maximize viewfinder */}
       <AnimatePresence initial={false}>
         {showControls && (
           <motion.div
@@ -319,25 +341,6 @@ export const CameraApp = memo(function CameraApp() {
             transition={{ duration: 0.28, ease: [0.32, 0.72, 0, 1] }}
             className="shrink-0 overflow-hidden"
           >
-            <ShutterBar
-              mode={mode}
-              timer={timer}
-              showGrid={showGrid}
-              filter={filter}
-              mirror={mirror}
-              flash={flash}
-              recording={recording}
-              devicesCount={devices.length}
-              onCapture={handleCapture}
-              onToggleMode={() => setMode(mode === 'photo' ? 'video' : 'photo')}
-              onTimer={() => setTimer(timer === 0 ? 3 : timer === 3 ? 10 : 0)}
-              onGrid={toggleGrid}
-              onFilter={setFilter}
-              onMirror={toggleMirror}
-              onFlash={toggleFlash}
-              onFlip={switchCamera}
-              isMobile={!!isMobile}
-            />
             <Gallery
               media={media}
               onDownload={downloadMedia}

@@ -23,6 +23,7 @@ export function ShutterBar({
   flash,
   recording,
   devicesCount,
+  showSettings = true,
   onCapture,
   onToggleMode,
   onTimer,
@@ -41,6 +42,7 @@ export function ShutterBar({
   flash: boolean;
   recording: boolean;
   devicesCount: number;
+  showSettings?: boolean;
   onCapture: () => void;
   onToggleMode: () => void;
   onTimer: () => void;
@@ -53,51 +55,53 @@ export function ShutterBar({
 }) {
   return (
     <div className="bg-card/95 supports-[backdrop-filter]:bg-card/80 border-border/20 relative flex shrink-0 flex-col gap-2 border-t px-3 py-3 backdrop-blur-xl sm:px-4">
-      {/* Top row: filters + utilities */}
-      <div className="flex items-center justify-between gap-2">
-        <div className="scrollbar-none flex items-center gap-1.5 overflow-x-auto">
-          {FILTERS.map((f) => (
+      {/* Top row: filters + utilities — hide when controls collapsed, shutter stays */}
+      {showSettings && (
+        <div className="flex items-center justify-between gap-2">
+          <div className="scrollbar-none flex items-center gap-1.5 overflow-x-auto">
+            {FILTERS.map((f) => (
+              <button
+                key={f.id}
+                onClick={() => onFilter(f.id)}
+                className={cn(
+                  'shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors',
+                  filter === f.id
+                    ? 'bg-foreground text-background border-foreground'
+                    : 'bg-muted border-border/20 text-foreground/60 hover:text-foreground',
+                )}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+          <div className="hidden items-center gap-1 sm:flex">
             <button
-              key={f.id}
-              onClick={() => onFilter(f.id)}
+              onClick={onFlash}
               className={cn(
-                'shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors',
-                filter === f.id
-                  ? 'bg-foreground text-background border-foreground'
-                  : 'bg-muted border-border/20 text-foreground/60 hover:text-foreground',
+                'flex h-7 w-7 items-center justify-center rounded-full border',
+                flash
+                  ? 'border-amber-500 bg-amber-500 text-white'
+                  : 'bg-muted border-border/20 text-foreground/60',
               )}
+              title="Flash"
             >
-              {f.label}
+              <Zap size={12} />
             </button>
-          ))}
+            <button
+              onClick={onMirror}
+              className={cn(
+                'flex h-7 w-7 items-center justify-center rounded-full border',
+                mirror
+                  ? 'bg-foreground text-background border-foreground'
+                  : 'bg-muted border-border/20 text-foreground/60',
+              )}
+              title="Mirror"
+            >
+              <FlipHorizontal size={12} />
+            </button>
+          </div>
         </div>
-        <div className="hidden items-center gap-1 sm:flex">
-          <button
-            onClick={onFlash}
-            className={cn(
-              'flex h-7 w-7 items-center justify-center rounded-full border',
-              flash
-                ? 'border-amber-500 bg-amber-500 text-white'
-                : 'bg-muted border-border/20 text-foreground/60',
-            )}
-            title="Flash"
-          >
-            <Zap size={12} />
-          </button>
-          <button
-            onClick={onMirror}
-            className={cn(
-              'flex h-7 w-7 items-center justify-center rounded-full border',
-              mirror
-                ? 'bg-foreground text-background border-foreground'
-                : 'bg-muted border-border/20 text-foreground/60',
-            )}
-            title="Mirror"
-          >
-            <FlipHorizontal size={12} />
-          </button>
-        </div>
-      </div>
+      )}
 
       {/* Main iOS-style bar */}
       <div className="flex items-center justify-between">
@@ -215,10 +219,12 @@ export function ShutterBar({
         </div>
       </div>
 
-      <div className="text-muted-foreground flex items-center justify-center gap-1 text-[10px]">
-        <Sparkles size={10} className="text-violet-500/60" />
-        <span>Space to capture • Swipe mode • Pinch 1×-3×</span>
-      </div>
+      {showSettings && (
+        <div className="text-muted-foreground flex items-center justify-center gap-1 text-[10px]">
+          <Sparkles size={10} className="text-violet-500/60" />
+          <span>Space to capture • H hide • Pinch 1×-3×</span>
+        </div>
+      )}
     </div>
   );
 }
