@@ -6,6 +6,9 @@ const nextConfig: NextConfig = {
   // can pick up a stray package-lock.json in the home directory.
   outputFileTracingRoot: join(__dirname, '../..'),
   reactStrictMode: true,
+  experimental: {
+    optimizePackageImports: ['lucide-react'],
+  },
   transpilePackages: [
     '@arunaos/ui',
     '@arunaos/utils',
