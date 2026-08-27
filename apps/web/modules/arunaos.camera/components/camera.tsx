@@ -1,6 +1,8 @@
 'use client';
 
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { Eye, PanelBottomClose, PanelBottomOpen } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-media-query';
 import { useCameraStore, FILTERS } from '../stores/camera.store';
 import { useCameraStream } from '../hooks/use-camera-stream';
@@ -93,6 +95,7 @@ export const CameraApp = memo(function CameraApp() {
   const [countdown, setCountdown] = useState(0);
   const [media, setMedia] = useState<CapturedMedia[]>([]);
   const [flashOn, setFlashOn] = useState(false);
+  const [showControls, setShowControls] = useState(true);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => setMounted(true), []);
@@ -114,12 +117,16 @@ export const CameraApp = memo(function CameraApp() {
     if (activeDeviceId) start(activeDeviceId);
   }, [activeDeviceId, start]);
 
-  // keyboard: Space to capture
+  // keyboard: Space to capture, H to hide controls
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
       if (e.code === 'Space' && !e.repeat) {
         e.preventDefault();
         handleCapture();
+      }
+      if ((e.key === 'h' || e.key === 'H') && !error) {
+        e.preventDefault();
+        setShowControls((v) => !v);
       }
       if (e.key === 'Escape' && error) setError('');
     };
@@ -238,58 +245,108 @@ export const CameraApp = memo(function CameraApp() {
 
   return (
     <div className="bg-background flex h-full flex-col overflow-hidden">
-      {/* Top badge — iOS style */}
-      <div className="pointer-events-none absolute left-1/2 top-3 z-10 flex -translate-x-1/2 items-center gap-2">
-        <div className="flex items-center gap-1.5 rounded-full bg-black/35 px-3 py-1 text-xs font-medium text-white/80 backdrop-blur-md">
-          {recording ? (
-            <>
-              <span className="h-2 w-2 animate-pulse rounded-full bg-red-500" />
-              {formatClock(recordingTime)} • Video
-            </>
-          ) : (
-            <span>{mode === 'photo' ? 'Photo' : 'Video'}</span>
+      {/* Top bar — mode badge + hide controls */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-center justify-between p-3">
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 rounded-full bg-black/35 px-3 py-1 text-xs font-medium text-white/80 backdrop-blur-md">
+            {recording ? (
+              <>
+                <span className="h-2 w-2 animate-pulse rounded-full bg-red-500" />
+                {formatClock(recordingTime)} • Video
+              </>
+            ) : (
+              <span>{mode === 'photo' ? 'Photo' : 'Video'}</span>
+            )}
+          </div>
+          {!showControls && (
+            <span className="hidden rounded-full bg-amber-500/20 px-2 py-1 text-[10px] font-medium text-amber-200 backdrop-blur-md sm:inline">
+              Controls hidden — press H to show
+            </span>
           )}
         </div>
+        <button
+          onClick={() => setShowControls((v) => !v)}
+          title={showControls ? 'Hide controls (H)' : 'Show controls (H)'}
+          className="pointer-events-auto flex h-8 w-8 items-center justify-center rounded-full bg-black/35 text-white/80 backdrop-blur-md transition-colors hover:bg-black/50 hover:text-white sm:h-9 sm:w-9"
+          aria-label={showControls ? 'Hide camera controls' : 'Show camera controls'}
+        >
+          {showControls ? <PanelBottomClose size={14} /> : <PanelBottomOpen size={14} />}
+        </button>
       </div>
 
-      {/* Viewfinder — flex-1, handles 16:9/4:3 via object-cover, vertical 9:16 on mobile prioritized via isMobile shutter size */}
-      <Viewfinder
-        videoRef={videoRef}
-        canvasRef={canvasRef}
-        streamReady={streamReady}
-        initializing={initializing}
-        showGrid={showGrid}
-        mirror={mirror}
-        filter={filter}
-        zoom={zoom}
-        flash={flashOn}
-        countdown={countdown}
-        onZoom={setZoom}
-      />
+      {/* Viewfinder — flex-1, expands when controls hidden */}
+      <div
+        className="relative flex flex-1 flex-col overflow-hidden"
+        onDoubleClick={() => setShowControls((v) => !v)}
+      >
+        <Viewfinder
+          videoRef={videoRef}
+          canvasRef={canvasRef}
+          streamReady={streamReady}
+          initializing={initializing}
+          showGrid={showGrid}
+          mirror={mirror}
+          filter={filter}
+          zoom={zoom}
+          flash={flashOn}
+          countdown={countdown}
+          onZoom={setZoom}
+        />
 
-      {/* iOS shutter bar — bottom */}
-      <ShutterBar
-        mode={mode}
-        timer={timer}
-        showGrid={showGrid}
-        filter={filter}
-        mirror={mirror}
-        flash={flash}
-        recording={recording}
-        devicesCount={devices.length}
-        onCapture={handleCapture}
-        onToggleMode={() => setMode(mode === 'photo' ? 'video' : 'photo')}
-        onTimer={() => setTimer(timer === 0 ? 3 : timer === 3 ? 10 : 0)}
-        onGrid={toggleGrid}
-        onFilter={setFilter}
-        onMirror={toggleMirror}
-        onFlash={toggleFlash}
-        onFlip={switchCamera}
-        isMobile={!!isMobile}
-      />
+        {/* Floating show button when hidden — centered bottom */}
+        <AnimatePresence>
+          {!showControls && (
+            <motion.button
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+              onClick={() => setShowControls(true)}
+              className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-black/40 px-3 py-1.5 text-xs font-medium text-white/90 backdrop-blur-md hover:bg-black/60"
+            >
+              <Eye size={12} /> Show controls
+            </motion.button>
+          )}
+        </AnimatePresence>
+      </div>
 
-      {/* Persisted gallery — horizontal scroller + lightbox */}
-      <Gallery media={media} onDownload={downloadMedia} onDelete={deleteMedia} onClear={clearAll} />
+      {/* Controls — collapsible with animation */}
+      <AnimatePresence initial={false}>
+        {showControls && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.28, ease: [0.32, 0.72, 0, 1] }}
+            className="shrink-0 overflow-hidden"
+          >
+            <ShutterBar
+              mode={mode}
+              timer={timer}
+              showGrid={showGrid}
+              filter={filter}
+              mirror={mirror}
+              flash={flash}
+              recording={recording}
+              devicesCount={devices.length}
+              onCapture={handleCapture}
+              onToggleMode={() => setMode(mode === 'photo' ? 'video' : 'photo')}
+              onTimer={() => setTimer(timer === 0 ? 3 : timer === 3 ? 10 : 0)}
+              onGrid={toggleGrid}
+              onFilter={setFilter}
+              onMirror={toggleMirror}
+              onFlash={toggleFlash}
+              onFlip={switchCamera}
+              isMobile={!!isMobile}
+            />
+            <Gallery
+              media={media}
+              onDownload={downloadMedia}
+              onDelete={deleteMedia}
+              onClear={clearAll}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {error && (
         <PermissionDenied
