@@ -64,6 +64,12 @@ const PROVIDER_META: Record<
     defaultModel: 'deepseek-ai/DeepSeek-V4-Flash-0731',
     getApiKeyUrl: '',
   },
+  kiosapi: {
+    label: 'KiosAPI',
+    defaultBaseUrl: 'https://api.kiosapi.com/v1',
+    defaultModel: 'kios-model',
+    getApiKeyUrl: 'https://kiosapi.com',
+  },
 };
 
 const KEYLESS_PROVIDERS = new Set(['ollama', 'lmstudio', 'native', 'deepseek']);
@@ -106,6 +112,7 @@ const PROVIDER_ORDER: (keyof typeof PROVIDER_META)[] = [
   'ollama',
   'lmstudio',
   'native',
+  'kiosapi',
 ];
 
 const PROVIDER_HELP: Record<string, string> = {
@@ -118,6 +125,7 @@ const PROVIDER_HELP: Record<string, string> = {
   native: 'Run AI directly in your browser. No server or API key needed.',
   deepseek:
     'Free public DeepSeek V4 Flash endpoint. No API key or account required — works out of the box.',
+  kiosapi: 'Paste your KiosAPI key to enable AI chat via KiosAPI.',
 };
 
 function loadSingleConfig() {

@@ -238,6 +238,17 @@ export function detectProviders(): Array<{ type: AIProviderType; config: AIProvi
     });
   }
 
+  if (process.env.KIOSAPI_API_KEY) {
+    providers.push({
+      type: 'kiosapi',
+      config: {
+        apiKey: process.env.KIOSAPI_API_KEY,
+        baseUrl: process.env.KIOSAPI_BASE_URL,
+        model: process.env.KIOSAPI_MODEL,
+      },
+    });
+  }
+
   return providers;
 }
 

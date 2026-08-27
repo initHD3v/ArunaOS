@@ -13,6 +13,7 @@ import { AnthropicProvider } from './providers/anthropic';
 import { OpenRouterProvider } from './providers/openrouter';
 import { OllamaProvider } from './providers/ollama';
 import { DeepSeekProvider } from './providers/deepseek';
+import { KiosapiProvider } from './providers/kiosapi';
 import { detectProviders } from './providers/interface';
 import { ToolRegistry } from './tools/registry';
 import { ToolRouter } from './tools/tool-router';
@@ -91,6 +92,17 @@ export class AIService {
       case 'deepseek':
         this.providers.set(type, new DeepSeekProvider(cfg));
         break;
+      case 'kiosapi':
+        this.providers.set(type, new KiosapiProvider(cfg));
+        break;
+      case 'lmstudio': {
+        const lmBaseUrl = (cfg.baseUrl ?? 'http://127.0.0.1:1234').replace(/\/$/, '');
+        const finalUrl = lmBaseUrl.includes('/v1') ? lmBaseUrl : `${lmBaseUrl}/v1`;
+        this.providers.set(type, new OpenAIProvider({ ...cfg, baseUrl: finalUrl }));
+        break;
+      }
+      case 'native':
+        throw new Error('Native provider can only be used client-side');
     }
   }
 
@@ -136,6 +148,8 @@ export class AIService {
         return new OllamaProvider(cfg);
       case 'deepseek':
         return new DeepSeekProvider(cfg);
+      case 'kiosapi':
+        return new KiosapiProvider(cfg);
       case 'lmstudio': {
         const lmBaseUrl = (cfg.baseUrl ?? 'http://127.0.0.1:1234').replace(/\/$/, '');
         const finalUrl = lmBaseUrl.includes('/v1') ? lmBaseUrl : `${lmBaseUrl}/v1`;
@@ -143,6 +157,8 @@ export class AIService {
       }
       case 'native':
         throw new Error('Native provider can only be used client-side');
+      default:
+        throw new Error(`Unknown provider type: ${type satisfies never}`);
     }
   }
 

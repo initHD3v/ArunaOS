@@ -22,10 +22,10 @@ function sleep(ms: number): Promise<void> {
 }
 
 export class OpenAIProvider implements AIProvider {
-  readonly type: 'openai' | 'openrouter' | 'deepseek' = 'openai';
+  readonly type: 'openai' | 'openrouter' | 'deepseek' | 'kiosapi' = 'openai';
   readonly model: string;
   private baseUrl: string;
-  private apiKey?: string;
+  protected apiKey?: string;
   private maxTokens: number;
   private temperature: number;
   private retry: boolean;
@@ -36,7 +36,7 @@ export class OpenAIProvider implements AIProvider {
 
   constructor(
     config: AIProviderConfig & {
-      _type?: 'openai' | 'openrouter' | 'deepseek';
+      _type?: 'openai' | 'openrouter' | 'deepseek' | 'kiosapi';
       _retry?: boolean;
       _retryDelayMs?: number;
       _maxRetries?: number;
@@ -63,6 +63,24 @@ export class OpenAIProvider implements AIProvider {
 
   private timed(init: RequestInit): RequestInit {
     return this.timeoutMs > 0 ? { ...init, signal: AbortSignal.timeout(this.timeoutMs) } : init;
+  }
+
+  /**
+   * OpenRouter signals a retired/depromoted model with a 404 whose body
+   * names the replacement slug ("... use this slug instead: vendor/model").
+   * Returns candidate retries: the suggested slug's :free variant first
+   * (the request came from a free-tier model), then the suggested slug.
+   */
+  private suggestedModelCandidates(errorBody: string): string[] {
+    const match = errorBody.match(
+      /use this slug instead:\s*["']?([A-Za-z0-9._/-]+?)["']?\s*(?:$|[.,}])/i,
+    );
+    const slug = match?.[1]?.trim();
+    if (!slug || !/^[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+$/.test(slug)) return [];
+    const candidates: string[] = [];
+    if (!slug.endsWith(':free')) candidates.push(`${slug}:free`);
+    candidates.push(slug);
+    return candidates;
   }
 
   private async fetchWithRetry(url: string, init: RequestInit): Promise<Response> {
@@ -126,6 +144,17 @@ export class OpenAIProvider implements AIProvider {
         const text = await response.text().catch(() => '');
         lastError = new Error(`OpenAI API error (${response.status}): ${text}`);
         if (response.status === 429 && i < candidates.length - 1) continue;
+        // 404 "model unavailable" — OpenRouter names the replacement slug;
+        // splice retry candidates in right after the current position.
+        if (response.status === 404) {
+          const suggested = this.suggestedModelCandidates(text).filter(
+            (m) => !candidates.includes(m),
+          );
+          if (suggested.length > 0) {
+            candidates.splice(i + 1, 0, ...suggested);
+            continue;
+          }
+        }
         throw lastError;
       }
 
@@ -197,6 +226,16 @@ export class OpenAIProvider implements AIProvider {
         const text = await response.text().catch(() => '');
         await response.body?.cancel().catch(() => {});
         if (response.status === 429 && i < candidates.length - 1) continue;
+        // Same 404 auto-heal as complete(): retry on the suggested slug.
+        if (response.status === 404) {
+          const suggested = this.suggestedModelCandidates(text).filter(
+            (m) => !candidates.includes(m),
+          );
+          if (suggested.length > 0) {
+            candidates.splice(i + 1, 0, ...suggested);
+            continue;
+          }
+        }
         yield { type: 'error', content: `OpenAI API error (${response.status}): ${text}` };
         return;
       }

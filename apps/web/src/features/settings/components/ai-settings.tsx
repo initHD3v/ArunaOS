@@ -64,9 +64,15 @@ const PROVIDER_META: Record<
     defaultModel: 'deepseek-ai/DeepSeek-V4-Flash-0731',
     getApiKeyUrl: '',
   },
+  kiosapi: {
+    label: 'KiosAPI',
+    defaultBaseUrl: 'https://api.kiosapi.com/v1',
+    defaultModel: 'kios-model',
+    getApiKeyUrl: 'https://kiosapi.com',
+  },
 };
 
-const PROVIDER_ORDER = ['openai', 'anthropic', 'openrouter', 'deepseek', 'ollama'];
+const PROVIDER_ORDER = ['openai', 'anthropic', 'openrouter', 'deepseek', 'ollama', 'kiosapi'];
 
 /** Providers permanently deleted via the AI Chat settings panel. Deletion is
  * permanent: these types are hidden here and never re-added by saving. */

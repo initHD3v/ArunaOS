@@ -52,6 +52,12 @@ const PROVIDER_META: Record<string, ProviderMeta> = {
     defaultModel: 'deepseek-ai/DeepSeek-V4-Flash-0731',
     getApiKeyUrl: '',
   },
+  kiosapi: {
+    label: 'KiosAPI',
+    defaultBaseUrl: 'https://api.kiosapi.com/v1',
+    defaultModel: 'kios-model',
+    getApiKeyUrl: 'https://kiosapi.com',
+  },
 };
 
 const PROVIDER_ORDER: (keyof typeof PROVIDER_META)[] = [
@@ -60,6 +66,7 @@ const PROVIDER_ORDER: (keyof typeof PROVIDER_META)[] = [
   'openrouter',
   'deepseek',
   'ollama',
+  'kiosapi',
 ];
 
 function loadSingleConfig(): { provider: string; apiKey: string; baseUrl: string; model: string } {
@@ -132,6 +139,7 @@ const PROVIDER_HELP: Record<string, string> = {
   ollama: 'Run models locally with Ollama. No API key needed — just make sure Ollama is running.',
   deepseek:
     'Free public DeepSeek V4 Flash endpoint. No API key or account required — works out of the box.',
+  kiosapi: 'Paste your KiosAPI key to enable AI chat via KiosAPI.',
 };
 
 function getTestEndpoint(
