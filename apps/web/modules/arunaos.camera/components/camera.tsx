@@ -80,6 +80,7 @@ export const CameraApp = memo(function CameraApp() {
     flash,
     filter,
     zoom,
+    aspect,
     setMode,
     setTimer,
     toggleGrid,
@@ -87,6 +88,7 @@ export const CameraApp = memo(function CameraApp() {
     toggleFlash,
     setFilter,
     setZoom,
+    setAspect,
   } = useCameraStore();
   const [activeDeviceId, setActiveDeviceId] = useState('');
   const { devices, error, setError, streamReady, initializing, streamRef, start, stop } =
@@ -145,18 +147,43 @@ export const CameraApp = memo(function CameraApp() {
     const video = videoRef.current;
     const canvas = canvasRef.current;
     if (!video || !canvas) return;
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    const vw = video.videoWidth;
+    const vh = video.videoHeight;
+    if (!vw || !vh) return;
+    // aspect crop
+    let sx = 0;
+    let sy = 0;
+    let sw = vw;
+    let sh = vh;
+    let cw = vw;
+    let ch = vh;
+    if (aspect !== 'original') {
+      const [aw, ah] = aspect.split(':').map(Number);
+      const desired = (aw || 1) / (ah || 1);
+      const videoRatio = vw / vh;
+      if (videoRatio > desired) {
+        sw = Math.round(vh * desired);
+        sx = Math.round((vw - sw) / 2);
+        cw = sw;
+        ch = vh;
+      } else {
+        sh = Math.round(vw / desired);
+        sy = Math.round((vh - sh) / 2);
+        cw = vw;
+        ch = sh;
+      }
+    }
+    canvas.width = cw;
+    canvas.height = ch;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     const css = FILTERS.find((f) => f.id === filter)?.css;
     if (css) ctx.filter = css;
-    // mirror front camera
     if (mirror) {
-      ctx.translate(canvas.width, 0);
+      ctx.translate(cw, 0);
       ctx.scale(-1, 1);
     }
-    ctx.drawImage(video, 0, 0);
+    ctx.drawImage(video, sx, sy, sw, sh, 0, 0, cw, ch);
     setFlashOn(true);
     setTimeout(() => setFlashOn(false), 280);
     canvas.toBlob(
@@ -176,7 +203,7 @@ export const CameraApp = memo(function CameraApp() {
       'image/jpeg',
       0.92,
     );
-  }, [filter, mirror]);
+  }, [filter, mirror, aspect]);
 
   const handleCapture = useCallback(() => {
     if (mode === 'photo') {
@@ -259,6 +286,7 @@ export const CameraApp = memo(function CameraApp() {
           mirror={mirror}
           filter={filter}
           zoom={zoom}
+          aspect={aspect}
           flash={flashOn}
           countdown={countdown}
           onZoom={setZoom}
@@ -294,6 +322,7 @@ export const CameraApp = memo(function CameraApp() {
         timer={timer}
         showGrid={showGrid}
         filter={filter}
+        aspect={aspect}
         mirror={mirror}
         flash={flash}
         recording={recording}
@@ -304,6 +333,7 @@ export const CameraApp = memo(function CameraApp() {
         onTimer={() => setTimer(timer === 0 ? 3 : timer === 3 ? 10 : 0)}
         onGrid={toggleGrid}
         onFilter={setFilter}
+        onAspect={setAspect}
         onMirror={toggleMirror}
         onFlash={toggleFlash}
         onFlip={switchCamera}

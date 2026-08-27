@@ -13,14 +13,15 @@ import {
   PanelBottomOpen,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { TimerDuration, FilterId } from '../stores/camera.store';
-import { FILTERS } from '../stores/camera.store';
+import type { TimerDuration, FilterId, AspectId } from '../stores/camera.store';
+import { FILTERS, ASPECTS } from '../stores/camera.store';
 
 export function ShutterBar({
   mode,
   timer,
   showGrid,
   filter,
+  aspect,
   mirror,
   flash,
   recording,
@@ -31,6 +32,7 @@ export function ShutterBar({
   onTimer,
   onGrid,
   onFilter,
+  onAspect,
   onMirror,
   onFlash,
   onFlip,
@@ -41,6 +43,7 @@ export function ShutterBar({
   timer: TimerDuration;
   showGrid: boolean;
   filter: FilterId;
+  aspect: AspectId;
   mirror: boolean;
   flash: boolean;
   recording: boolean;
@@ -51,6 +54,7 @@ export function ShutterBar({
   onTimer: () => void;
   onGrid: () => void;
   onFilter: (f: FilterId) => void;
+  onAspect: (a: AspectId) => void;
   onMirror: () => void;
   onFlash: () => void;
   onFlip: () => void;
@@ -59,50 +63,69 @@ export function ShutterBar({
 }) {
   return (
     <div className="relative flex shrink-0 flex-col gap-2 border-t border-white/10 bg-black/20 px-3 py-3 backdrop-blur-2xl sm:px-4">
-      {/* Top row: filters + utilities — hide when controls collapsed, shutter stays */}
+      {/* Top row: filters + utilities + aspect — hide when collapsed, shutter stays */}
       {showSettings && (
-        <div className="flex items-center justify-between gap-2">
-          <div className="scrollbar-none flex items-center gap-1.5 overflow-x-auto">
-            {FILTERS.map((f) => (
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center justify-between gap-2">
+            <div className="scrollbar-none flex items-center gap-1.5 overflow-x-auto">
+              {FILTERS.map((f) => (
+                <button
+                  key={f.id}
+                  onClick={() => onFilter(f.id)}
+                  className={cn(
+                    'shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-medium backdrop-blur-md transition-colors',
+                    filter === f.id
+                      ? 'border-white bg-white text-black shadow'
+                      : 'border-white/10 bg-white/10 text-white/70 hover:bg-white/15 hover:text-white',
+                  )}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+            <div className="hidden items-center gap-1 sm:flex">
               <button
-                key={f.id}
-                onClick={() => onFilter(f.id)}
+                onClick={onFlash}
+                className={cn(
+                  'flex h-7 w-7 items-center justify-center rounded-full border backdrop-blur-md',
+                  flash
+                    ? 'border-amber-500 bg-amber-500 text-white'
+                    : 'border-white/10 bg-white/10 text-white/60 hover:bg-white/15 hover:text-white',
+                )}
+                title="Flash"
+              >
+                <Zap size={12} />
+              </button>
+              <button
+                onClick={onMirror}
+                className={cn(
+                  'flex h-7 w-7 items-center justify-center rounded-full border backdrop-blur-md',
+                  mirror
+                    ? 'border-white bg-white text-black'
+                    : 'border-white/10 bg-white/10 text-white/60 hover:bg-white/15 hover:text-white',
+                )}
+                title="Mirror"
+              >
+                <FlipHorizontal size={12} />
+              </button>
+            </div>
+          </div>
+          <div className="scrollbar-none flex items-center gap-1.5 overflow-x-auto">
+            <span className="shrink-0 text-[10px] font-medium text-white/40">Aspect</span>
+            {ASPECTS.map((a) => (
+              <button
+                key={a.id}
+                onClick={() => onAspect(a.id)}
                 className={cn(
                   'shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-medium backdrop-blur-md transition-colors',
-                  filter === f.id
+                  aspect === a.id
                     ? 'border-white bg-white text-black shadow'
-                    : 'border-white/10 bg-white/10 text-white/70 hover:bg-white/15 hover:text-white',
+                    : 'border-white/10 bg-white/10 text-white/60 hover:bg-white/15 hover:text-white',
                 )}
               >
-                {f.label}
+                {a.label}
               </button>
             ))}
-          </div>
-          <div className="hidden items-center gap-1 sm:flex">
-            <button
-              onClick={onFlash}
-              className={cn(
-                'flex h-7 w-7 items-center justify-center rounded-full border backdrop-blur-md',
-                flash
-                  ? 'border-amber-500 bg-amber-500 text-white'
-                  : 'border-white/10 bg-white/10 text-white/60 hover:bg-white/15 hover:text-white',
-              )}
-              title="Flash"
-            >
-              <Zap size={12} />
-            </button>
-            <button
-              onClick={onMirror}
-              className={cn(
-                'flex h-7 w-7 items-center justify-center rounded-full border backdrop-blur-md',
-                mirror
-                  ? 'border-white bg-white text-black'
-                  : 'border-white/10 bg-white/10 text-white/60 hover:bg-white/15 hover:text-white',
-              )}
-              title="Mirror"
-            >
-              <FlipHorizontal size={12} />
-            </button>
           </div>
         </div>
       )}

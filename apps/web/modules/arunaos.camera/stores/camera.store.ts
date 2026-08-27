@@ -6,6 +6,7 @@ import { persist } from 'zustand/middleware';
 export type CameraMode = 'photo' | 'video';
 export type TimerDuration = 0 | 3 | 10;
 export type FilterId = 'none' | 'bw' | 'vivid' | 'warm' | 'cool' | 'soft';
+export type AspectId = 'original' | '16:9' | '4:3' | '1:1' | '9:16';
 
 export interface CameraSettings {
   mode: CameraMode;
@@ -15,6 +16,7 @@ export interface CameraSettings {
   flash: boolean;
   filter: FilterId;
   zoom: number;
+  aspect: AspectId;
 }
 
 interface CameraStore extends CameraSettings {
@@ -25,6 +27,7 @@ interface CameraStore extends CameraSettings {
   toggleFlash: () => void;
   setFilter: (f: FilterId) => void;
   setZoom: (z: number) => void;
+  setAspect: (a: AspectId) => void;
 }
 
 export const useCameraStore = create<CameraStore>()(
@@ -37,6 +40,7 @@ export const useCameraStore = create<CameraStore>()(
       flash: false,
       filter: 'none',
       zoom: 1,
+      aspect: 'original' as AspectId,
       setMode: (mode) => set({ mode }),
       setTimer: (timer) => set({ timer }),
       toggleGrid: () => set((s) => ({ showGrid: !s.showGrid })),
@@ -44,6 +48,7 @@ export const useCameraStore = create<CameraStore>()(
       toggleFlash: () => set((s) => ({ flash: !s.flash })),
       setFilter: (filter) => set({ filter }),
       setZoom: (zoom) => set({ zoom: Math.min(3, Math.max(1, zoom)) }),
+      setAspect: (aspect) => set({ aspect }),
     }),
     { name: 'aruna-camera-settings' },
   ),
@@ -56,4 +61,12 @@ export const FILTERS: { id: FilterId; label: string; css: string }[] = [
   { id: 'warm', label: 'Warm', css: 'sepia(0.25) saturate(1.2) brightness(1.05)' },
   { id: 'cool', label: 'Cool', css: 'hue-rotate(10deg) saturate(1.1) brightness(1.02)' },
   { id: 'soft', label: 'Soft', css: 'contrast(0.95) brightness(1.08) saturate(0.9)' },
+];
+
+export const ASPECTS: { id: AspectId; label: string; ratio: string }[] = [
+  { id: 'original', label: 'Original', ratio: '' },
+  { id: '16:9', label: '16:9', ratio: '16 / 9' },
+  { id: '4:3', label: '4:3', ratio: '4 / 3' },
+  { id: '1:1', label: '1:1', ratio: '1 / 1' },
+  { id: '9:16', label: '9:16', ratio: '9 / 16' },
 ];
