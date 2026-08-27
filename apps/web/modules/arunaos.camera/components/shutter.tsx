@@ -130,10 +130,10 @@ export function ShutterBar({
         </div>
       )}
 
-      {/* Main iOS-style bar — more transparent, shutter always visible */}
-      <div className="flex items-center justify-between">
+      {/* Main iOS-style bar — perfectly centered shutter + mode */}
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center">
         {/* Left */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center justify-start gap-2">
           <button
             onClick={onGrid}
             className={cn(
@@ -229,7 +229,7 @@ export function ShutterBar({
         </div>
 
         {/* Right */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center justify-end gap-2">
           <button
             onClick={onToggleMode}
             className="hidden h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/10 text-white/60 backdrop-blur-md hover:bg-white/15 hover:text-white sm:flex"
