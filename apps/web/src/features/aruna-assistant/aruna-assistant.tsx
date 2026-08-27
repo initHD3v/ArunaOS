@@ -108,7 +108,7 @@ function Header() {
       </div>
       {showWeather && w.loading && w.hourly.length === 0 ? (
         <div className="flex flex-col items-center gap-0.5">
-          <Loader size={14} className="text-foreground/30 animate-spin" />
+          <Loader size={14} className="text-foreground/50 animate-spin" />
           <span className="text-[8px]" style={{ color: '#707070' }}>
             loading
           </span>

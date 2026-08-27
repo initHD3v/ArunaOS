@@ -900,7 +900,7 @@ export function AIChat() {
           <button
             onClick={clearChat}
             disabled={!activeSession || messages.length === 0}
-            className="text-foreground/50 hover:text-foreground hover:bg-muted disabled:text-foreground/20 rounded-md p-1.5 transition-colors disabled:cursor-not-allowed"
+            className="text-foreground/50 hover:text-foreground hover:bg-muted disabled:text-foreground/40 rounded-md p-1.5 transition-colors disabled:cursor-not-allowed"
             title="Clear chat"
           >
             <Trash2 className="h-4 w-4" />
@@ -909,7 +909,7 @@ export function AIChat() {
           <button
             onClick={exportChat}
             disabled={!activeSession || messages.length === 0}
-            className="text-foreground/50 hover:text-foreground hover:bg-muted disabled:text-foreground/20 rounded-md p-1.5 transition-colors disabled:cursor-not-allowed"
+            className="text-foreground/50 hover:text-foreground hover:bg-muted disabled:text-foreground/40 rounded-md p-1.5 transition-colors disabled:cursor-not-allowed"
             title="Export chat"
           >
             <Download className="h-4 w-4" />
@@ -918,7 +918,7 @@ export function AIChat() {
           <button
             onClick={copyAllChat}
             disabled={!activeSession || messages.length === 0}
-            className="text-foreground/50 hover:text-foreground hover:bg-muted disabled:text-foreground/20 rounded-md p-1.5 transition-colors disabled:cursor-not-allowed"
+            className="text-foreground/50 hover:text-foreground hover:bg-muted disabled:text-foreground/40 rounded-md p-1.5 transition-colors disabled:cursor-not-allowed"
             title="Copy entire conversation"
           >
             {copyAllCopied ? (
@@ -1020,19 +1020,19 @@ export function AIChat() {
               <span className="text-foreground/50 text-[11px] font-medium uppercase tracking-wider">
                 History
               </span>
-              <span className="text-foreground/30 text-[10px]">{sessions.length}</span>
+              <span className="text-foreground/50 text-[10px]">{sessions.length}</span>
             </div>
             <div className="flex-1 overflow-y-auto px-2 pb-2">
               {sessions.length === 0 && (
                 <div className="px-2 py-8 text-center">
-                  <MessageSquare className="text-foreground/20 mx-auto mb-2 h-5 w-5" />
-                  <p className="text-foreground/30 text-xs">No chat history</p>
-                  <p className="text-foreground/20 mt-1 text-[10px]">Start a new conversation</p>
+                  <MessageSquare className="text-foreground/40 mx-auto mb-2 h-5 w-5" />
+                  <p className="text-foreground/50 text-xs">No chat history</p>
+                  <p className="text-foreground/40 mt-1 text-[10px]">Start a new conversation</p>
                 </div>
               )}
               {groupedSessions.map((group) => (
                 <div key={group.label} className="mb-1.5">
-                  <p className="text-foreground/25 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider">
+                  <p className="text-foreground/40 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider">
                     {group.label}
                   </p>
                   <div className="space-y-0.5">
@@ -1104,7 +1104,7 @@ export function AIChat() {
                             role="button"
                             tabIndex={0}
                             className={cn(
-                              'text-foreground/20 hover:text-danger shrink-0 cursor-pointer p-0.5 transition-opacity',
+                              'text-foreground/40 hover:text-danger shrink-0 cursor-pointer p-0.5 transition-opacity',
                               deletingId !== null
                                 ? 'opacity-0'
                                 : 'opacity-0 group-hover:opacity-100',
@@ -1154,7 +1154,7 @@ export function AIChat() {
                 <p className="text-foreground/40 mb-1 text-xs leading-relaxed">
                   Tanya apa saja, jalankan perintah, atau buat modul baru
                 </p>
-                <p className="text-foreground/30 mb-7 text-[11px]">
+                <p className="text-foreground/50 mb-7 text-[11px]">
                   {provider ? (
                     <>
                       Terhubung ke{' '}

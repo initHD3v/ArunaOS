@@ -133,7 +133,7 @@ export function DockPanel() {
             />
           ))}
           {items.length === 0 && (
-            <p className="text-foreground/30 py-4 text-center text-xs">Tidak ada item di dock</p>
+            <p className="text-foreground/50 py-4 text-center text-xs">Tidak ada item di dock</p>
           )}
         </div>
       </div>
@@ -159,21 +159,21 @@ function DockItemRow({
         item.hidden ? 'opacity-40' : 'hover:bg-muted/30',
       )}
     >
-      <GripVertical size={12} className="text-foreground/20 shrink-0" />
+      <GripVertical size={12} className="text-foreground/40 shrink-0" />
       <div className="bg-muted/50 flex h-7 w-7 items-center justify-center rounded-lg">
         {Icon && <Icon size={14} className="text-foreground/60" />}
       </div>
       <span
         className={cn(
           'flex-1 text-xs',
-          item.hidden ? 'text-foreground/30 line-through' : 'text-foreground/70',
+          item.hidden ? 'text-foreground/50 line-through' : 'text-foreground/70',
         )}
       >
         {item.label}
       </span>
       <button
         onClick={onToggleVisibility}
-        className="text-foreground/30 hover:text-foreground/70 rounded p-1 transition-colors"
+        className="text-foreground/50 hover:text-foreground/70 rounded p-1 transition-colors"
         title={item.hidden ? 'Tampilkan' : 'Sembunyikan'}
       >
         {item.hidden ? <EyeOff size={12} /> : <Eye size={12} />}
@@ -181,7 +181,7 @@ function DockItemRow({
       {!item.hidden && (
         <button
           onClick={onRemove}
-          className="text-foreground/20 rounded p-1 text-[10px] transition-colors hover:text-red-400"
+          className="text-foreground/40 rounded p-1 text-[10px] transition-colors hover:text-red-400"
         >
           ✕
         </button>

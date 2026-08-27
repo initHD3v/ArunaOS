@@ -40,6 +40,8 @@ import {
   Clock,
   Terminal,
   Bot,
+  Contrast,
+  Eclipse,
 } from 'lucide-react';
 
 type SettingsTab =
@@ -144,7 +146,7 @@ function AccountPanel() {
         <div className="relative">
           <button
             onClick={() => setShowAvatarMenu(!showAvatarMenu)}
-            className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-full bg-white/10 ring-2 ring-white/10 transition-all hover:ring-white/30"
+            className="bg-muted ring-border hover:ring-ring/30 flex h-28 w-28 items-center justify-center overflow-hidden rounded-full ring-2 transition-all"
           >
             {isEmoji ? (
               <span className="text-5xl">{data.avatar}</span>
@@ -152,7 +154,7 @@ function AccountPanel() {
               <img src={data.avatar} alt="Avatar" className="h-full w-full object-cover" />
             )}
           </button>
-          <div className="bg-primary absolute -bottom-0.5 -right-0.5 flex h-7 w-7 items-center justify-center rounded-full text-[10px] text-white shadow-sm">
+          <div className="bg-primary text-primary-foreground absolute -bottom-0.5 -right-0.5 flex h-7 w-7 items-center justify-center rounded-full text-[10px] shadow-sm">
             <Camera size={12} />
           </div>
         </div>
@@ -194,7 +196,7 @@ function AccountPanel() {
                   </button>
                 ))}
               </div>
-              <div className="mt-2 border-t border-white/5 pt-2">
+              <div className="border-border mt-2 border-t pt-2">
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   className="text-foreground/60 hover:text-foreground flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-xs transition-colors"
@@ -223,7 +225,7 @@ function AccountPanel() {
             type="text"
             value={data.displayName}
             onChange={(e) => update({ displayName: e.target.value })}
-            className="bg-background border-border/30 flex-1 rounded-lg border px-3 py-1.5 text-sm outline-none transition-colors focus:border-white/20"
+            className="bg-background border-border/30 focus:border-ring flex-1 rounded-lg border px-3 py-1.5 text-sm outline-none transition-colors"
           />
         </div>
         <div className="flex items-center gap-3 px-5 py-3.5">
@@ -232,7 +234,7 @@ function AccountPanel() {
             type="text"
             value={data.username}
             onChange={(e) => update({ username: e.target.value })}
-            className="bg-background border-border/30 flex-1 rounded-lg border px-3 py-1.5 text-sm outline-none transition-colors focus:border-white/20"
+            className="bg-background border-border/30 focus:border-ring flex-1 rounded-lg border px-3 py-1.5 text-sm outline-none transition-colors"
           />
         </div>
         <div className="flex items-center gap-3 px-5 py-3.5">
@@ -242,7 +244,7 @@ function AccountPanel() {
             value={data.email}
             onChange={(e) => update({ email: e.target.value })}
             placeholder="user@arunaos.local"
-            className="bg-background border-border/30 flex-1 rounded-lg border px-3 py-1.5 text-sm outline-none transition-colors focus:border-white/20"
+            className="bg-background border-border/30 focus:border-ring flex-1 rounded-lg border px-3 py-1.5 text-sm outline-none transition-colors"
           />
         </div>
         <div className="flex items-start gap-3 px-5 py-3.5">
@@ -252,7 +254,7 @@ function AccountPanel() {
             onChange={(e) => update({ bio: e.target.value })}
             rows={2}
             placeholder="Tell us about yourself..."
-            className="bg-background border-border/30 flex-1 resize-none rounded-lg border px-3 py-1.5 text-sm outline-none transition-colors focus:border-white/20"
+            className="bg-background border-border/30 focus:border-ring flex-1 resize-none rounded-lg border px-3 py-1.5 text-sm outline-none transition-colors"
           />
         </div>
       </div>
@@ -261,7 +263,7 @@ function AccountPanel() {
       <div className="flex justify-end">
         <button
           onClick={handleSave}
-          className="bg-primary hover:bg-primary/90 flex items-center gap-1.5 rounded-lg px-5 py-2 text-xs font-medium text-white transition-all"
+          className="bg-primary hover:bg-primary/90 text-primary-foreground flex items-center gap-1.5 rounded-lg px-5 py-2 text-xs font-medium transition-all"
         >
           <Save size={14} />
           {saved ? 'Saved!' : 'Save Profile'}
@@ -517,13 +519,15 @@ function AppearancePanel() {
       <div>
         <h3 className="text-foreground mb-3 text-sm font-semibold">Appearance</h3>
         <div className="bg-muted/30 border-border/20 space-y-4 rounded-xl border p-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <span className="text-foreground text-sm">Theme</span>
-            <div className="flex gap-1.5">
+            <div className="flex flex-wrap gap-1.5">
               {[
                 { mode: 'light' as const, icon: Sun, label: 'Light' },
                 { mode: 'dark' as const, icon: Moon, label: 'Dark' },
                 { mode: 'system' as const, icon: Monitor, label: 'System' },
+                { mode: 'amoled' as const, icon: Eclipse, label: 'AMOLED' },
+                { mode: 'high-contrast' as const, icon: Contrast, label: 'High Contrast' },
               ].map(({ mode, icon: Icon, label }) => (
                 <button
                   key={mode}
@@ -642,7 +646,7 @@ function AppearancePanel() {
                       void wallpaperImageStore.clear();
                       updateWallpaper({ ...wallpaperCfg, imagePath: '' });
                     }}
-                    className="absolute right-2 top-2 rounded-full bg-black/50 p-1 text-white/80 transition-colors hover:bg-black/70"
+                    className="bg-foreground/50 text-background/80 hover:bg-foreground/70 absolute right-2 top-2 rounded-full p-1 backdrop-blur-sm transition-colors"
                   >
                     <AlertCircle size={12} />
                   </button>
@@ -662,7 +666,7 @@ function AppearancePanel() {
                 <Upload size={14} />
                 {wallpaperCfg.imagePath ? 'Change Image' : 'Choose Image'}
               </button>
-              <p className="text-foreground/30 text-[11px]">
+              <p className="text-foreground/50 text-[11px]">
                 Supports: JPG, PNG, GIF, WebP, BMP, SVG
               </p>
 
@@ -738,7 +742,7 @@ function AppearancePanel() {
               </div>
             );
           })}
-          <p className="text-foreground/30 text-[11px] leading-relaxed">
+          <p className="text-foreground/50 text-[11px] leading-relaxed">
             ArunaOS will show a screen saver, lock, or sleep after the specified period of
             inactivity.
           </p>
@@ -805,7 +809,7 @@ function KeyboardPanel() {
         <div className="bg-muted/30 border-border/20 rounded-xl border p-4">
           <div className="space-y-1.5">
             {shortcuts.length === 0 && (
-              <p className="text-foreground/30 text-xs">No shortcuts registered.</p>
+              <p className="text-foreground/50 text-xs">No shortcuts registered.</p>
             )}
             {shortcuts.map((s) => (
               <div key={s.id} className="flex items-center justify-between py-1">
@@ -1023,7 +1027,7 @@ function AboutPanel() {
             {/* Logo */}
             <div className="relative">
               <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-violet-500/20 via-fuchsia-500/10 to-transparent opacity-60 blur-xl" />
-              <div className="relative flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl ring-1 ring-white/5">
+              <div className="ring-border relative flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl ring-1">
                 <img src="/logo.png" alt="ArunaOS Logo" className="h-full w-full object-contain" />
               </div>
             </div>
@@ -1042,11 +1046,11 @@ function AboutPanel() {
             </p>
 
             {/* Divider */}
-            <div className="h-px w-16 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+            <div className="via-border h-px w-16 bg-gradient-to-r from-transparent to-transparent" />
 
             {/* Credits */}
             <div className="space-y-1 text-center">
-              <p className="text-foreground/30 text-xs">Created by</p>
+              <p className="text-foreground/50 text-xs">Created by</p>
               <a
                 href="https://github.com/initHD3v"
                 target="_blank"
@@ -1060,7 +1064,7 @@ function AboutPanel() {
             {/* OS Tour button */}
             <button
               onClick={() => setShowTour(true)}
-              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-5 py-2.5 text-sm font-medium text-white shadow-lg shadow-violet-500/20 transition-all hover:from-violet-500 hover:to-fuchsia-500 hover:shadow-violet-500/30"
+              className="text-primary-foreground flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-5 py-2.5 text-sm font-medium shadow-lg shadow-violet-500/20 transition-all hover:from-violet-500 hover:to-fuchsia-500 hover:shadow-violet-500/30"
             >
               <Compass size={16} />
               Take the OS Tour

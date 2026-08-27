@@ -158,7 +158,7 @@ export function AIGeneratorTab() {
 
         <div>
           <label className="text-foreground/50 mb-1 block text-[10px] font-medium">
-            Capabilities <span className="text-foreground/30">(comma-separated)</span>
+            Capabilities <span className="text-foreground/50">(comma-separated)</span>
           </label>
           <input
             value={capabilities}
@@ -241,7 +241,7 @@ export function AIGeneratorTab() {
                 <div key={f.path} className="flex items-center gap-2 rounded px-2 py-1 text-xs">
                   <Code size={10} className="text-primary shrink-0" />
                   <span className="text-foreground/60">{f.path}</span>
-                  <span className="text-foreground/30 ml-auto text-[10px]">
+                  <span className="text-foreground/50 ml-auto text-[10px]">
                     {f.content.length} bytes
                   </span>
                 </div>

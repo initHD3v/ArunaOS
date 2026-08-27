@@ -64,7 +64,7 @@ export function WeatherApp() {
     return (
       <div className="bg-card flex h-full w-full items-center justify-center">
         <div className="flex flex-col items-center gap-3">
-          <Loader size={22} className="text-foreground/30 animate-spin" />
+          <Loader size={22} className="text-foreground/50 animate-spin" />
           <span className="text-foreground/40 text-xs">Memuat cuaca...</span>
         </div>
       </div>

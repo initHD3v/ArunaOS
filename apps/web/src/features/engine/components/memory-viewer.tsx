@@ -84,19 +84,19 @@ export function MemoryViewer() {
           <span className="text-foreground text-sm font-semibold tabular-nums">
             {loading ? '...' : engine ? (ready ? 'Aktif' : 'Booting') : '-'}
           </span>
-          <span className="text-foreground/30 text-[9px]">Status</span>
+          <span className="text-foreground/50 text-[9px]">Status</span>
         </div>
         <div className="border-border/20 flex flex-col items-center gap-1 rounded-xl border p-2.5">
           <Calendar size={12} className="text-primary/60" />
           <span className="text-foreground text-sm font-semibold tabular-nums">
             {loading ? '...' : sessionCount}
           </span>
-          <span className="text-foreground/30 text-[9px]">Sesi</span>
+          <span className="text-foreground/50 text-[9px]">Sesi</span>
         </div>
         <div className="border-border/20 flex flex-col items-center gap-1 rounded-xl border p-2.5">
           <TrendingUp size={12} className="text-primary/60" />
           <span className="text-foreground text-sm font-semibold">{loading ? '...' : topMood}</span>
-          <span className="text-foreground/30 text-[9px]">Mood</span>
+          <span className="text-foreground/50 text-[9px]">Mood</span>
         </div>
       </div>
 
@@ -114,7 +114,7 @@ export function MemoryViewer() {
         </div>
       )}
 
-      <p className="text-foreground/20 text-[8px]">
+      <p className="text-foreground/40 text-[8px]">
         Data disimpan secara lokal di IndexedDB. Tidak dikirim ke server.
       </p>
     </div>

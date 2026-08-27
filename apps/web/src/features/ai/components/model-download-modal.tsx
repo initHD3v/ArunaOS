@@ -120,7 +120,7 @@ export function ModelDownloadModal({ open, onClose }: ModelDownloadModalProps) {
                     style={{ width: `${pct}%` }}
                   />
                 </div>
-                <p className="text-foreground/30 text-center text-[10px]">{pct}% complete</p>
+                <p className="text-foreground/50 text-center text-[10px]">{pct}% complete</p>
               </div>
             )}
 
@@ -153,7 +153,7 @@ export function ModelDownloadModal({ open, onClose }: ModelDownloadModalProps) {
               'rounded-lg px-4 py-2 text-xs font-medium transition-all',
               done
                 ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                : 'text-foreground/30 cursor-not-allowed',
+                : 'text-foreground/50 cursor-not-allowed',
             )}
           >
             {done ? 'Done' : 'Downloading...'}

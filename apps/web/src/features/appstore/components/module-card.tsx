@@ -67,45 +67,39 @@ export function ModuleCard({ module, onSelect, className }: ModuleCardProps) {
     <button
       onClick={() => onSelect(module)}
       className={cn(
-        'group flex w-full flex-col items-start gap-3 rounded-xl border border-border/20 bg-foreground/[0.02] p-4 text-left transition-all hover:border-border/40 hover:bg-foreground/[0.04]',
+        'border-border/20 bg-foreground/[0.02] hover:border-border/40 hover:bg-foreground/[0.04] group flex w-full flex-col items-start gap-3 rounded-xl border p-4 text-left transition-all',
         className,
       )}
     >
       <div className="flex items-center gap-3">
-        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-foreground/10 text-foreground/70 transition-colors group-hover:bg-foreground/15">
+        <span className="bg-foreground/10 text-foreground/70 group-hover:bg-foreground/15 flex h-10 w-10 items-center justify-center rounded-xl transition-colors">
           <Icon size={20} />
         </span>
         <div className="flex flex-col">
           <div className="flex items-center gap-1.5">
-            <span className="text-sm font-medium text-foreground">{module.name}</span>
-            {module.verified && (
-              <BadgeCheck size={14} className="shrink-0 text-blue-400" />
-            )}
+            <span className="text-foreground text-sm font-medium">{module.name}</span>
+            {module.verified && <BadgeCheck size={14} className="shrink-0 text-blue-400" />}
           </div>
-          <span className="text-[11px] text-foreground/40">v{module.version}</span>
+          <span className="text-foreground/40 text-[11px]">v{module.version}</span>
         </div>
       </div>
 
-      <p className="line-clamp-2 text-xs leading-relaxed text-foreground/50">
+      <p className="text-foreground/50 line-clamp-2 text-xs leading-relaxed">
         {module.description}
       </p>
 
       <div className="mt-auto flex w-full items-center justify-between">
         <div className="flex items-center gap-2">
           {renderStars(module.rating)}
-          <span className="text-[10px] text-foreground/30">{module.rating.toFixed(1)}</span>
+          <span className="text-foreground/50 text-[10px]">{module.rating.toFixed(1)}</span>
         </div>
-        <div className="flex items-center gap-1 text-[10px] text-foreground/30">
+        <div className="text-foreground/50 flex items-center gap-1 text-[10px]">
           <Download size={10} />
-          {module.downloads >= 1000
-            ? `${(module.downloads / 1000).toFixed(1)}k`
-            : module.downloads}
+          {module.downloads >= 1000 ? `${(module.downloads / 1000).toFixed(1)}k` : module.downloads}
         </div>
       </div>
 
-      {module.author && (
-        <span className="text-[10px] text-foreground/20">by {module.author}</span>
-      )}
+      {module.author && <span className="text-foreground/40 text-[10px]">by {module.author}</span>}
     </button>
   );
 }

@@ -337,7 +337,7 @@ function Visual({ index }: { index: number }) {
           <div className="h-2 w-2 rounded-full bg-red-400" />
           <div className="h-2 w-2 rounded-full bg-yellow-400" />
           <div className="h-2 w-2 rounded-full bg-green-400" />
-          <span className="text-foreground/30 ml-2 text-[11px]">Desktop</span>
+          <span className="text-foreground/50 ml-2 text-[11px]">Desktop</span>
           <span className="bg-muted text-foreground/40 ml-auto h-5 rounded-md px-2 text-[10px] leading-5">
             Right-click
           </span>
@@ -400,7 +400,7 @@ function Visual({ index }: { index: number }) {
             </div>
           ))}
         </div>
-        <div className="text-foreground/30 flex items-center gap-2 text-[11px]">
+        <div className="text-foreground/50 flex items-center gap-2 text-[11px]">
           <span className="bg-foreground/10 rounded px-1.5 py-0.5">Drag</span>
           <span>to reorder</span>
           <span className="bg-foreground/10 rounded px-1.5 py-0.5">Right-click</span>
@@ -448,7 +448,7 @@ function Visual({ index }: { index: number }) {
             </div>
           </div>
         </div>
-        <p className="text-foreground/30 mt-3 text-center text-[11px]">Click logo → system menu</p>
+        <p className="text-foreground/50 mt-3 text-center text-[11px]">Click logo → system menu</p>
       </div>
     );
   }
@@ -489,7 +489,7 @@ function Visual({ index }: { index: number }) {
               </div>
             </div>
           </div>
-          <div className="border-border/10 bg-muted/20 text-foreground/30 flex justify-between border-t px-3 py-1.5 text-[10px]">
+          <div className="border-border/10 bg-muted/20 text-foreground/50 flex justify-between border-t px-3 py-1.5 text-[10px]">
             <span>3 items</span>
             <span>Drag edges to resize ↘</span>
           </div>
@@ -628,7 +628,7 @@ function Visual({ index }: { index: number }) {
           </span>
         ))}
       </div>
-      <p className="text-foreground/30 text-xs">Klik apapun & mulai eksplor →</p>
+      <p className="text-foreground/50 text-xs">Klik apapun & mulai eksplor →</p>
     </div>
   );
 }
@@ -716,7 +716,7 @@ export function OSTour({ onClose }: OSTourProps) {
               </span>
             </div>
             <span className="bg-border/30 hidden h-4 w-px sm:block" />
-            <span className="text-foreground/30 hidden text-xs sm:inline">{step.kicker}</span>
+            <span className="text-foreground/50 hidden text-xs sm:inline">{step.kicker}</span>
           </div>
 
           <div className="flex items-center gap-1.5 sm:gap-2">
@@ -727,7 +727,7 @@ export function OSTour({ onClose }: OSTourProps) {
               <Globe size={12} />
               {lang === 'id' ? 'EN' : 'ID'}
             </button>
-            <span className="text-foreground/25 hidden font-mono text-xs tabular-nums sm:inline">
+            <span className="text-foreground/40 hidden font-mono text-xs tabular-nums sm:inline">
               {String(current + 1).padStart(2, '0')} / 09
             </span>
             <button
@@ -906,11 +906,11 @@ export function OSTour({ onClose }: OSTourProps) {
               ))}
             </div>
             <div className="hidden items-center gap-2 lg:flex">
-              <span className="text-foreground/30 text-xs">
+              <span className="text-foreground/50 text-xs">
                 {current + 1} dari {steps.length}
               </span>
               <span className="bg-border/30 h-3 w-px" />
-              <span className="text-foreground/30 hidden text-xs sm:inline">Esc untuk tutup</span>
+              <span className="text-foreground/50 hidden text-xs sm:inline">Esc untuk tutup</span>
             </div>
 
             <div className="flex items-center gap-2">

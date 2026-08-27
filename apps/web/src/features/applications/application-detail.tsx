@@ -24,7 +24,7 @@ function getIcon(icon: string): string {
 }
 
 function Label({ children }: { children: React.ReactNode }) {
-  return <span className="text-foreground/30 text-[9px] uppercase tracking-wider">{children}</span>;
+  return <span className="text-foreground/50 text-[9px] uppercase tracking-wider">{children}</span>;
 }
 
 function Value({ children, className }: { children: React.ReactNode; className?: string }) {
@@ -95,7 +95,7 @@ export function ApplicationDetail({
         <div className="relative p-5 pb-0">
           <button
             onClick={onClose}
-            className="text-foreground/20 hover:text-foreground/60 hover:bg-muted absolute right-3 top-3 rounded-lg p-1 transition-colors"
+            className="text-foreground/40 hover:text-foreground/60 hover:bg-muted absolute right-3 top-3 rounded-lg p-1 transition-colors"
           >
             <X size={14} />
           </button>
@@ -144,10 +144,10 @@ export function ApplicationDetail({
                       ? 'Error'
                       : 'Terdaftar'}
             </span>
-            <span className="text-foreground/30 bg-muted rounded-full px-2 py-0.5 text-[9px]">
+            <span className="text-foreground/50 bg-muted rounded-full px-2 py-0.5 text-[9px]">
               v{m.version}
             </span>
-            <span className="text-foreground/30 bg-muted rounded-full px-2 py-0.5 text-[9px] capitalize">
+            <span className="text-foreground/50 bg-muted rounded-full px-2 py-0.5 text-[9px] capitalize">
               {m.type}
             </span>
           </div>

@@ -5,7 +5,7 @@ import { getLogger } from '@/lib/logger-client';
 import type { LogEntry } from '@arunaos/services';
 
 const LEVEL_COLORS: Record<string, string> = {
-  debug: 'text-slate-400',
+  debug: 'text-muted-foreground',
   info: 'text-blue-400',
   warn: 'text-yellow-400',
   error: 'text-red-400',
@@ -40,14 +40,14 @@ export function DebugPanel() {
   const filtered = filter === 'all' ? logs : logs.filter((l) => l.level === filter);
 
   return (
-    <div className="fixed bottom-12 right-4 z-[99999] flex h-80 w-[500px] flex-col rounded-xl border border-white/10 bg-black/90 backdrop-blur-xl">
-      <div className="flex items-center justify-between border-b border-white/10 px-3 py-2">
+    <div className="border-border bg-card fixed bottom-12 right-4 z-[99999] flex h-80 w-[500px] flex-col rounded-xl border backdrop-blur-xl">
+      <div className="border-border flex items-center justify-between border-b px-3 py-2">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold text-white/70">Debug</span>
+          <span className="text-muted-foreground text-xs font-semibold">Debug</span>
           <select
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
-            className="rounded bg-white/10 px-1.5 py-0.5 text-[10px] text-white/60"
+            className="bg-muted text-muted-foreground rounded px-1.5 py-0.5 text-[10px]"
           >
             <option value="all">All</option>
             <option value="error">Error</option>
@@ -57,30 +57,33 @@ export function DebugPanel() {
           </select>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-[10px] text-white/30">{logs.length} entries</span>
+          <span className="text-muted-foreground text-[10px]">{logs.length} entries</span>
           <button
             onClick={() => {
               getLogger().clearBuffer();
               setLogs([]);
             }}
-            className="text-[10px] text-white/30 hover:text-white/60"
+            className="text-muted-foreground hover:text-foreground text-[10px]"
           >
             Clear
           </button>
-          <button onClick={() => setOpen(false)} className="text-xs text-white/50 hover:text-white">
+          <button
+            onClick={() => setOpen(false)}
+            className="text-muted-foreground hover:text-foreground text-xs"
+          >
             Close
           </button>
         </div>
       </div>
       <div className="flex-1 overflow-auto p-2 font-mono text-[11px] leading-relaxed">
-        {filtered.length === 0 && <p className="italic text-white/20">No log entries</p>}
+        {filtered.length === 0 && <p className="text-muted-foreground italic">No log entries</p>}
         {filtered.map((entry, i) => (
           <div key={i} className="flex gap-2">
-            <span className="shrink-0 text-white/20">
+            <span className="text-muted-foreground shrink-0">
               {new Date(entry.timestamp).toLocaleTimeString()}
             </span>
             <span className={LEVEL_COLORS[entry.level] ?? ''}>[{entry.module}]</span>
-            <span className="text-white/80">{entry.message}</span>
+            <span className="text-foreground/80">{entry.message}</span>
           </div>
         ))}
       </div>

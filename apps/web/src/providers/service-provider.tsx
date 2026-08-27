@@ -661,10 +661,10 @@ export function ServiceProvider({ children }: { children: ReactNode }) {
 
   if (!value) {
     return (
-      <div className="flex h-screen items-center justify-center bg-black text-white">
+      <div className="bg-background text-foreground flex h-screen items-center justify-center">
         <div className="text-center">
-          <div className="mb-2 h-6 w-6 animate-spin rounded-full border-2 border-white border-t-transparent" />
-          <p className="text-sm text-white/60">Initializing services...</p>
+          <div className="border-foreground mb-2 h-6 w-6 animate-spin rounded-full border-2 border-t-transparent" />
+          <p className="text-muted-foreground text-sm">Initializing services...</p>
         </div>
       </div>
     );

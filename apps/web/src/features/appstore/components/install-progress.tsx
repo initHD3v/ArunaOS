@@ -1,6 +1,5 @@
 'use client';
 
-
 import { cn } from '@/lib/utils';
 import {
   CheckCircle2,
@@ -30,10 +29,12 @@ interface InstallProgressProps {
 }
 
 function StepIcon({ step }: { step: InstallStep }) {
-  if (step.status === 'done') return <CheckCircle2 size={16} className="shrink-0 text-emerald-400" />;
+  if (step.status === 'done')
+    return <CheckCircle2 size={16} className="shrink-0 text-emerald-400" />;
   if (step.status === 'error') return <XCircle size={16} className="shrink-0 text-red-400" />;
-  if (step.status === 'running') return <Loader2 size={16} className="shrink-0 animate-spin text-blue-400" />;
-  return <div className="h-4 w-4 shrink-0 rounded-full border-2 border-foreground/20" />;
+  if (step.status === 'running')
+    return <Loader2 size={16} className="shrink-0 animate-spin text-blue-400" />;
+  return <div className="border-foreground/20 h-4 w-4 shrink-0 rounded-full border-2" />;
 }
 
 const STEP_ICONS: Record<string, React.ElementType> = {
@@ -53,27 +54,27 @@ export function InstallProgress({ title, subtitle, steps, onClose, type }: Insta
   const hasError = steps.some((s) => s.status === 'error');
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
-      <div className="mx-4 w-full max-w-md rounded-2xl border border-border/40 bg-card p-6 shadow-2xl">
+    <div className="bg-background/80 fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm">
+      <div className="border-border/40 bg-card mx-4 w-full max-w-md rounded-2xl border p-6 shadow-2xl">
         <div className="mb-5 flex items-start justify-between">
           <div className="flex items-center gap-3">
-            <span className={cn(
-              'flex h-12 w-12 items-center justify-center rounded-xl',
-              type === 'install'
-                ? 'bg-blue-500/15 text-blue-400'
-                : 'bg-red-500/15 text-red-400',
-            )}>
+            <span
+              className={cn(
+                'flex h-12 w-12 items-center justify-center rounded-xl',
+                type === 'install' ? 'bg-blue-500/15 text-blue-400' : 'bg-red-500/15 text-red-400',
+              )}
+            >
               {type === 'install' ? <Download size={22} /> : <Trash2 size={22} />}
             </span>
             <div>
-              <h3 className="text-base font-semibold text-foreground">{title}</h3>
-              <p className="text-xs text-foreground/50">{subtitle}</p>
+              <h3 className="text-foreground text-base font-semibold">{title}</h3>
+              <p className="text-foreground/50 text-xs">{subtitle}</p>
             </div>
           </div>
           {(allDone || hasError) && onClose && (
             <button
               onClick={onClose}
-              className="rounded-lg p-1.5 text-foreground/30 transition-colors hover:bg-foreground/10 hover:text-foreground/60"
+              className="text-foreground/50 hover:bg-foreground/10 hover:text-foreground/60 rounded-lg p-1.5 transition-colors"
             >
               <XCircle size={16} />
             </button>
@@ -84,9 +85,9 @@ export function InstallProgress({ title, subtitle, steps, onClose, type }: Insta
           <div className="mb-4">
             <div className="mb-1.5 flex items-center justify-between text-xs">
               <span className="text-foreground/50">Progress</span>
-              <span className="font-medium text-foreground/70">{overallProgress}%</span>
+              <span className="text-foreground/70 font-medium">{overallProgress}%</span>
             </div>
-            <div className="h-1.5 overflow-hidden rounded-full bg-foreground/10">
+            <div className="bg-foreground/10 h-1.5 overflow-hidden rounded-full">
               <div
                 className="h-full rounded-full bg-blue-500 transition-all duration-500 ease-out"
                 style={{ width: `${overallProgress}%` }}
@@ -116,26 +117,28 @@ export function InstallProgress({ title, subtitle, steps, onClose, type }: Insta
 
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <span className={cn(
-                      'text-sm',
-                      step.status === 'done' && 'text-emerald-400/80',
-                      step.status === 'error' && 'text-red-400',
-                      step.status === 'running' && 'text-foreground',
-                      step.status === 'pending' && 'text-foreground/40',
-                    )}>
+                    <span
+                      className={cn(
+                        'text-sm',
+                        step.status === 'done' && 'text-emerald-400/80',
+                        step.status === 'error' && 'text-red-400',
+                        step.status === 'running' && 'text-foreground',
+                        step.status === 'pending' && 'text-foreground/40',
+                      )}
+                    >
                       {step.label}
                     </span>
                     {step.status === 'running' && step.progress !== undefined && (
-                      <span className="text-[11px] text-foreground/40">{step.progress}%</span>
+                      <span className="text-foreground/40 text-[11px]">{step.progress}%</span>
                     )}
                   </div>
                   {step.detail && (
-                    <p className="mt-0.5 truncate text-[11px] text-foreground/40">{step.detail}</p>
+                    <p className="text-foreground/40 mt-0.5 truncate text-[11px]">{step.detail}</p>
                   )}
                 </div>
 
                 {step.status === 'running' && step.progress !== undefined && (
-                  <div className="h-1.5 w-16 overflow-hidden rounded-full bg-foreground/10">
+                  <div className="bg-foreground/10 h-1.5 w-16 overflow-hidden rounded-full">
                     <div
                       className="h-full rounded-full bg-blue-500 transition-all duration-300"
                       style={{ width: `${step.progress}%` }}
@@ -150,7 +153,9 @@ export function InstallProgress({ title, subtitle, steps, onClose, type }: Insta
         {allDone && (
           <div className="mt-4 rounded-xl bg-emerald-500/10 px-3 py-2.5 text-center">
             <p className="text-sm font-medium text-emerald-400">
-              {type === 'install' ? 'Module installed successfully' : 'Module uninstalled successfully'}
+              {type === 'install'
+                ? 'Module installed successfully'
+                : 'Module uninstalled successfully'}
             </p>
           </div>
         )}
@@ -158,9 +163,13 @@ export function InstallProgress({ title, subtitle, steps, onClose, type }: Insta
         {hasError && (
           <div className="mt-4 space-y-1.5 rounded-xl bg-red-500/10 px-3 py-2.5">
             <p className="text-sm font-medium text-red-400">Installation failed</p>
-            {steps.filter((s) => s.status === 'error').map((s) => (
-              <p key={s.id} className="text-xs text-red-400/70">{s.detail}</p>
-            ))}
+            {steps
+              .filter((s) => s.status === 'error')
+              .map((s) => (
+                <p key={s.id} className="text-xs text-red-400/70">
+                  {s.detail}
+                </p>
+              ))}
           </div>
         )}
       </div>

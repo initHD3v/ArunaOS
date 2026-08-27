@@ -73,6 +73,7 @@ function ThemeToggle() {
 
   const isDark =
     currentMode === 'dark' ||
+    currentMode === 'amoled' ||
     (currentMode === 'system' &&
       typeof window !== 'undefined' &&
       window.matchMedia('(prefers-color-scheme: dark)').matches);
@@ -302,7 +303,7 @@ function AppleMenu({
             className={cn(
               'flex w-full items-center gap-3 px-3 py-1.5 text-sm transition-colors',
               item.disabled
-                ? 'text-foreground/30'
+                ? 'text-foreground/50'
                 : 'text-foreground/70 hover:bg-muted hover:text-foreground',
             )}
           >

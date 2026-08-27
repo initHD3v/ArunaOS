@@ -55,7 +55,7 @@ const TextViewer = memo(function TextViewer({ url }: { url: string }) {
 
   if (loading) {
     return (
-      <div className="text-foreground/30 flex h-full items-center justify-center text-sm">
+      <div className="text-foreground/50 flex h-full items-center justify-center text-sm">
         Loading...
       </div>
     );
@@ -73,11 +73,11 @@ const TextViewer = memo(function TextViewer({ url }: { url: string }) {
 const NotSupported = memo(function NotSupported({ name }: { name: string }) {
   return (
     <div className="flex h-full flex-col items-center justify-center gap-3 p-8">
-      <FileQuestion size={48} className="text-foreground/20" />
+      <FileQuestion size={48} className="text-foreground/40" />
       <p className="text-foreground/50 text-center text-sm">
         Cannot preview <span className="text-foreground/70 font-medium">{name}</span>
       </p>
-      <p className="text-foreground/30 text-xs">This file type is not supported yet.</p>
+      <p className="text-foreground/50 text-xs">This file type is not supported yet.</p>
     </div>
   );
 });

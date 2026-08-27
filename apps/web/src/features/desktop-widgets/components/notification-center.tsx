@@ -168,7 +168,7 @@ export function NotificationCenterPopup({ onClose }: { onClose: () => void }) {
       {isMobile && (
         <button
           onClick={onClose}
-          className="text-foreground/30 hover:text-foreground/60 text-[10px]"
+          className="text-foreground/50 hover:text-foreground/60 text-[10px]"
         >
           Tutup
         </button>
@@ -181,7 +181,7 @@ export function NotificationCenterPopup({ onClose }: { onClose: () => void }) {
       <div className="border-border/10 flex items-center gap-2 border-b px-3 py-2">
         <button
           onClick={backToList}
-          className="text-foreground/30 hover:text-foreground/60 rounded p-0.5 transition-colors"
+          className="text-foreground/50 hover:text-foreground/60 rounded p-0.5 transition-colors"
         >
           <ArrowLeft size={12} />
         </button>
@@ -205,15 +205,15 @@ export function NotificationCenterPopup({ onClose }: { onClose: () => void }) {
         </div>
 
         <div className="border-border/10 flex flex-wrap gap-x-4 gap-y-1 border-t pt-2 text-[9px]">
-          <div className="text-foreground/30 flex items-center gap-1">
+          <div className="text-foreground/50 flex items-center gap-1">
             <Tag size={9} />
             <span>{selectedNotif.source}</span>
           </div>
-          <div className="text-foreground/30 flex items-center gap-1">
+          <div className="text-foreground/50 flex items-center gap-1">
             <Flag size={9} />
             <span className="capitalize">{selectedNotif.priority}</span>
           </div>
-          <div className="text-foreground/30 flex items-center gap-1">
+          <div className="text-foreground/50 flex items-center gap-1">
             <Clock size={9} />
             <span>{formatTime(selectedNotif.timestamp)}</span>
           </div>
@@ -227,7 +227,7 @@ export function NotificationCenterPopup({ onClose }: { onClose: () => void }) {
   ) : (
     <div className="max-h-80 overflow-y-auto">
       {notifications.length === 0 ? (
-        <div className="text-foreground/20 flex flex-col items-center gap-2 py-8">
+        <div className="text-foreground/40 flex flex-col items-center gap-2 py-8">
           <BellOff size={20} />
           <p className="text-[10px]">Tidak ada notifikasi</p>
         </div>
@@ -243,9 +243,9 @@ export function NotificationCenterPopup({ onClose }: { onClose: () => void }) {
                   className="hover:bg-muted/30 flex w-full items-center gap-1.5 px-3 py-2 text-left transition-colors"
                 >
                   {expanded ? (
-                    <ChevronDown size={10} className="text-foreground/30" />
+                    <ChevronDown size={10} className="text-foreground/50" />
                   ) : (
-                    <ChevronRight size={10} className="text-foreground/30" />
+                    <ChevronRight size={10} className="text-foreground/50" />
                   )}
                   <span className="text-foreground/60 flex-1 text-[10px] font-medium">
                     {g.source}
@@ -255,7 +255,7 @@ export function NotificationCenterPopup({ onClose }: { onClose: () => void }) {
                       {unreadCount}
                     </span>
                   )}
-                  <span className="text-foreground/20 text-[9px]">{g.notifications.length}</span>
+                  <span className="text-foreground/40 text-[9px]">{g.notifications.length}</span>
                 </button>
 
                 {expanded && (
@@ -282,7 +282,7 @@ export function NotificationCenterPopup({ onClose }: { onClose: () => void }) {
                             <p className="text-foreground/70 truncate text-[10px] font-medium">
                               {n.title}
                             </p>
-                            <span className="text-foreground/20 ml-auto shrink-0 text-[7px]">
+                            <span className="text-foreground/40 ml-auto shrink-0 text-[7px]">
                               {formatTime(n.timestamp)}
                             </span>
                           </div>
@@ -291,7 +291,7 @@ export function NotificationCenterPopup({ onClose }: { onClose: () => void }) {
                           </p>
                         </div>
                         {n.sourceAction && (
-                          <ExternalLink size={8} className="text-foreground/20 mt-0.5 shrink-0" />
+                          <ExternalLink size={8} className="text-foreground/40 mt-0.5 shrink-0" />
                         )}
                       </button>
                     ))}
@@ -309,14 +309,14 @@ export function NotificationCenterPopup({ onClose }: { onClose: () => void }) {
     <div className="border-border/20 flex shrink-0 items-center gap-1 border-t px-3 py-2">
       <button
         onClick={markAllRead}
-        className="text-foreground/30 hover:text-foreground/60 hover:bg-muted flex items-center gap-1 rounded-md px-2 py-1 text-[9px] transition-colors"
+        className="text-foreground/50 hover:text-foreground/60 hover:bg-muted flex items-center gap-1 rounded-md px-2 py-1 text-[9px] transition-colors"
       >
         <Trash2 size={8} />
         Tandai dibaca
       </button>
       <button
         onClick={clearNotifs}
-        className="text-foreground/30 hover:text-danger/60 hover:bg-danger/10 ml-auto flex items-center gap-1 rounded-md px-2 py-1 text-[9px] transition-colors"
+        className="text-foreground/50 hover:text-danger/60 hover:bg-danger/10 ml-auto flex items-center gap-1 rounded-md px-2 py-1 text-[9px] transition-colors"
       >
         <BellOff size={8} />
         Kosongkan
@@ -329,7 +329,7 @@ export function NotificationCenterPopup({ onClose }: { onClose: () => void }) {
       <div className="flex items-center gap-2 border-b px-4 py-3">
         <button
           onClick={backToList}
-          className="text-foreground/30 hover:text-foreground/60 rounded p-1 transition-colors"
+          className="text-foreground/50 hover:text-foreground/60 rounded p-1 transition-colors"
         >
           <ArrowLeft size={16} />
         </button>
@@ -353,15 +353,15 @@ export function NotificationCenterPopup({ onClose }: { onClose: () => void }) {
         </div>
 
         <div className="border-border/10 flex flex-wrap gap-x-6 gap-y-2 border-t pt-3 text-xs">
-          <div className="text-foreground/30 flex items-center gap-1.5">
+          <div className="text-foreground/50 flex items-center gap-1.5">
             <Tag size={12} />
             <span>{selectedNotif.source}</span>
           </div>
-          <div className="text-foreground/30 flex items-center gap-1.5">
+          <div className="text-foreground/50 flex items-center gap-1.5">
             <Flag size={12} />
             <span className="capitalize">{selectedNotif.priority}</span>
           </div>
-          <div className="text-foreground/30 flex items-center gap-1.5">
+          <div className="text-foreground/50 flex items-center gap-1.5">
             <Clock size={12} />
             <span>{formatTime(selectedNotif.timestamp)}</span>
           </div>
@@ -393,7 +393,7 @@ export function NotificationCenterPopup({ onClose }: { onClose: () => void }) {
                 </div>
                 <button
                   onClick={onClose}
-                  className="text-foreground/30 hover:text-foreground/60 text-xs"
+                  className="text-foreground/50 hover:text-foreground/60 text-xs"
                 >
                   Tutup
                 </button>
@@ -401,7 +401,7 @@ export function NotificationCenterPopup({ onClose }: { onClose: () => void }) {
               <div className="min-h-0 flex-1 overflow-y-auto" onClick={(e) => e.stopPropagation()}>
                 <div className="mx-auto max-w-lg">
                   {notifications.length === 0 ? (
-                    <div className="text-foreground/20 flex flex-col items-center gap-2 py-16">
+                    <div className="text-foreground/40 flex flex-col items-center gap-2 py-16">
                       <BellOff size={24} />
                       <p className="text-xs">Tidak ada notifikasi</p>
                     </div>
@@ -417,9 +417,9 @@ export function NotificationCenterPopup({ onClose }: { onClose: () => void }) {
                               className="hover:bg-muted/30 flex w-full items-center gap-2 px-4 py-3 text-left transition-colors"
                             >
                               {expanded ? (
-                                <ChevronDown size={12} className="text-foreground/30" />
+                                <ChevronDown size={12} className="text-foreground/50" />
                               ) : (
-                                <ChevronRight size={12} className="text-foreground/30" />
+                                <ChevronRight size={12} className="text-foreground/50" />
                               )}
                               <span className="text-foreground/60 flex-1 text-xs font-medium">
                                 {g.source}
@@ -429,7 +429,7 @@ export function NotificationCenterPopup({ onClose }: { onClose: () => void }) {
                                   {unreadCount}
                                 </span>
                               )}
-                              <span className="text-foreground/20 text-[10px]">
+                              <span className="text-foreground/40 text-[10px]">
                                 {g.notifications.length}
                               </span>
                             </button>
@@ -457,7 +457,7 @@ export function NotificationCenterPopup({ onClose }: { onClose: () => void }) {
                                         <p className="text-foreground/70 truncate text-xs font-medium">
                                           {n.title}
                                         </p>
-                                        <span className="text-foreground/20 ml-auto shrink-0 text-[8px]">
+                                        <span className="text-foreground/40 ml-auto shrink-0 text-[8px]">
                                           {formatTime(n.timestamp)}
                                         </span>
                                       </div>
@@ -468,7 +468,7 @@ export function NotificationCenterPopup({ onClose }: { onClose: () => void }) {
                                     {n.sourceAction && (
                                       <ExternalLink
                                         size={10}
-                                        className="text-foreground/20 mt-0.5 shrink-0"
+                                        className="text-foreground/40 mt-0.5 shrink-0"
                                       />
                                     )}
                                   </button>
@@ -489,14 +489,14 @@ export function NotificationCenterPopup({ onClose }: { onClose: () => void }) {
                 >
                   <button
                     onClick={markAllRead}
-                    className="text-foreground/30 hover:text-foreground/60 hover:bg-muted flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs transition-colors"
+                    className="text-foreground/50 hover:text-foreground/60 hover:bg-muted flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs transition-colors"
                   >
                     <Trash2 size={12} />
                     Tandai dibaca
                   </button>
                   <button
                     onClick={clearNotifs}
-                    className="text-foreground/30 hover:text-danger/60 hover:bg-danger/10 ml-auto flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs transition-colors"
+                    className="text-foreground/50 hover:text-danger/60 hover:bg-danger/10 ml-auto flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs transition-colors"
                   >
                     <BellOff size={12} />
                     Kosongkan

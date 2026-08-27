@@ -71,7 +71,7 @@ function ToolCard({ message }: { message: ChatMessage }) {
         <span className="truncate font-medium">{label}</span>
         <ChevronRight
           className={cn(
-            'text-foreground/30 h-3 w-3 shrink-0 transition-transform',
+            'text-foreground/50 h-3 w-3 shrink-0 transition-transform',
             open && 'rotate-90',
           )}
         />
@@ -193,7 +193,7 @@ const MessageItem = memo(function MessageItem({
             {copied ? (
               <Check className="h-3.5 w-3.5 text-green-500" />
             ) : (
-              <Copy className="text-foreground/30 hover:text-foreground/60 h-3.5 w-3.5" />
+              <Copy className="text-foreground/50 hover:text-foreground/60 h-3.5 w-3.5" />
             )}
           </button>
         </div>
@@ -216,7 +216,7 @@ const MessageItem = memo(function MessageItem({
         <div className="flex items-baseline gap-2">
           <span className="text-foreground/60 text-[11px] font-semibold">AI</span>
           {time && (
-            <span className="text-foreground/25 text-[10px] opacity-0 transition-opacity group-hover:opacity-100">
+            <span className="text-foreground/40 text-[10px] opacity-0 transition-opacity group-hover:opacity-100">
               {time}
             </span>
           )}
@@ -233,7 +233,7 @@ const MessageItem = memo(function MessageItem({
         <button
           onClick={handleCopy}
           className={cn(
-            'text-foreground/30 hover:bg-muted hover:text-foreground/60 mt-1 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] transition-all',
+            'text-foreground/50 hover:bg-muted hover:text-foreground/60 mt-1 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] transition-all',
             copied ? 'opacity-100' : 'opacity-0 group-hover:opacity-100',
           )}
           title="Copy message"

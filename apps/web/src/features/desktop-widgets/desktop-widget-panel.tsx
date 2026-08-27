@@ -143,7 +143,7 @@ export function DesktopWidgetPanel() {
                 e.stopPropagation();
                 toggle();
               }}
-              className="text-foreground/20 hover:text-danger/70 hover:bg-danger/10 rounded-lg p-1.5 transition-colors"
+              className="text-foreground/40 hover:text-danger/70 hover:bg-danger/10 rounded-lg p-1.5 transition-colors"
               title="Tutup panel"
             >
               <X size={12} />
@@ -158,7 +158,7 @@ export function DesktopWidgetPanel() {
 
         {/* Bottom bar */}
         <div className="border-border/20 mt-2.5 flex items-center gap-2 border-t pt-2.5">
-          <span className="text-foreground/30 bg-card/80 rounded-md px-1.5 py-0.5 text-[9px]">
+          <span className="text-foreground/50 bg-card/80 rounded-md px-1.5 py-0.5 text-[9px]">
             {timeOfDay === 'pagi' && '🌅 Pagi'}
             {timeOfDay === 'siang' && '☀️ Siang'}
             {timeOfDay === 'sore' && '🌇 Sore'}
@@ -169,7 +169,7 @@ export function DesktopWidgetPanel() {
               e.stopPropagation();
               toggleCollapsed();
             }}
-            className="text-foreground/20 hover:text-foreground/50 text-[9px] transition-colors"
+            className="text-foreground/40 hover:text-foreground/50 text-[9px] transition-colors"
           >
             {collapsed ? 'Tampilkan saran' : 'Sembunyikan saran'}
           </button>
@@ -212,7 +212,7 @@ export function DesktopWidgetPanel() {
                 e.stopPropagation();
                 toggle();
               }}
-              className="text-foreground/30 hover:text-foreground/60 text-xs"
+              className="text-foreground/50 hover:text-foreground/60 text-xs"
             >
               Tutup
             </button>

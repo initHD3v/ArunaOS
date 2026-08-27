@@ -437,7 +437,7 @@ function InstalledTab({
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center">
-        <Loader2 size={18} className="text-foreground/30 animate-spin" />
+        <Loader2 size={18} className="text-foreground/50 animate-spin" />
       </div>
     );
   }
@@ -457,11 +457,11 @@ function InstalledTab({
   if (allModules.length === 0) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3">
-        <Package size={36} className="text-foreground/20" />
+        <Package size={36} className="text-foreground/40" />
         <p className="text-foreground/40 text-sm">
           {filter ? 'Tidak ditemukan' : 'Belum ada modul'}
         </p>
-        <p className="text-foreground/30 text-xs">Browse the AppStore to find modules</p>
+        <p className="text-foreground/50 text-xs">Browse the AppStore to find modules</p>
       </div>
     );
   }
@@ -473,13 +473,13 @@ function InstalledTab({
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
           placeholder="Cari modul..."
-          className="bg-foreground/5 text-foreground placeholder:text-foreground/20 border-border/20 focus:border-border/40 min-w-0 flex-1 rounded-lg border px-3 py-1.5 text-xs outline-none"
+          className="bg-foreground/5 text-foreground placeholder:text-foreground/40 border-border/20 focus:border-border/40 min-w-0 flex-1 rounded-lg border px-3 py-1.5 text-xs outline-none"
         />
       </div>
       <div className="mb-3">
         <p className="text-foreground/40 text-xs">
           {allModules.length} modul diinstal
-          <span className="text-foreground/20 ml-2 text-[10px]">
+          <span className="text-foreground/40 ml-2 text-[10px]">
             ({builtinEntries.length} bawaan, {entries.length} eksternal)
           </span>
         </p>
@@ -530,14 +530,14 @@ function InstalledTab({
                     <span
                       className={cn(
                         'text-[10px]',
-                        moduleEntry.status === 'active' ? 'text-green-400' : 'text-foreground/30',
+                        moduleEntry.status === 'active' ? 'text-green-400' : 'text-foreground/50',
                       )}
                     >
                       {moduleEntry.status === 'active' ? 'Berjalan' : moduleEntry.status}
                     </span>
                   )}
                   {!isBuiltin && (
-                    <span className="text-foreground/30 text-[10px]">
+                    <span className="text-foreground/50 text-[10px]">
                       {(extEntry.bundleSize / 1024).toFixed(1)} KB
                     </span>
                   )}
@@ -545,7 +545,7 @@ function InstalledTab({
 
                 <div className="flex items-center gap-1.5">
                   {isBuiltin ? (
-                    <span className="text-foreground/20 px-2 text-[10px]">Bawaan</span>
+                    <span className="text-foreground/40 px-2 text-[10px]">Bawaan</span>
                   ) : confirmId === extEntry.id ? (
                     <div className="flex items-center gap-1">
                       <button
@@ -687,7 +687,7 @@ function OfflineTab({ onInstall }: { onInstall: (files: FileList) => void }) {
                 ? 'text-green-400'
                 : validation && !validation.valid
                   ? 'text-red-400'
-                  : 'text-foreground/20',
+                  : 'text-foreground/40',
           )}
         />
         <div className="text-center">
@@ -736,7 +736,7 @@ function OfflineTab({ onInstall }: { onInstall: (files: FileList) => void }) {
                   <div className="flex items-center gap-2">
                     <FileCode
                       size={14}
-                      className={cn(isValid ? 'text-foreground/30' : 'text-red-400')}
+                      className={cn(isValid ? 'text-foreground/50' : 'text-red-400')}
                     />
                     <span
                       className={cn('text-xs', isValid ? 'text-foreground/60' : 'text-red-400')}
@@ -744,7 +744,7 @@ function OfflineTab({ onInstall }: { onInstall: (files: FileList) => void }) {
                       {f.name}
                     </span>
                   </div>
-                  <span className="text-foreground/30 text-[10px]">
+                  <span className="text-foreground/50 text-[10px]">
                     {(f.size / 1024).toFixed(1)} KB
                   </span>
                 </div>
@@ -797,7 +797,7 @@ function UrlInstallTab({ onInstall }: { onInstall: (url: string) => void }) {
           }}
           onKeyDown={(e) => e.key === 'Enter' && handleInstall()}
           placeholder="http://localhost:4321"
-          className="border-border/20 bg-background text-foreground placeholder:text-foreground/20 w-full rounded-lg border px-3 py-2.5 text-sm outline-none focus:border-blue-500/40 focus:ring-1 focus:ring-blue-500/20"
+          className="border-border/20 bg-background text-foreground placeholder:text-foreground/40 w-full rounded-lg border px-3 py-2.5 text-sm outline-none focus:border-blue-500/40 focus:ring-1 focus:ring-blue-500/20"
         />
         {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
         <button

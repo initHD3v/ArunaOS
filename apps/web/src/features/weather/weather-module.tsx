@@ -86,7 +86,7 @@ export function WeatherModule({ onClose }: { onClose: () => void }) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm"
+      className="bg-background/40 fixed inset-0 z-[9999] flex items-center justify-center backdrop-blur-sm"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -96,13 +96,13 @@ export function WeatherModule({ onClose }: { onClose: () => void }) {
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
         transition={{ duration: 0.25, ease: 'easeOut' }}
-        className="relative max-h-[90vh] w-[520px] overflow-y-auto rounded-2xl border border-white/15 shadow-2xl shadow-black/30"
+        className="border-border relative max-h-[90vh] w-[520px] overflow-y-auto rounded-2xl border shadow-2xl shadow-black/10 backdrop-blur-2xl"
       >
         {/* Animated Background */}
         {!store.loading && <WeatherBackground condition={store.condition} isNight={isNight} />}
 
-        {/* Dark overlay — stronger for readability */}
-        <div className="absolute inset-0 rounded-2xl bg-gradient-to-b from-black/20 via-black/25 to-black/30" />
+        {/* Theme-aware overlay — softens background for readability */}
+        <div className="from-background/40 via-background/20 to-background/40 absolute inset-0 rounded-2xl bg-gradient-to-b" />
 
         {/* Loading overlay */}
         <AnimatePresence>
@@ -111,11 +111,11 @@ export function WeatherModule({ onClose }: { onClose: () => void }) {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 rounded-2xl bg-black/60 backdrop-blur-sm"
+              className="bg-background/60 absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 rounded-2xl backdrop-blur-sm"
             >
-              <div className="flex flex-col items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-8 py-6">
-                <Loader size={22} className="animate-spin text-white/60" />
-                <span className="text-xs text-white/50">Memuat data cuaca...</span>
+              <div className="border-border bg-muted flex flex-col items-center gap-3 rounded-xl border px-8 py-6">
+                <Loader size={22} className="text-muted-foreground animate-spin" />
+                <span className="text-muted-foreground text-xs">Memuat data cuaca...</span>
               </div>
             </motion.div>
           )}
@@ -127,14 +127,14 @@ export function WeatherModule({ onClose }: { onClose: () => void }) {
           <div className="mb-5 flex items-center justify-between">
             <button
               onClick={onClose}
-              className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-[10px] text-white/60 transition-colors hover:bg-white/5 hover:text-white/90"
+              className="text-muted-foreground hover:bg-muted hover:text-foreground flex items-center gap-1.5 rounded-lg px-2 py-1 text-[10px] transition-colors"
             >
               <ChevronLeft size={12} />
               Kembali
             </button>
             <div className="flex items-center gap-1.5">
-              <MapPin size={10} className="text-white/40" />
-              <span className="text-[10px] font-medium text-white/50">
+              <MapPin size={10} className="text-muted-foreground" />
+              <span className="text-muted-foreground text-[10px] font-medium">
                 {store.city || 'Memuat...'}
               </span>
             </div>
@@ -143,17 +143,17 @@ export function WeatherModule({ onClose }: { onClose: () => void }) {
           {/* Error state */}
           {store.error && !store.loading && (
             <div className="flex flex-col items-center gap-3 py-12">
-              <div className="rounded-full bg-white/5 p-3">
+              <div className="bg-muted rounded-full p-3">
                 <span className="text-2xl">⚠️</span>
               </div>
-              <p className="max-w-xs text-center text-[11px] text-red-300/80">{store.error}</p>
+              <p className="max-w-xs text-center text-[11px] text-red-500/80">{store.error}</p>
               <button
                 onClick={() => {
                   const lat = ls.enabled && ls.latitude != null ? ls.latitude : -6.2088;
                   const lon = ls.enabled && ls.longitude != null ? ls.longitude : 106.8456;
                   store.fetchWeather(lat, lon, ls.city);
                 }}
-                className="rounded-lg bg-white/10 px-4 py-1.5 text-[10px] font-medium text-white/80 transition-colors hover:bg-white/20"
+                className="bg-muted text-foreground hover:bg-muted/80 rounded-lg px-4 py-1.5 text-[10px] font-medium transition-colors"
               >
                 Coba lagi
               </button>
@@ -167,12 +167,14 @@ export function WeatherModule({ onClose }: { onClose: () => void }) {
               <div className="flex items-center justify-between">
                 <div>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-6xl font-extralight tabular-nums tracking-tight text-white">
+                    <span className="text-foreground text-6xl font-extralight tabular-nums tracking-tight">
                       {store.temp}°
                     </span>
-                    <span className="text-base font-medium text-white/70">{store.label}</span>
+                    <span className="text-muted-foreground text-base font-medium">
+                      {store.label}
+                    </span>
                   </div>
-                  <p className="mt-1 text-xs text-white/40">Terasa {store.feelsLike}°C</p>
+                  <p className="text-muted-foreground mt-1 text-xs">Terasa {store.feelsLike}°C</p>
                 </div>
                 <div className="flex flex-col items-center gap-1">
                   <span className="text-5xl">{CONDITION_EMOJI[store.condition]}</span>
@@ -181,16 +183,16 @@ export function WeatherModule({ onClose }: { onClose: () => void }) {
 
               {/* ─── AI Summary ─── */}
               {summary && (
-                <div className="bg-white/8 flex items-start gap-2.5 rounded-xl border border-white/5 px-4 py-3">
-                  <Sparkles size={12} className="mt-0.5 shrink-0 text-yellow-300/70" />
-                  <p className="text-[11px] leading-relaxed text-white/85">{summary}</p>
+                <div className="border-border bg-muted flex items-start gap-2.5 rounded-xl border px-4 py-3">
+                  <Sparkles size={12} className="mt-0.5 shrink-0 text-yellow-500/70" />
+                  <p className="text-foreground/80 text-[11px] leading-relaxed">{summary}</p>
                 </div>
               )}
 
               {/* ─── 7-Hour Forecast ─── */}
               {store.hourly.length > 0 && (
                 <div>
-                  <p className="mb-2.5 text-[9px] font-medium uppercase tracking-widest text-white/40">
+                  <p className="text-muted-foreground mb-2.5 text-[9px] font-medium uppercase tracking-widest">
                     Prakiraan 7 Jam
                   </p>
                   <div className="scrollbar-none flex gap-2 overflow-x-auto pb-1">
@@ -201,22 +203,20 @@ export function WeatherModule({ onClose }: { onClose: () => void }) {
                         <div
                           key={h.time}
                           className={`flex min-w-[60px] flex-col items-center gap-1.5 rounded-xl px-3.5 py-2.5 transition-colors ${
-                            isNow
-                              ? 'bg-white/15 ring-1 ring-white/25'
-                              : 'bg-white/6 hover:bg-white/10'
+                            isNow ? 'bg-muted ring-border ring-1' : 'bg-muted/50 hover:bg-muted'
                           }`}
                         >
                           <span
-                            className={`text-[9px] font-medium ${isNow ? 'text-white/90' : 'text-white/50'}`}
+                            className={`text-[9px] font-medium ${isNow ? 'text-foreground' : 'text-muted-foreground'}`}
                           >
                             {isNow ? 'Skrg' : formatHour(h.time)}
                           </span>
                           <span className="text-lg">{CONDITION_EMOJI[cond.condition]}</span>
-                          <span className="text-xs font-semibold tabular-nums text-white/90">
+                          <span className="text-foreground text-xs font-semibold tabular-nums">
                             {h.temp}°
                           </span>
                           {h.precipitation > 0 && (
-                            <span className="text-[7px] tabular-nums text-blue-300/70">
+                            <span className="text-[7px] tabular-nums text-blue-500/70">
                               {h.precipitation}%
                             </span>
                           )}
@@ -230,7 +230,7 @@ export function WeatherModule({ onClose }: { onClose: () => void }) {
               {/* ─── 7-Day Forecast ─── */}
               {store.daily.length > 0 && (
                 <div>
-                  <p className="mb-2.5 text-[9px] font-medium uppercase tracking-widest text-white/40">
+                  <p className="text-muted-foreground mb-2.5 text-[9px] font-medium uppercase tracking-widest">
                     Prakiraan 7 Hari
                   </p>
                   <div className="space-y-1">
@@ -241,31 +241,31 @@ export function WeatherModule({ onClose }: { onClose: () => void }) {
                         <div
                           key={d.date}
                           className={`flex items-center gap-3 rounded-xl px-3.5 py-2.5 transition-colors ${
-                            isToday ? 'bg-white/10' : 'hover:bg-white/5'
+                            isToday ? 'bg-muted' : 'hover:bg-muted/50'
                           }`}
                         >
-                          <span className="w-12 text-[10px] font-medium text-white/70">
+                          <span className="text-foreground/70 w-12 text-[10px] font-medium">
                             {isToday ? 'Hari ini' : formatDay(d.date)}
                           </span>
                           <span className="w-6 text-center text-base">
                             {CONDITION_EMOJI[cond.condition]}
                           </span>
                           <div className="flex flex-1 items-center gap-2.5">
-                            <span className="w-8 text-right text-xs font-semibold tabular-nums text-white/85">
+                            <span className="text-foreground w-8 text-right text-xs font-semibold tabular-nums">
                               {d.tempMax}°
                             </span>
-                            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10">
+                            <div className="bg-muted h-1.5 flex-1 overflow-hidden rounded-full">
                               <div
                                 className="h-full rounded-full bg-gradient-to-r from-blue-400/80 to-amber-400/80"
                                 style={{ width: `${Math.max(8, ((d.tempMax - 10) / 30) * 100)}%` }}
                               />
                             </div>
-                            <span className="w-8 text-xs tabular-nums text-white/45">
+                            <span className="text-muted-foreground w-8 text-xs tabular-nums">
                               {d.tempMin}°
                             </span>
                           </div>
                           {d.precipitationProb > 0 && (
-                            <span className="w-9 text-right text-[9px] tabular-nums text-blue-300/70">
+                            <span className="w-9 text-right text-[9px] tabular-nums text-blue-500/70">
                               {d.precipitationProb}%
                             </span>
                           )}
@@ -278,7 +278,7 @@ export function WeatherModule({ onClose }: { onClose: () => void }) {
 
               {/* ─── Detail Grid ─── */}
               <div>
-                <p className="mb-2.5 text-[9px] font-medium uppercase tracking-widest text-white/40">
+                <p className="text-muted-foreground mb-2.5 text-[9px] font-medium uppercase tracking-widest">
                   Detail Cuaca
                 </p>
                 <div className="grid grid-cols-2 gap-2">
@@ -306,16 +306,16 @@ export function WeatherModule({ onClose }: { onClose: () => void }) {
                   ].map((item) => (
                     <div
                       key={item.label}
-                      className="bg-white/6 flex items-center gap-3 rounded-xl border border-white/5 px-4 py-3"
+                      className="border-border bg-muted flex items-center gap-3 rounded-xl border px-4 py-3"
                     >
-                      <div className="bg-white/8 flex h-8 w-8 items-center justify-center rounded-lg text-white/50">
+                      <div className="bg-background text-muted-foreground flex h-8 w-8 items-center justify-center rounded-lg">
                         {item.icon}
                       </div>
                       <div>
-                        <p className="text-[8px] uppercase tracking-wider text-white/40">
+                        <p className="text-muted-foreground text-[8px] uppercase tracking-wider">
                           {item.label}
                         </p>
-                        <p className="mt-0.5 text-xs font-semibold tabular-nums text-white/90">
+                        <p className="text-foreground mt-0.5 text-xs font-semibold tabular-nums">
                           {item.value}
                         </p>
                       </div>
@@ -327,17 +327,17 @@ export function WeatherModule({ onClose }: { onClose: () => void }) {
               {/* ─── AI Suggestions ─── */}
               {suggestions.length > 0 && (
                 <div>
-                  <p className="mb-2.5 text-[9px] font-medium uppercase tracking-widest text-white/40">
+                  <p className="text-muted-foreground mb-2.5 text-[9px] font-medium uppercase tracking-widest">
                     Saran Hari Ini
                   </p>
                   <div className="grid grid-cols-1 gap-1.5">
                     {suggestions.map((s, i) => (
                       <div
                         key={i}
-                        className="bg-white/6 flex items-center gap-2.5 rounded-xl border border-white/5 px-4 py-2.5"
+                        className="border-border bg-muted flex items-center gap-2.5 rounded-xl border px-4 py-2.5"
                       >
                         <span className="text-base">{s.icon}</span>
-                        <p className="text-[10px] leading-relaxed text-white/80">{s.text}</p>
+                        <p className="text-foreground/80 text-[10px] leading-relaxed">{s.text}</p>
                       </div>
                     ))}
                   </div>

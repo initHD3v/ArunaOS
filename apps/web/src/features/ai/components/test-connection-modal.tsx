@@ -95,7 +95,7 @@ export function TestConnectionModal({
                     className={cn(
                       'text-xs font-medium',
                       step.status === 'pending'
-                        ? 'text-foreground/30'
+                        ? 'text-foreground/50'
                         : step.status === 'running'
                           ? 'text-primary'
                           : step.status === 'error'

@@ -56,7 +56,7 @@ function ToastItem({ n, onDismiss }: { n: Notification; onDismiss: (id: string) 
       )}
       <button
         onClick={() => onDismiss(n.id)}
-        className="text-foreground/30 hover:text-foreground/60 shrink-0"
+        className="text-foreground/50 hover:text-foreground/60 shrink-0"
       >
         <X size={14} />
       </button>
@@ -100,7 +100,7 @@ export function NotificationList() {
             <p className="text-foreground/80 min-w-0 text-xs">{n.message}</p>
             <button
               onClick={() => dismiss(n.id)}
-              className="text-foreground/30 hover:text-foreground/60 ml-auto shrink-0"
+              className="text-foreground/50 hover:text-foreground/60 ml-auto shrink-0"
             >
               <X size={12} />
             </button>

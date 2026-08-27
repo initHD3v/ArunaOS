@@ -106,7 +106,7 @@ export function ChatInput({ onSend, onStop, disabled, placeholder, aiHealth }: C
           )}
         </button>
       </div>
-      <p className="text-foreground/25 mt-1.5 hidden select-none text-center text-[10px] sm:block">
+      <p className="text-foreground/40 mt-1.5 hidden select-none text-center text-[10px] sm:block">
         ↵ Kirim · ⇧↵ Baris baru
       </p>
     </form>

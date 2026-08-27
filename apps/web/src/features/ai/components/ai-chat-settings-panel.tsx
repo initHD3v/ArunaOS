@@ -575,7 +575,7 @@ export function AIChatSettingsPanel({ onClose }: AIChatSettingsPanelProps) {
                             <button
                               onClick={() => setConfirmDelete(type)}
                               disabled={visibleProviders.length <= 1}
-                              className="text-foreground/30 hover:text-danger disabled:hover:text-foreground/30 mr-1.5 shrink-0 rounded p-1 transition-colors disabled:opacity-20"
+                              className="text-foreground/50 hover:text-danger disabled:hover:text-foreground/50 mr-1.5 shrink-0 rounded p-1 transition-colors disabled:opacity-20"
                               title={`Hapus ${m?.label ?? type}`}
                             >
                               <Trash2 className="h-3 w-3" />
@@ -650,7 +650,7 @@ export function AIChatSettingsPanel({ onClose }: AIChatSettingsPanelProps) {
                   </>
                 )}
               </button>
-              <p className="text-foreground/30 mt-1.5 text-center text-[10px]">
+              <p className="text-foreground/50 mt-1.5 text-center text-[10px]">
                 ~300MB download. Cached after first load.
               </p>
             </div>
@@ -679,7 +679,7 @@ export function AIChatSettingsPanel({ onClose }: AIChatSettingsPanelProps) {
                   style={
                     !showKey ? ({ WebkitTextSecurity: 'disc' } as React.CSSProperties) : undefined
                   }
-                  className="border-border/20 bg-muted text-foreground placeholder:text-foreground/30 focus:border-primary/50 w-full rounded-lg border px-2.5 py-2 pr-8 text-xs outline-none transition-colors"
+                  className="border-border/20 bg-muted text-foreground placeholder:text-foreground/50 focus:border-primary/50 w-full rounded-lg border px-2.5 py-2 pr-8 text-xs outline-none transition-colors"
                 />
                 <button
                   onClick={() => setShowKey(!showKey)}
@@ -734,7 +734,7 @@ export function AIChatSettingsPanel({ onClose }: AIChatSettingsPanelProps) {
                       value={modelQuery}
                       onChange={(e) => setModelQuery(e.target.value)}
                       placeholder="Cari model..."
-                      className="border-border/20 bg-muted text-foreground placeholder:text-foreground/30 focus:border-primary/50 w-full rounded-lg border px-2.5 py-1.5 text-xs outline-none transition-colors"
+                      className="border-border/20 bg-muted text-foreground placeholder:text-foreground/50 focus:border-primary/50 w-full rounded-lg border px-2.5 py-1.5 text-xs outline-none transition-colors"
                     />
                   </div>
                 )}
@@ -754,7 +754,7 @@ export function AIChatSettingsPanel({ onClose }: AIChatSettingsPanelProps) {
                     <ChevronDown className="text-foreground/40 pointer-events-none absolute right-2 top-1/2 h-3 w-3 -translate-y-1/2" />
                   </div>
                 ) : (
-                  <p className="text-foreground/30 text-[10px]">
+                  <p className="text-foreground/50 text-[10px]">
                     Tidak ada model yang cocok dengan filter.
                   </p>
                 )}
@@ -821,7 +821,7 @@ export function AIChatSettingsPanel({ onClose }: AIChatSettingsPanelProps) {
                     onChange={(e) => setBaseUrl(e.target.value)}
                     className="border-border/20 bg-muted text-foreground focus:border-primary/50 w-full rounded-lg border px-2.5 py-2 text-xs outline-none transition-colors"
                   />
-                  <p className="text-foreground/30 mt-0.5 text-[10px]">
+                  <p className="text-foreground/50 mt-0.5 text-[10px]">
                     Default:{' '}
                     <code className="bg-muted rounded px-1 py-0.5">{meta?.defaultBaseUrl}</code>
                   </p>

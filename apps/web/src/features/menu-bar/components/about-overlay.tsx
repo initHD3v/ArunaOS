@@ -28,7 +28,7 @@ export function AboutOverlay({ onClose }: AboutOverlayProps) {
         {/* Close */}
         <button
           onClick={onClose}
-          className="text-foreground/30 hover:text-foreground/60 absolute right-3 top-3 z-10 rounded-lg p-1 transition-colors"
+          className="text-foreground/50 hover:text-foreground/60 absolute right-3 top-3 z-10 rounded-lg p-1 transition-colors"
         >
           <X size={16} />
         </button>
@@ -82,9 +82,9 @@ export function AboutOverlay({ onClose }: AboutOverlayProps) {
         <div className="via-border/60 my-5 h-px w-16 bg-gradient-to-r from-transparent to-transparent" />
 
         <div className="flex flex-col items-center gap-1 pb-6">
-          <Sparkles size={14} className="text-foreground/30" />
-          <p className="text-foreground/30 text-[11px]">Created by INITHD3V</p>
-          <p className="text-foreground/20 text-[11px]">&copy; 2026 ArunaOS</p>
+          <Sparkles size={14} className="text-foreground/50" />
+          <p className="text-foreground/50 text-[11px]">Created by INITHD3V</p>
+          <p className="text-foreground/40 text-[11px]">&copy; 2026 ArunaOS</p>
         </div>
       </motion.div>
     </motion.div>

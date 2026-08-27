@@ -31,17 +31,17 @@ export function BrowseTab({ onInstall }: BrowseTabProps) {
   return (
     <div className="flex flex-col">
       <div className="relative px-4 pb-1 pt-3">
-        <Search size={14} className="text-foreground/30 absolute left-6 top-1/2 -translate-y-1/2" />
+        <Search size={14} className="text-foreground/50 absolute left-6 top-1/2 -translate-y-1/2" />
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search modules..."
-          className="border-border/20 bg-foreground/[0.03] text-foreground placeholder:text-foreground/30 w-full rounded-xl border py-2.5 pl-9 pr-9 text-xs focus:border-blue-500/40 focus:outline-none focus:ring-1 focus:ring-blue-500/20"
+          className="border-border/20 bg-foreground/[0.03] text-foreground placeholder:text-foreground/50 w-full rounded-xl border py-2.5 pl-9 pr-9 text-xs focus:border-blue-500/40 focus:outline-none focus:ring-1 focus:ring-blue-500/20"
         />
         {query && (
           <button
             onClick={() => setQuery('')}
-            className="text-foreground/30 hover:text-foreground/50 absolute right-5 top-1/2 -translate-y-1/2"
+            className="text-foreground/50 hover:text-foreground/50 absolute right-5 top-1/2 -translate-y-1/2"
           >
             <X size={14} />
           </button>
@@ -50,7 +50,7 @@ export function BrowseTab({ onInstall }: BrowseTabProps) {
 
       {loading && (
         <div className="flex h-full items-center justify-center py-20">
-          <Loader2 size={18} className="text-foreground/30 animate-spin" />
+          <Loader2 size={18} className="text-foreground/50 animate-spin" />
         </div>
       )}
 
@@ -96,7 +96,7 @@ export function BrowseTab({ onInstall }: BrowseTabProps) {
                   <p className="text-foreground/40 mt-0.5 line-clamp-2 text-xs leading-relaxed">
                     {mod.description}
                   </p>
-                  <div className="text-foreground/30 mt-1.5 flex items-center gap-2 text-[10px]">
+                  <div className="text-foreground/50 mt-1.5 flex items-center gap-2 text-[10px]">
                     {mod.author && <span>{mod.author}</span>}
                     <span>{mod.downloads.toLocaleString()} downloads</span>
                     {'bundleSize' in mod && mod.bundleSize && (

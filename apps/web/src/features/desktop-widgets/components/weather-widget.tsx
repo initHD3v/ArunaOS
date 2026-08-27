@@ -35,8 +35,8 @@ export function WeatherWidget() {
   if (w.loading && w.hourly.length === 0) {
     return (
       <div className="flex items-center gap-2">
-        <Loader size={14} className="text-foreground/30 animate-spin" />
-        <span className="text-foreground/30 text-[10px]">Memuat cuaca...</span>
+        <Loader size={14} className="text-foreground/50 animate-spin" />
+        <span className="text-foreground/50 text-[10px]">Memuat cuaca...</span>
       </div>
     );
   }
@@ -51,7 +51,7 @@ export function WeatherWidget() {
             const lon = ls.enabled && ls.longitude != null ? ls.longitude : 106.8456;
             w.fetchWeather(lat, lon, ls.city);
           }}
-          className="text-foreground/30 hover:text-foreground/60 ml-auto text-[9px] transition-colors"
+          className="text-foreground/50 hover:text-foreground/60 ml-auto text-[9px] transition-colors"
         >
           Coba lagi
         </button>
@@ -68,7 +68,7 @@ export function WeatherWidget() {
             <span className="text-foreground text-xl font-light tabular-nums">{w.temp}°</span>
             <span className="text-foreground/40 truncate text-[10px]">{w.label}</span>
           </div>
-          <div className="text-foreground/30 flex items-center gap-1 text-[9px]">
+          <div className="text-foreground/50 flex items-center gap-1 text-[9px]">
             <MapPin size={8} />
             <span className="truncate">{w.city ?? 'Lokasi Anda'}</span>
           </div>
@@ -121,7 +121,7 @@ export function WeatherWidget() {
         </div>
       )}
 
-      <p className="text-foreground/30 text-[9px]">Terasa {w.feelsLike}°C</p>
+      <p className="text-foreground/50 text-[9px]">Terasa {w.feelsLike}°C</p>
     </div>
   );
 }

@@ -350,7 +350,7 @@ export function AIChatSettings({ open, onClose }: AIChatSettingsProps) {
                       ? 'Leave empty if not required'
                       : 'Paste your API key here...'
                   }
-                  className="border-border/20 bg-muted text-foreground placeholder:text-foreground/30 focus:border-primary/50 w-full rounded-lg border px-3 py-2.5 pr-10 text-sm outline-none transition-colors"
+                  className="border-border/20 bg-muted text-foreground placeholder:text-foreground/50 focus:border-primary/50 w-full rounded-lg border px-3 py-2.5 pr-10 text-sm outline-none transition-colors"
                 />
                 <button
                   onClick={() => setShowKey(!showKey)}
@@ -382,9 +382,9 @@ export function AIChatSettings({ open, onClose }: AIChatSettingsProps) {
                 value={model}
                 onChange={(e) => setModel(e.target.value)}
                 placeholder={meta ? `e.g. ${meta.defaultModel}` : 'Enter model name...'}
-                className="border-border/20 bg-muted text-foreground placeholder:text-foreground/30 focus:border-primary/50 w-full rounded-lg border px-3 py-2.5 text-sm outline-none transition-colors"
+                className="border-border/20 bg-muted text-foreground placeholder:text-foreground/50 focus:border-primary/50 w-full rounded-lg border px-3 py-2.5 text-sm outline-none transition-colors"
               />
-              <p className="text-foreground/30 mt-1 text-[11px]">
+              <p className="text-foreground/50 mt-1 text-[11px]">
                 The AI model used for chat responses.
               </p>
             </div>
@@ -488,7 +488,7 @@ export function AIChatSettings({ open, onClose }: AIChatSettingsProps) {
                     onChange={(e) => setBaseUrl(e.target.value)}
                     className="border-border/20 bg-muted text-foreground focus:border-primary/50 w-full rounded-lg border px-3 py-2 text-sm outline-none transition-colors"
                   />
-                  <p className="text-foreground/30 mt-1 text-[11px]">
+                  <p className="text-foreground/50 mt-1 text-[11px]">
                     Default:{' '}
                     <code className="bg-muted rounded px-1 py-0.5">{meta?.defaultBaseUrl}</code>
                   </p>

@@ -85,7 +85,7 @@ export function MoodTracker() {
 
       {weekly.length > 0 && (
         <div className="border-border/20 border-t pt-2">
-          <p className="text-foreground/30 mb-1 text-[9px]">Minggu ini</p>
+          <p className="text-foreground/50 mb-1 text-[9px]">Minggu ini</p>
           <div className="flex h-6 items-end gap-1">
             {MOODS.map((m) => {
               const f = weekly.find((w) => w.mood === m.label);

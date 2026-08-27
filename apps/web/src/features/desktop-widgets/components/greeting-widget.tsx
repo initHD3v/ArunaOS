@@ -78,7 +78,7 @@ export function GreetingWidget() {
               <span className="text-foreground/40 text-[10px]">
                 Mood <span className="text-foreground/70 font-medium">{mood}</span>
               </span>
-              {ready && <Brain size={9} className="text-foreground/20" />}
+              {ready && <Brain size={9} className="text-foreground/40" />}
             </div>
           )}
         </>

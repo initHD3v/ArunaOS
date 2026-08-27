@@ -344,7 +344,7 @@ export function Dock() {
                           </div>
                           <button
                             onClick={(e) => handleKill(e, id)}
-                            className="text-foreground/30 flex h-6 w-6 shrink-0 items-center justify-center rounded-full opacity-0 transition-all hover:bg-red-500/10 hover:text-red-400 group-hover/window:opacity-100"
+                            className="text-foreground/50 flex h-6 w-6 shrink-0 items-center justify-center rounded-full opacity-0 transition-all hover:bg-red-500/10 hover:text-red-400 group-hover/window:opacity-100"
                           >
                             ✕
                           </button>

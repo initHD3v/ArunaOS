@@ -335,18 +335,18 @@ export function AISettingsPanel() {
       )}
 
       <div className="space-y-2">
-        <h4 className="text-foreground/30 text-[10px] font-medium uppercase tracking-wider">
+        <h4 className="text-foreground/50 text-[10px] font-medium uppercase tracking-wider">
           Provider Settings
         </h4>
 
         {loading && providers.length === 0 && (
-          <div className="text-foreground/30 py-4 text-center text-xs">Loading...</div>
+          <div className="text-foreground/50 py-4 text-center text-xs">Loading...</div>
         )}
 
         {!loading && providers.length === 0 && !configs.some((c) => c.apiKey) && (
           <div className="border-border/20 rounded-lg border border-dashed px-4 py-6 text-center">
-            <Sparkles size={20} className="text-foreground/20 mx-auto mb-2" />
-            <p className="text-foreground/30 text-xs">
+            <Sparkles size={20} className="text-foreground/40 mx-auto mb-2" />
+            <p className="text-foreground/50 text-xs">
               No AI providers configured. Fill in the fields below and save.
             </p>
           </div>
@@ -386,13 +386,13 @@ export function AISettingsPanel() {
                       </span>
                     </div>
                     {cfg.apiKey && (
-                      <p className="text-foreground/30 mt-0.5 text-[10px]">Custom config applied</p>
+                      <p className="text-foreground/50 mt-0.5 text-[10px]">Custom config applied</p>
                     )}
                   </div>
                   {cfg.expanded ? (
-                    <ChevronDown size={14} className="text-foreground/30" />
+                    <ChevronDown size={14} className="text-foreground/50" />
                   ) : (
-                    <ChevronRight size={14} className="text-foreground/30" />
+                    <ChevronRight size={14} className="text-foreground/50" />
                   )}
                 </button>
 
@@ -402,7 +402,7 @@ export function AISettingsPanel() {
                       <label className="text-foreground/40 mb-1 block text-[10px] font-medium">
                         API Key{' '}
                         {detected?.available && (
-                          <span className="text-foreground/20">(env var active)</span>
+                          <span className="text-foreground/40">(env var active)</span>
                         )}
                       </label>
                       <a
@@ -415,7 +415,7 @@ export function AISettingsPanel() {
                         {meta.label} API Key
                       </a>
                       {KEYLESS_PROVIDERS.has(cfg.type) && (
-                        <p className="text-foreground/30 mb-1.5 text-[10px]">
+                        <p className="text-foreground/50 mb-1.5 text-[10px]">
                           No API key required.
                         </p>
                       )}
@@ -429,12 +429,12 @@ export function AISettingsPanel() {
                             'w-full rounded-lg px-2.5 py-1.5 text-xs',
                             'bg-background text-foreground',
                             'border-border/20 focus:border-primary/30 border focus:outline-none',
-                            'placeholder:text-foreground/20',
+                            'placeholder:text-foreground/40',
                           )}
                         />
                         <button
                           onClick={() => toggleKeyVisibility(cfg.type)}
-                          className="text-foreground/30 hover:text-foreground/60 absolute right-2 top-1/2 -translate-y-1/2"
+                          className="text-foreground/50 hover:text-foreground/60 absolute right-2 top-1/2 -translate-y-1/2"
                           tabIndex={-1}
                         >
                           {showKeys.has(cfg.type) ? <EyeOff size={14} /> : <Eye size={14} />}
@@ -455,7 +455,7 @@ export function AISettingsPanel() {
                           'w-full rounded-lg px-2.5 py-1.5 font-mono text-xs',
                           'bg-background text-foreground',
                           'border-border/20 focus:border-primary/30 border focus:outline-none',
-                          'placeholder:text-foreground/20',
+                          'placeholder:text-foreground/40',
                         )}
                       />
                     </div>
@@ -473,7 +473,7 @@ export function AISettingsPanel() {
                           'w-full rounded-lg px-2.5 py-1.5 font-mono text-xs',
                           'bg-background text-foreground',
                           'border-border/20 focus:border-primary/30 border focus:outline-none',
-                          'placeholder:text-foreground/20',
+                          'placeholder:text-foreground/40',
                         )}
                       />
                     </div>
@@ -495,7 +495,7 @@ export function AISettingsPanel() {
                 Izinkan AI mencari informasi dari Wikipedia & DuckDuckGo untuk pertanyaan yang tidak
                 bisa dijawab oleh alat bawaan.
               </p>
-              <p className="text-foreground/30 mt-1 text-[11px]">
+              <p className="text-foreground/50 mt-1 text-[11px]">
                 Nonaktifkan jika ingin AI hanya menggunakan pengetahuan internal dan alat lokal.
               </p>
             </div>

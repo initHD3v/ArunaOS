@@ -95,7 +95,7 @@ export function CommandPalette({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.1 }}
-          className="fixed inset-0 z-[9999] flex items-start justify-center bg-black/40 pt-[12vh] backdrop-blur-sm"
+          className="bg-background/40 fixed inset-0 z-[9999] flex items-start justify-center pt-[12vh] backdrop-blur-sm"
           onClick={onClose}
         >
           <motion.div
@@ -103,15 +103,15 @@ export function CommandPalette({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -24, scale: 0.96 }}
             transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-            className="w-full max-w-xl overflow-hidden rounded-2xl border border-white/10 bg-zinc-900/80 shadow-2xl shadow-black/30 backdrop-blur-2xl"
+            className="border-border bg-card/80 w-full max-w-xl overflow-hidden rounded-2xl border shadow-2xl shadow-black/10 backdrop-blur-2xl"
             onClick={(e) => e.stopPropagation()}
             role="combobox"
             aria-expanded={open}
             aria-haspopup="listbox"
           >
             {/* Search input */}
-            <div className="flex items-center gap-3 border-b border-white/5 px-4 py-3.5">
-              <Search size={16} className="shrink-0 text-white/30" />
+            <div className="border-border flex items-center gap-3 border-b px-4 py-3.5">
+              <Search size={16} className="text-muted-foreground shrink-0" />
               <input
                 ref={inputRef}
                 value={query}
@@ -121,11 +121,11 @@ export function CommandPalette({
                 }}
                 onKeyDown={handleKeyDown}
                 placeholder="Search modules, settings, actions..."
-                className="min-w-0 flex-1 bg-transparent text-sm text-white/80 outline-none placeholder:text-white/20"
+                className="text-foreground placeholder:text-muted-foreground min-w-0 flex-1 bg-transparent text-sm outline-none"
                 aria-autocomplete="list"
                 aria-controls="command-palette-list"
               />
-              <kbd className="ml-auto shrink-0 rounded-md border border-white/10 bg-white/5 px-1.5 py-0.5 font-mono text-[10px] text-white/20">
+              <kbd className="border-border bg-muted text-muted-foreground ml-auto shrink-0 rounded-md border px-1.5 py-0.5 font-mono text-[10px]">
                 <Command size={10} className="inline" />K
               </kbd>
             </div>
@@ -140,7 +140,7 @@ export function CommandPalette({
                 aria-label="Search results"
               >
                 {!query.trim() && recentItems && recentItems.length > 0 && (
-                  <div className="px-4 pb-1 pt-2 text-[10px] font-medium uppercase tracking-wider text-white/20">
+                  <div className="text-muted-foreground px-4 pb-1 pt-2 text-[10px] font-medium uppercase tracking-wider">
                     Recent
                   </div>
                 )}
@@ -154,8 +154,8 @@ export function CommandPalette({
                       aria-selected={i === selectedIdx}
                       className={`flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm transition-colors ${
                         i === selectedIdx
-                          ? 'bg-white/10 text-white'
-                          : 'text-white/50 hover:bg-white/5 hover:text-white/80'
+                          ? 'bg-muted text-foreground'
+                          : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
                       }`}
                       onClick={() => {
                         onSelect(item);
@@ -163,19 +163,19 @@ export function CommandPalette({
                       }}
                       onMouseEnter={() => setSelectedIdx(i)}
                     >
-                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/5">
-                        <Icon size={14} className="text-white/40" />
+                      <div className="bg-muted flex h-7 w-7 shrink-0 items-center justify-center rounded-lg">
+                        <Icon size={14} className="text-muted-foreground" />
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="truncate font-medium">{item.label}</div>
                         {item.description && (
-                          <div className="truncate text-[11px] text-white/30">
+                          <div className="text-muted-foreground truncate text-[11px]">
                             {item.description}
                           </div>
                         )}
                       </div>
                       {item.category && (
-                        <span className="shrink-0 rounded-md bg-white/5 px-1.5 py-0.5 text-[10px] text-white/25">
+                        <span className="bg-muted text-muted-foreground shrink-0 rounded-md px-1.5 py-0.5 text-[10px]">
                           {item.category}
                         </span>
                       )}
@@ -193,31 +193,33 @@ export function CommandPalette({
                     useAIContextStore.getState().askAI(query);
                     onClose();
                   }}
-                  className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm transition-colors hover:bg-white/5"
+                  className="hover:bg-muted/50 flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm transition-colors"
                 >
                   <div className="bg-primary/10 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg">
                     <Sparkles size={14} className="text-primary" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="truncate font-medium text-white/80">
+                    <div className="text-foreground truncate font-medium">
                       Ask AI about &ldquo;{query}&rdquo;
                     </div>
-                    <div className="truncate text-[11px] text-white/30">
+                    <div className="text-muted-foreground truncate text-[11px]">
                       Use AI to answer your question
                     </div>
                   </div>
-                  <span className="shrink-0 rounded-md bg-white/5 px-1.5 py-0.5 text-[10px] text-white/25">
+                  <span className="bg-muted text-muted-foreground shrink-0 rounded-md px-1.5 py-0.5 text-[10px]">
                     AI
                   </span>
                 </button>
-                <div className="px-4 py-2 text-center text-[10px] text-white/20">
+                <div className="text-muted-foreground px-4 py-2 text-center text-[10px]">
                   No indexed results for &ldquo;{query}&rdquo;
                 </div>
               </div>
             )}
 
             {!query.trim() && (!recentItems || recentItems.length === 0) && (
-              <div className="px-4 py-8 text-center text-xs text-white/25">Type to search...</div>
+              <div className="text-muted-foreground px-4 py-8 text-center text-xs">
+                Type to search...
+              </div>
             )}
           </motion.div>
         </motion.div>

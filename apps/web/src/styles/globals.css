@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:is(.dark *));
+
 @theme {
   --font-sans: "Geist", "Inter", "system-ui", sans-serif;
   --font-mono: "Geist Mono", "SF Mono", monospace;
@@ -74,6 +76,33 @@
   --success: #30d158;
   --warning: #ff9f0a;
   --danger: #ff453a;
+}
+
+.theme-amoled {
+  --background: #000000;
+  --foreground: #ffffff;
+  --card: rgba(255, 255, 255, 0.04);
+  --card-foreground: #ffffff;
+  --border: rgba(255, 255, 255, 0.08);
+  --muted: rgba(255, 255, 255, 0.04);
+  --muted-foreground: rgba(255, 255, 255, 0.55);
+}
+
+.theme-high-contrast {
+  --background: #ffffff;
+  --foreground: #000000;
+  --card: #ffffff;
+  --card-foreground: #000000;
+  --primary: #0000ff;
+  --primary-foreground: #ffffff;
+  --secondary: #000000;
+  --secondary-foreground: #ffffff;
+  --accent: #0000ff;
+  --accent-foreground: #ffffff;
+  --border: #000000;
+  --muted: #ffffff;
+  --muted-foreground: #000000;
+  --ring: #0000ff;
 }
 
 * {

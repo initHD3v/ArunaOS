@@ -46,7 +46,7 @@ function CodeBlock({ code, lang }: { code: string; lang: string }) {
         <span className="text-foreground/40 font-mono text-[10px] uppercase">{lang}</span>
         <button
           onClick={handleCopy}
-          className="text-foreground/30 hover:text-foreground/60 flex items-center gap-1 rounded px-1 py-0.5 text-[10px] transition-colors"
+          className="text-foreground/50 hover:text-foreground/60 flex items-center gap-1 rounded px-1 py-0.5 text-[10px] transition-colors"
         >
           {copied ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
           {copied ? 'Copied' : 'Copy'}

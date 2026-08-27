@@ -104,7 +104,7 @@ export function ControlCenterPopup({ onClose }: { onClose: () => void }) {
         {isMobile && (
           <button
             onClick={onClose}
-            className="text-foreground/30 hover:text-foreground/60 ml-auto text-[10px]"
+            className="text-foreground/50 hover:text-foreground/60 ml-auto text-[10px]"
           >
             Tutup
           </button>
@@ -167,7 +167,7 @@ export function ControlCenterPopup({ onClose }: { onClose: () => void }) {
             </div>
             <button
               onClick={onClose}
-              className="text-foreground/30 hover:text-foreground/60 text-xs"
+              className="text-foreground/50 hover:text-foreground/60 text-xs"
             >
               Tutup
             </button>
@@ -207,7 +207,7 @@ export function ControlCenterPopup({ onClose }: { onClose: () => void }) {
     <div
       ref={ref}
       className={cn(
-        'border-border/30 bg-card/95 overflow-hidden rounded-xl border shadow-xl shadow-black/10 backdrop-blur-2xl transition-all duration-200',
+        'border-border/30 bg-card/80 shadow-foreground/10 overflow-hidden rounded-xl border shadow-xl backdrop-blur-2xl transition-all duration-200',
         weatherExpanded ? 'w-[460px]' : 'w-72',
       )}
     >
@@ -240,8 +240,8 @@ function WeatherSection({ expanded }: { expanded: boolean }) {
   if (w.loading && w.hourly.length === 0) {
     return (
       <div className="flex h-6 items-center gap-2">
-        <Loader size={10} className="text-foreground/30 animate-spin" />
-        <span className="text-foreground/30 text-[10px]">Memuat cuaca...</span>
+        <Loader size={10} className="text-foreground/50 animate-spin" />
+        <span className="text-foreground/50 text-[10px]">Memuat cuaca...</span>
       </div>
     );
   }
@@ -254,7 +254,7 @@ function WeatherSection({ expanded }: { expanded: boolean }) {
         <span className="text-danger/50 text-[10px]">{w.error}</span>
         <button
           onClick={() => w.fetchWeather(lat, lon, ls.city)}
-          className="text-foreground/30 hover:text-foreground/60 ml-auto text-[9px] transition-colors"
+          className="text-foreground/50 hover:text-foreground/60 ml-auto text-[9px] transition-colors"
         >
           Coba lagi
         </button>
@@ -271,11 +271,11 @@ function WeatherSection({ expanded }: { expanded: boolean }) {
             <span className="text-foreground text-base font-light tabular-nums">{w.temp}°</span>
             <span className="text-foreground/40 truncate text-[9px]">{w.label}</span>
           </div>
-          <p className="text-foreground/30 truncate text-[9px]">{w.city}</p>
+          <p className="text-foreground/50 truncate text-[9px]">{w.city}</p>
         </div>
         <ChevronRight
           size={10}
-          className="text-foreground/20 group-hover:text-foreground/50 transition-colors"
+          className="text-foreground/40 group-hover:text-foreground/50 transition-colors"
         />
       </div>
     );
@@ -299,12 +299,12 @@ function WeatherExpandedView({
   suggestions: { icon: string; text: string }[];
 }) {
   return (
-    <div className="relative -m-2.5 overflow-hidden rounded-lg">
+    <div className="border-border/20 relative -m-2.5 overflow-hidden rounded-lg border">
       {/* Animated Background */}
       <WeatherBackground condition={w.condition} isNight={isNight} />
 
-      {/* Dark overlay — stronger gradient for readability */}
-      <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/25 to-black/30" />
+      {/* Theme-aware overlay — adapts to --background/--foreground */}
+      <div className="from-card/50 via-background/30 to-card/60 absolute inset-0 bg-gradient-to-b backdrop-blur-[1px]" />
 
       {/* Content */}
       <div className="relative z-0 space-y-3 p-3">
@@ -312,41 +312,41 @@ function WeatherExpandedView({
         <div className="flex items-start justify-between">
           <div>
             <div className="mb-0.5 flex items-center gap-1.5">
-              <MapPin size={10} className="text-white/60" />
-              <span className="text-[10px] text-white/70">{w.city}</span>
+              <MapPin size={10} className="text-foreground/60" />
+              <span className="text-foreground/70 text-[10px]">{w.city}</span>
             </div>
             <div className="flex items-baseline gap-1">
-              <span className="text-4xl font-light tabular-nums text-white">{w.temp}°</span>
-              <span className="text-xs text-white/70">{w.label}</span>
+              <span className="text-foreground text-4xl font-light tabular-nums">{w.temp}°</span>
+              <span className="text-foreground/70 text-xs">{w.label}</span>
             </div>
-            <p className="text-[10px] text-white/50">Terasa {w.feelsLike}°C</p>
+            <p className="text-foreground/50 text-[10px]">Terasa {w.feelsLike}°C</p>
           </div>
           <div className="flex flex-col items-end gap-1">
             <span className="text-3xl">{CONDITION_EMOJI[w.condition]}</span>
-            <ChevronDown size={14} className="text-white/40" />
+            <ChevronDown size={14} className="text-foreground/40" />
           </div>
         </div>
 
         {/* Loading indicator */}
         {w.loading && (
           <div className="flex items-center gap-2">
-            <Loader size={10} className="animate-spin text-white/50" />
-            <span className="text-[9px] text-white/40">Memperbarui...</span>
+            <Loader size={10} className="text-foreground/50 animate-spin" />
+            <span className="text-foreground/40 text-[9px]">Memperbarui...</span>
           </div>
         )}
 
         {/* AI Summary */}
         {summary && (
-          <div className="flex items-start gap-2 rounded-lg bg-white/10 px-3 py-2">
-            <Sparkles size={10} className="mt-0.5 shrink-0 text-yellow-300/80" />
-            <p className="text-[10px] leading-relaxed text-white/80">{summary}</p>
+          <div className="border-border/20 bg-card/60 flex items-start gap-2 rounded-lg border px-3 py-2 backdrop-blur-sm">
+            <Sparkles size={10} className="mt-0.5 shrink-0 text-yellow-500/80" />
+            <p className="text-foreground/80 text-[10px] leading-relaxed">{summary}</p>
           </div>
         )}
 
         {/* 7-hour forecast */}
         {w.hourly.length > 0 && (
           <div>
-            <p className="mb-1.5 text-[8px] uppercase tracking-wider text-white/40">
+            <p className="text-foreground/40 mb-1.5 text-[8px] uppercase tracking-wider">
               Prakiraan 7 Jam
             </p>
             <div className="scrollbar-none flex gap-1.5 overflow-x-auto pb-1">
@@ -355,19 +355,21 @@ function WeatherExpandedView({
                 return (
                   <div
                     key={h.time}
-                    className={`flex min-w-[48px] flex-col items-center gap-1 rounded-lg px-2 py-1.5 ${
-                      i === 0 ? 'bg-white/15 ring-1 ring-white/25' : 'bg-white/8'
+                    className={`flex min-w-[48px] flex-col items-center gap-1 rounded-lg border px-2 py-1.5 backdrop-blur-sm ${
+                      i === 0
+                        ? 'border-border/30 bg-card/80 ring-border/30 ring-1'
+                        : 'border-border/20 bg-muted/40'
                     }`}
                   >
-                    <span className="text-[8px] font-medium text-white/60">
+                    <span className="text-foreground/60 text-[8px] font-medium">
                       {i === 0 ? 'Skrg' : formatHour(h.time)}
                     </span>
                     <span className="text-sm">{CONDITION_EMOJI[cond.condition]}</span>
-                    <span className="text-[10px] font-medium tabular-nums text-white/90">
+                    <span className="text-foreground/90 text-[10px] font-medium tabular-nums">
                       {h.temp}°
                     </span>
                     {h.precipitation > 0 && (
-                      <span className="text-[7px] tabular-nums text-blue-300/80">
+                      <span className="text-[7px] tabular-nums text-blue-500/80">
                         {h.precipitation}%
                       </span>
                     )}
@@ -381,7 +383,7 @@ function WeatherExpandedView({
         {/* 7-day forecast */}
         {w.daily.length > 0 && (
           <div>
-            <p className="mb-1.5 text-[8px] uppercase tracking-wider text-white/40">
+            <p className="text-foreground/40 mb-1.5 text-[8px] uppercase tracking-wider">
               Prakiraan 7 Hari
             </p>
             <div className="space-y-0.5">
@@ -391,28 +393,32 @@ function WeatherExpandedView({
                 return (
                   <div
                     key={d.date}
-                    className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 ${
-                      isToday ? 'bg-white/12' : 'hover:bg-white/5'
+                    className={`flex items-center gap-2 rounded-lg border px-2.5 py-1.5 backdrop-blur-sm ${
+                      isToday
+                        ? 'border-border/30 bg-card/60'
+                        : 'hover:bg-muted/40 border-transparent'
                     }`}
                   >
-                    <span className="w-10 text-[9px] font-medium text-white/60">
+                    <span className="text-foreground/60 w-10 text-[9px] font-medium">
                       {isToday ? 'Hari ini' : formatDay(d.date)}
                     </span>
                     <span className="text-sm">{CONDITION_EMOJI[cond.condition]}</span>
                     <div className="flex flex-1 items-center gap-2">
-                      <span className="text-[10px] font-medium tabular-nums text-white/90">
+                      <span className="text-foreground/90 text-[10px] font-medium tabular-nums">
                         {d.tempMax}°
                       </span>
-                      <div className="h-[3px] flex-1 overflow-hidden rounded-full bg-white/15">
+                      <div className="bg-muted h-[3px] flex-1 overflow-hidden rounded-full">
                         <div
                           className="h-full rounded-full bg-gradient-to-r from-blue-400 to-amber-400"
                           style={{ width: `${Math.max(10, ((d.tempMax - 15) / 25) * 100)}%` }}
                         />
                       </div>
-                      <span className="text-[10px] tabular-nums text-white/50">{d.tempMin}°</span>
+                      <span className="text-foreground/50 text-[10px] tabular-nums">
+                        {d.tempMin}°
+                      </span>
                     </div>
                     {d.precipitationProb > 0 && (
-                      <span className="w-8 text-right text-[8px] tabular-nums text-blue-300/80">
+                      <span className="w-8 text-right text-[8px] tabular-nums text-blue-500/80">
                         {d.precipitationProb}%
                       </span>
                     )}
@@ -425,38 +431,40 @@ function WeatherExpandedView({
 
         {/* Details grid */}
         <div>
-          <p className="mb-1.5 text-[8px] uppercase tracking-wider text-white/40">Detail</p>
+          <p className="text-foreground/40 mb-1.5 text-[8px] uppercase tracking-wider">Detail</p>
           <div className="grid grid-cols-2 gap-1.5">
-            <div className="bg-white/8 flex items-center gap-2 rounded-lg px-2.5 py-1.5">
-              <Droplets size={10} className="shrink-0 text-white/50" />
+            <div className="border-border/20 bg-muted/50 flex items-center gap-2 rounded-lg border px-2.5 py-1.5 backdrop-blur-sm">
+              <Droplets size={10} className="text-foreground/50 shrink-0" />
               <div>
-                <p className="text-[7px] uppercase tracking-wider text-white/40">Kelembaban</p>
-                <p className="text-[10px] font-medium tabular-nums text-white/85">{w.humidity}%</p>
+                <p className="text-foreground/40 text-[7px] uppercase tracking-wider">Kelembaban</p>
+                <p className="text-foreground/80 text-[10px] font-medium tabular-nums">
+                  {w.humidity}%
+                </p>
               </div>
             </div>
-            <div className="bg-white/8 flex items-center gap-2 rounded-lg px-2.5 py-1.5">
-              <Wind size={10} className="shrink-0 text-white/50" />
+            <div className="border-border/20 bg-muted/50 flex items-center gap-2 rounded-lg border px-2.5 py-1.5 backdrop-blur-sm">
+              <Wind size={10} className="text-foreground/50 shrink-0" />
               <div>
-                <p className="text-[7px] uppercase tracking-wider text-white/40">Angin</p>
-                <p className="text-[10px] font-medium tabular-nums text-white/85">
+                <p className="text-foreground/40 text-[7px] uppercase tracking-wider">Angin</p>
+                <p className="text-foreground/80 text-[10px] font-medium tabular-nums">
                   {w.windSpeed} km/h
                 </p>
               </div>
             </div>
-            <div className="bg-white/8 flex items-center gap-2 rounded-lg px-2.5 py-1.5">
-              <Sunrise size={10} className="shrink-0 text-white/50" />
+            <div className="border-border/20 bg-muted/50 flex items-center gap-2 rounded-lg border px-2.5 py-1.5 backdrop-blur-sm">
+              <Sunrise size={10} className="text-foreground/50 shrink-0" />
               <div>
-                <p className="text-[7px] uppercase tracking-wider text-white/40">Terbit</p>
-                <p className="text-[10px] font-medium tabular-nums text-white/85">
+                <p className="text-foreground/40 text-[7px] uppercase tracking-wider">Terbit</p>
+                <p className="text-foreground/80 text-[10px] font-medium tabular-nums">
                   {formatTime(w.sunrise)}
                 </p>
               </div>
             </div>
-            <div className="bg-white/8 flex items-center gap-2 rounded-lg px-2.5 py-1.5">
-              <Sunset size={10} className="shrink-0 text-white/50" />
+            <div className="border-border/20 bg-muted/50 flex items-center gap-2 rounded-lg border px-2.5 py-1.5 backdrop-blur-sm">
+              <Sunset size={10} className="text-foreground/50 shrink-0" />
               <div>
-                <p className="text-[7px] uppercase tracking-wider text-white/40">Terbenam</p>
-                <p className="text-[10px] font-medium tabular-nums text-white/85">
+                <p className="text-foreground/40 text-[7px] uppercase tracking-wider">Terbenam</p>
+                <p className="text-foreground/80 text-[10px] font-medium tabular-nums">
                   {formatTime(w.sunset)}
                 </p>
               </div>
@@ -467,15 +475,15 @@ function WeatherExpandedView({
         {/* AI Suggestions */}
         {suggestions.length > 0 && (
           <div>
-            <p className="mb-1.5 text-[8px] uppercase tracking-wider text-white/40">Saran</p>
+            <p className="text-foreground/40 mb-1.5 text-[8px] uppercase tracking-wider">Saran</p>
             <div className="space-y-1">
               {suggestions.map((s, i) => (
                 <div
                   key={i}
-                  className="bg-white/8 flex items-center gap-1.5 rounded-lg px-2.5 py-1.5"
+                  className="border-border/20 bg-muted/50 flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 backdrop-blur-sm"
                 >
                   <span>{s.icon}</span>
-                  <p className="text-[9px] text-white/75">{s.text}</p>
+                  <p className="text-foreground/70 text-[9px]">{s.text}</p>
                 </div>
               ))}
             </div>
@@ -497,7 +505,7 @@ function Section({
 }) {
   return (
     <div>
-      <p className="text-foreground/30 mb-1.5 text-[9px] uppercase tracking-wider">{label}</p>
+      <p className="text-foreground/50 mb-1.5 text-[9px] uppercase tracking-wider">{label}</p>
       <div
         className={cn(
           'border-border/20 bg-background/40 rounded-lg border p-2.5',
@@ -527,7 +535,7 @@ function LocationToggle() {
         {enabled ? (
           <MapPin size={10} className="text-primary" />
         ) : (
-          <MapPinOff size={10} className="text-foreground/30" />
+          <MapPinOff size={10} className="text-foreground/50" />
         )}
         <div>
           <span className="text-foreground/60 text-[10px]">
@@ -541,7 +549,7 @@ function LocationToggle() {
           <button
             onClick={handleRefresh}
             disabled={refreshing}
-            className="text-foreground/30 hover:text-foreground rounded p-1 transition-colors disabled:opacity-40"
+            className="text-foreground/50 hover:text-foreground rounded p-1 transition-colors disabled:opacity-40"
             title="Perbarui lokasi"
           >
             <RefreshCw size={10} className={refreshing ? 'animate-spin' : ''} />
@@ -559,12 +567,12 @@ function LocationToggle() {
           {loading ? (
             <Loader
               size={8}
-              className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 animate-spin text-white"
+              className="text-primary-foreground absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 animate-spin"
             />
           ) : (
             <span
               className={cn(
-                'absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform',
+                'bg-background absolute top-0.5 h-4 w-4 rounded-full shadow-sm transition-transform',
                 enabled ? 'translate-x-[18px]' : 'translate-x-0.5',
               )}
             />
@@ -589,6 +597,7 @@ function ThemeToggle() {
 
   const isDark =
     currentMode === 'dark' ||
+    currentMode === 'amoled' ||
     (currentMode === 'system' &&
       typeof window !== 'undefined' &&
       window.matchMedia('(prefers-color-scheme: dark)').matches);

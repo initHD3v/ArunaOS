@@ -38,7 +38,7 @@ export function TaskSummary() {
           <span className="text-foreground text-[11px] font-medium">Tasks</span>
         </div>
         {total > 0 && (
-          <span className="text-foreground/30 text-[9px]">
+          <span className="text-foreground/50 text-[9px]">
             {done}/{total}
           </span>
         )}
@@ -54,7 +54,7 @@ export function TaskSummary() {
             'min-w-0 flex-1 rounded-md px-2 py-1 text-[10px]',
             'bg-background/60 text-foreground',
             'border-border/20 focus:border-primary/30 border focus:outline-none',
-            'placeholder:text-foreground/20',
+            'placeholder:text-foreground/40',
           )}
         />
         <button
@@ -71,7 +71,7 @@ export function TaskSummary() {
       </form>
 
       {tasks.length === 0 && (
-        <p className="text-foreground/20 py-2 text-center text-[9px]">Belum ada task</p>
+        <p className="text-foreground/40 py-2 text-center text-[9px]">Belum ada task</p>
       )}
 
       <div className="max-h-32 space-y-0.5 overflow-y-auto">
@@ -85,7 +85,7 @@ export function TaskSummary() {
           >
             <button
               onClick={() => toggleTask(task.id)}
-              className="text-foreground/30 hover:text-primary shrink-0 transition-colors"
+              className="text-foreground/50 hover:text-primary shrink-0 transition-colors"
             >
               {task.done ? (
                 <CheckCircle2 size={10} className="text-success" />
@@ -96,14 +96,14 @@ export function TaskSummary() {
             <span
               className={cn(
                 'flex-1 text-[10px] transition-all',
-                task.done ? 'text-foreground/30 line-through' : 'text-foreground/70',
+                task.done ? 'text-foreground/50 line-through' : 'text-foreground/70',
               )}
             >
               {task.text}
             </span>
             <button
               onClick={() => removeTask(task.id)}
-              className="text-foreground/20 hover:text-danger shrink-0 opacity-0 transition-all group-hover:opacity-100"
+              className="text-foreground/40 hover:text-danger shrink-0 opacity-0 transition-all group-hover:opacity-100"
             >
               <Trash2 size={8} />
             </button>

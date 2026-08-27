@@ -346,7 +346,7 @@ export function CalendarPopup({ date }: CalendarPopupProps) {
           <span className="text-foreground/60 text-sm">
             {today.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}
           </span>
-          <span className="text-foreground/30 text-xs">·</span>
+          <span className="text-foreground/50 text-xs">·</span>
           <span className="text-foreground/50 text-xs font-medium tabular-nums">{timeStr}</span>
         </div>
 
@@ -371,7 +371,7 @@ export function CalendarPopup({ date }: CalendarPopupProps) {
       <div className="flex items-center justify-between px-4 pb-1 pt-3">
         <button
           onClick={goPrevMonth}
-          className="text-foreground/30 hover:text-foreground/60 rounded-md p-1 transition-colors"
+          className="text-foreground/50 hover:text-foreground/60 rounded-md p-1 transition-colors"
         >
           <ChevronLeft size={16} />
         </button>
@@ -391,7 +391,7 @@ export function CalendarPopup({ date }: CalendarPopupProps) {
 
         <button
           onClick={goNextMonth}
-          className="text-foreground/30 hover:text-foreground/60 rounded-md p-1 transition-colors"
+          className="text-foreground/50 hover:text-foreground/60 rounded-md p-1 transition-colors"
         >
           <ChevronRight size={16} />
         </button>
@@ -403,7 +403,7 @@ export function CalendarPopup({ date }: CalendarPopupProps) {
           {DAYS.map((d) => (
             <div
               key={d}
-              className="text-foreground/30 flex items-center justify-center py-1 text-[11px] font-medium"
+              className="text-foreground/50 flex items-center justify-center py-1 text-[11px] font-medium"
             >
               {d}
             </div>
@@ -446,7 +446,7 @@ export function CalendarPopup({ date }: CalendarPopupProps) {
       {/* Holidays list */}
       {monthHolidays.length > 0 && (
         <div className="border-border/10 border-t px-4 py-3">
-          <p className="text-foreground/30 mb-2 flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wider">
+          <p className="text-foreground/50 mb-2 flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wider">
             <CalendarDays size={11} />
             {monthHolidays.length} event — {monthName.toLowerCase()} {viewYear}
           </p>
@@ -482,13 +482,13 @@ export function CalendarPopup({ date }: CalendarPopupProps) {
                       </span>
                     </div>
                     <div className="flex shrink-0 items-center gap-1.5">
-                      <span className="text-foreground/30 text-[11px] tabular-nums">
+                      <span className="text-foreground/50 text-[11px] tabular-nums">
                         {item.date} {dayOfWeek}
                       </span>
                       {isExpanded ? (
-                        <ChevronUp size={12} className="text-foreground/30" />
+                        <ChevronUp size={12} className="text-foreground/50" />
                       ) : (
-                        <ChevronDown size={12} className="text-foreground/20" />
+                        <ChevronDown size={12} className="text-foreground/40" />
                       )}
                     </div>
                   </button>

@@ -124,7 +124,7 @@ export function ModalRenderer() {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.15 }}
-          className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/20 backdrop-blur-sm"
+          className="bg-background/20 fixed inset-0 z-[9998] flex items-center justify-center backdrop-blur-sm"
           onClick={() => {
             if (top.type === 'alert') handleClose(top.id, undefined);
           }}
@@ -205,7 +205,7 @@ function ModalDialog({
       aria-modal="true"
       aria-label={config.title}
       tabIndex={-1}
-      className="border-border/20 w-80 rounded-xl border bg-white/10 p-5 shadow-2xl backdrop-blur-2xl"
+      className="border-border/20 bg-card w-80 rounded-xl border p-5 shadow-2xl backdrop-blur-2xl"
       onClick={(e) => e.stopPropagation()}
     >
       <h2 className="text-foreground/90 mb-1 text-sm font-semibold">{config.title}</h2>

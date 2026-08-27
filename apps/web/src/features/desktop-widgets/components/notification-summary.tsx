@@ -50,7 +50,7 @@ export function NotificationSummary() {
             Notifikasi
           </span>
         </div>
-        <p className="text-foreground/20 text-[10px]">Tidak ada notifikasi</p>
+        <p className="text-foreground/40 text-[10px]">Tidak ada notifikasi</p>
       </div>
     );
   }
@@ -78,15 +78,15 @@ export function NotificationSummary() {
                 unreadGroup ? 'bg-primary/5' : 'hover:bg-card/80',
               )}
             >
-              <Bell size={10} className="text-foreground/30 mt-0.5 shrink-0" />
+              <Bell size={10} className="text-foreground/50 mt-0.5 shrink-0" />
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1">
                   <p className="text-foreground/70 truncate text-[10px] font-medium">{n.title}</p>
                   {g.count > 1 && (
-                    <span className="text-foreground/20 shrink-0 text-[7px]">+{g.count - 1}</span>
+                    <span className="text-foreground/40 shrink-0 text-[7px]">+{g.count - 1}</span>
                   )}
                 </div>
-                <p className="text-foreground/30 truncate text-[9px]">{n.body}</p>
+                <p className="text-foreground/50 truncate text-[9px]">{n.body}</p>
               </div>
               <span
                 className={cn(
@@ -95,7 +95,7 @@ export function NotificationSummary() {
                     ? 'text-danger bg-danger/10'
                     : n.priority === 'high'
                       ? 'text-warning bg-warning/10'
-                      : 'text-foreground/20 bg-card/80',
+                      : 'text-foreground/40 bg-card/80',
                 )}
               >
                 {g.source}
@@ -110,7 +110,7 @@ export function NotificationSummary() {
             engine?.getNotificationHub().markAllRead();
             setNotifications(engine?.getNotificationHub().getAll() ?? []);
           }}
-          className="text-foreground/20 hover:text-foreground/50 flex items-center gap-1 text-[9px] transition-colors"
+          className="text-foreground/40 hover:text-foreground/50 flex items-center gap-1 text-[9px] transition-colors"
         >
           <Trash2 size={8} />
           Tandai sudah dibaca
