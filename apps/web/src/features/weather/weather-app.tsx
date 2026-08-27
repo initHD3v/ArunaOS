@@ -92,14 +92,18 @@ export function WeatherApp() {
   }
 
   return (
-    <div className="bg-card relative h-full w-full overflow-auto">
-      <WeatherBackground condition={w.condition} isNight={isNight} />
+    <div className="bg-background relative flex h-full w-full flex-col overflow-hidden">
+      {/* Background layer — fixed, covers full window even when content scrolls */}
+      <div className="absolute inset-0">
+        <WeatherBackground condition={w.condition} isNight={isNight} />
+        {/* Uniform opaque overlay for readability top→bottom — sebelumnya gradient 40/20/40 hanya setengah atas */}
+        <div className="bg-background/70 absolute inset-0 backdrop-blur-[2px]" />
+        {/* Extra bottom scrim agar teks bawah tetap kontras */}
+        <div className="from-background/0 via-background/20 to-background/60 absolute inset-0 bg-gradient-to-b" />
+      </div>
 
-      {/* Theme-aware overlay — softens background for readability in both themes */}
-      <div className="from-background/40 via-background/20 to-background/40 absolute inset-0 bg-gradient-to-b" />
-
-      {/* Content */}
-      <div className="relative z-0 space-y-5 p-6">
+      {/* Content — scrolls over fixed background */}
+      <div className="relative z-0 flex-1 space-y-5 overflow-auto p-6">
         {/* Loading indicator */}
         {w.loading && (
           <div className="border-border bg-muted flex items-center gap-2 rounded-xl border px-4 py-2">

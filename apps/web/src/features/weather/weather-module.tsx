@@ -96,13 +96,16 @@ export function WeatherModule({ onClose }: { onClose: () => void }) {
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
         transition={{ duration: 0.25, ease: 'easeOut' }}
-        className="border-border relative max-h-[90vh] w-[520px] overflow-y-auto rounded-2xl border shadow-2xl shadow-black/10 backdrop-blur-2xl"
+        className="border-border bg-background relative flex max-h-[90vh] w-[520px] flex-col overflow-hidden rounded-2xl border shadow-2xl shadow-black/10 backdrop-blur-2xl"
       >
-        {/* Animated Background */}
-        {!store.loading && <WeatherBackground condition={store.condition} isNight={isNight} />}
-
-        {/* Theme-aware overlay — softens background for readability */}
-        <div className="from-background/40 via-background/20 to-background/40 absolute inset-0 rounded-2xl bg-gradient-to-b" />
+        {/* Background layer — fixed, covers full modal even when content scrolls (fix half-top bug) */}
+        {!store.loading && (
+          <div className="absolute inset-0 rounded-2xl">
+            <WeatherBackground condition={store.condition} isNight={isNight} />
+            <div className="bg-background/70 absolute inset-0 rounded-2xl backdrop-blur-[2px]" />
+            <div className="from-background/0 via-background/20 to-background/60 absolute inset-0 rounded-2xl bg-gradient-to-b" />
+          </div>
+        )}
 
         {/* Loading overlay */}
         <AnimatePresence>
@@ -121,8 +124,8 @@ export function WeatherModule({ onClose }: { onClose: () => void }) {
           )}
         </AnimatePresence>
 
-        {/* Content */}
-        <div className="relative z-0 p-6">
+        {/* Content — scrolls over fixed background */}
+        <div className="relative z-0 flex-1 space-y-5 overflow-auto p-6">
           {/* Header with back button */}
           <div className="mb-5 flex items-center justify-between">
             <button
