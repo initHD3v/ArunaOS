@@ -12,9 +12,6 @@ function formatHour(time: string) {
   return d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
 }
 
-// B11: Open-Meteo dates are date-only ("YYYY-MM-DD"); new Date(str) parses
-// them as UTC midnight, which shifts weekday labels one day back in
-// negative-UTC-offset timezones. Parse explicitly as local dates instead.
 function parseLocalDate(date: string): Date {
   const [y, m, d] = date.split('-').map(Number);
   return new Date(y ?? 1970, (m ?? 1) - 1, d ?? 1);
@@ -64,8 +61,8 @@ export function WeatherApp() {
     return (
       <div className="bg-card flex h-full w-full items-center justify-center">
         <div className="flex flex-col items-center gap-3">
-          <Loader size={22} className="text-foreground/50 animate-spin" />
-          <span className="text-foreground/40 text-xs">Memuat cuaca...</span>
+          <Loader size={22} className="text-muted-foreground animate-spin" />
+          <span className="text-muted-foreground text-xs">Memuat cuaca...</span>
         </div>
       </div>
     );
@@ -85,7 +82,7 @@ export function WeatherApp() {
               const lon = ls.enabled && ls.longitude != null ? ls.longitude : 106.8456;
               w.fetchWeather(lat, lon, ls.city);
             }}
-            className="bg-muted text-foreground/60 hover:text-foreground/80 rounded-lg px-4 py-1.5 text-[10px] font-medium transition-colors"
+            className="bg-muted text-foreground hover:bg-muted/80 rounded-lg px-4 py-1.5 text-[10px] font-medium transition-colors"
           >
             Coba lagi
           </button>
@@ -95,19 +92,19 @@ export function WeatherApp() {
   }
 
   return (
-    <div className="relative h-full w-full overflow-auto">
+    <div className="bg-card relative h-full w-full overflow-auto">
       <WeatherBackground condition={w.condition} isNight={isNight} />
 
-      {/* Dark overlay — stronger gradient for readability */}
-      <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/25 to-black/30" />
+      {/* Theme-aware overlay — softens background for readability in both themes */}
+      <div className="from-background/40 via-background/20 to-background/40 absolute inset-0 bg-gradient-to-b" />
 
       {/* Content */}
       <div className="relative z-0 space-y-5 p-6">
         {/* Loading indicator */}
         {w.loading && (
-          <div className="bg-white/8 flex items-center gap-2 rounded-xl border border-white/5 px-4 py-2">
-            <Loader size={10} className="animate-spin text-white/50" />
-            <span className="text-[9px] text-white/50">Memperbarui data...</span>
+          <div className="border-border bg-muted flex items-center gap-2 rounded-xl border px-4 py-2">
+            <Loader size={10} className="text-muted-foreground animate-spin" />
+            <span className="text-muted-foreground text-[9px]">Memperbarui data...</span>
           </div>
         )}
 
@@ -115,32 +112,34 @@ export function WeatherApp() {
         <div className="flex items-center justify-between">
           <div>
             <div className="mb-1 flex items-center gap-1.5">
-              <MapPin size={11} className="text-white/40" />
-              <span className="text-[10px] font-medium text-white/50">{w.city || 'Memuat...'}</span>
+              <MapPin size={11} className="text-muted-foreground" />
+              <span className="text-muted-foreground text-[10px] font-medium">
+                {w.city || 'Memuat...'}
+              </span>
             </div>
             <div className="flex items-baseline gap-2">
-              <span className="text-6xl font-extralight tabular-nums tracking-tight text-white">
+              <span className="text-foreground text-6xl font-extralight tabular-nums tracking-tight">
                 {w.temp}°
               </span>
-              <span className="text-base font-medium text-white/70">{w.label}</span>
+              <span className="text-muted-foreground text-base font-medium">{w.label}</span>
             </div>
-            <p className="mt-1 text-xs text-white/40">Terasa {w.feelsLike}°C</p>
+            <p className="text-muted-foreground mt-1 text-xs">Terasa {w.feelsLike}°C</p>
           </div>
           <div className="text-5xl">{CONDITION_EMOJI[w.condition]}</div>
         </div>
 
         {/* ─── AI Summary ─── */}
         {summary && (
-          <div className="bg-white/8 flex items-start gap-2.5 rounded-xl border border-white/5 px-4 py-3">
-            <Sparkles size={12} className="mt-0.5 shrink-0 text-yellow-300/70" />
-            <p className="text-[11px] leading-relaxed text-white/85">{summary}</p>
+          <div className="border-border bg-muted flex items-start gap-2.5 rounded-xl border px-4 py-3">
+            <Sparkles size={12} className="mt-0.5 shrink-0 text-yellow-500/70" />
+            <p className="text-foreground/80 text-[11px] leading-relaxed">{summary}</p>
           </div>
         )}
 
         {/* ─── 7-Hour Forecast ─── */}
         {w.hourly.length > 0 && (
           <div>
-            <p className="mb-2.5 text-[9px] font-medium uppercase tracking-widest text-white/40">
+            <p className="text-muted-foreground mb-2.5 text-[9px] font-medium uppercase tracking-widest">
               Prakiraan 7 Jam
             </p>
             <div className="scrollbar-none flex gap-2 overflow-x-auto pb-1">
@@ -151,20 +150,20 @@ export function WeatherApp() {
                   <div
                     key={h.time}
                     className={`flex min-w-[60px] flex-col items-center gap-1.5 rounded-xl px-3.5 py-2.5 transition-colors ${
-                      isNow ? 'bg-white/15 ring-1 ring-white/25' : 'bg-white/6 hover:bg-white/10'
+                      isNow ? 'bg-muted ring-border ring-1' : 'bg-muted/50 hover:bg-muted'
                     }`}
                   >
                     <span
-                      className={`text-[9px] font-medium ${isNow ? 'text-white/90' : 'text-white/50'}`}
+                      className={`text-[9px] font-medium ${isNow ? 'text-foreground' : 'text-muted-foreground'}`}
                     >
                       {isNow ? 'Skrg' : formatHour(h.time)}
                     </span>
                     <span className="text-lg">{CONDITION_EMOJI[cond.condition]}</span>
-                    <span className="text-xs font-semibold tabular-nums text-white/90">
+                    <span className="text-foreground text-xs font-semibold tabular-nums">
                       {h.temp}°
                     </span>
                     {h.precipitation > 0 && (
-                      <span className="text-[7px] tabular-nums text-blue-300/70">
+                      <span className="text-[7px] tabular-nums text-blue-500/70">
                         {h.precipitation}%
                       </span>
                     )}
@@ -178,7 +177,7 @@ export function WeatherApp() {
         {/* ─── 7-Day Forecast ─── */}
         {w.daily.length > 0 && (
           <div>
-            <p className="mb-2.5 text-[9px] font-medium uppercase tracking-widest text-white/40">
+            <p className="text-muted-foreground mb-2.5 text-[9px] font-medium uppercase tracking-widest">
               Prakiraan 7 Hari
             </p>
             <div className="space-y-1">
@@ -189,29 +188,31 @@ export function WeatherApp() {
                   <div
                     key={d.date}
                     className={`flex items-center gap-3 rounded-xl px-3.5 py-2.5 transition-colors ${
-                      isToday ? 'bg-white/10' : 'hover:bg-white/5'
+                      isToday ? 'bg-muted' : 'hover:bg-muted/50'
                     }`}
                   >
-                    <span className="w-12 text-[10px] font-medium text-white/70">
+                    <span className="text-foreground/70 w-12 text-[10px] font-medium">
                       {isToday ? 'Hari ini' : formatDay(d.date)}
                     </span>
                     <span className="w-6 text-center text-base">
                       {CONDITION_EMOJI[cond.condition]}
                     </span>
                     <div className="flex flex-1 items-center gap-2.5">
-                      <span className="w-8 text-right text-xs font-semibold tabular-nums text-white/85">
+                      <span className="text-foreground w-8 text-right text-xs font-semibold tabular-nums">
                         {d.tempMax}°
                       </span>
-                      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10">
+                      <div className="bg-muted h-1.5 flex-1 overflow-hidden rounded-full">
                         <div
                           className="h-full rounded-full bg-gradient-to-r from-blue-400/80 to-amber-400/80"
                           style={{ width: `${Math.max(8, ((d.tempMax - 10) / 30) * 100)}%` }}
                         />
                       </div>
-                      <span className="w-8 text-xs tabular-nums text-white/45">{d.tempMin}°</span>
+                      <span className="text-muted-foreground w-8 text-xs tabular-nums">
+                        {d.tempMin}°
+                      </span>
                     </div>
                     {d.precipitationProb > 0 && (
-                      <span className="w-9 text-right text-[9px] tabular-nums text-blue-300/70">
+                      <span className="w-9 text-right text-[9px] tabular-nums text-blue-500/70">
                         {d.precipitationProb}%
                       </span>
                     )}
@@ -224,7 +225,7 @@ export function WeatherApp() {
 
         {/* ─── Detail Grid ─── */}
         <div>
-          <p className="mb-2.5 text-[9px] font-medium uppercase tracking-widest text-white/40">
+          <p className="text-muted-foreground mb-2.5 text-[9px] font-medium uppercase tracking-widest">
             Detail Cuaca
           </p>
           <div className="grid grid-cols-2 gap-2">
@@ -244,14 +245,16 @@ export function WeatherApp() {
             ].map((item) => (
               <div
                 key={item.label}
-                className="bg-white/6 flex items-center gap-3 rounded-xl border border-white/5 px-4 py-3"
+                className="border-border bg-muted flex items-center gap-3 rounded-xl border px-4 py-3"
               >
-                <div className="bg-white/8 flex h-8 w-8 items-center justify-center rounded-lg text-white/50">
+                <div className="bg-background text-muted-foreground flex h-8 w-8 items-center justify-center rounded-lg">
                   {item.icon}
                 </div>
                 <div>
-                  <p className="text-[8px] uppercase tracking-wider text-white/40">{item.label}</p>
-                  <p className="mt-0.5 text-xs font-semibold tabular-nums text-white/90">
+                  <p className="text-muted-foreground text-[8px] uppercase tracking-wider">
+                    {item.label}
+                  </p>
+                  <p className="text-foreground mt-0.5 text-xs font-semibold tabular-nums">
                     {item.value}
                   </p>
                 </div>
@@ -263,17 +266,17 @@ export function WeatherApp() {
         {/* ─── AI Suggestions ─── */}
         {suggestions.length > 0 && (
           <div>
-            <p className="mb-2.5 text-[9px] font-medium uppercase tracking-widest text-white/40">
+            <p className="text-muted-foreground mb-2.5 text-[9px] font-medium uppercase tracking-widest">
               Saran Hari Ini
             </p>
             <div className="grid grid-cols-1 gap-1.5">
               {suggestions.map((s, i) => (
                 <div
                   key={i}
-                  className="bg-white/6 flex items-center gap-2.5 rounded-xl border border-white/5 px-4 py-2.5"
+                  className="border-border bg-muted flex items-center gap-2.5 rounded-xl border px-4 py-2.5"
                 >
                   <span className="text-base">{s.icon}</span>
-                  <p className="text-[10px] leading-relaxed text-white/80">{s.text}</p>
+                  <p className="text-foreground/80 text-[10px] leading-relaxed">{s.text}</p>
                 </div>
               ))}
             </div>
