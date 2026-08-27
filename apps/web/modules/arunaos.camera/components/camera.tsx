@@ -2,7 +2,7 @@
 
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Eye, PanelBottomClose, PanelBottomOpen } from 'lucide-react';
+import { Eye } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-media-query';
 import { useCameraStore, FILTERS } from '../stores/camera.store';
 import { useCameraStream } from '../hooks/use-camera-stream';
@@ -245,36 +245,7 @@ export const CameraApp = memo(function CameraApp() {
 
   return (
     <div className="bg-background flex h-full flex-col overflow-hidden">
-      {/* Top bar — mode badge + hide controls */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-center justify-between p-3">
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 rounded-full bg-black/35 px-3 py-1 text-xs font-medium text-white/80 backdrop-blur-md">
-            {recording ? (
-              <>
-                <span className="h-2 w-2 animate-pulse rounded-full bg-red-500" />
-                {formatClock(recordingTime)} • Video
-              </>
-            ) : (
-              <span>{mode === 'photo' ? 'Photo' : 'Video'}</span>
-            )}
-          </div>
-          {!showControls && (
-            <span className="hidden rounded-full bg-amber-500/20 px-2 py-1 text-[10px] font-medium text-amber-200 backdrop-blur-md sm:inline">
-              Controls hidden — press H to show
-            </span>
-          )}
-        </div>
-        <button
-          onClick={() => setShowControls((v) => !v)}
-          title={showControls ? 'Hide controls (H)' : 'Show controls (H)'}
-          className="pointer-events-auto flex h-8 w-8 items-center justify-center rounded-full bg-black/35 text-white/80 backdrop-blur-md transition-colors hover:bg-black/50 hover:text-white sm:h-9 sm:w-9"
-          aria-label={showControls ? 'Hide camera controls' : 'Show camera controls'}
-        >
-          {showControls ? <PanelBottomClose size={14} /> : <PanelBottomOpen size={14} />}
-        </button>
-      </div>
-
-      {/* Viewfinder — flex-1, expands when controls hidden */}
+      {/* Viewfinder — flex-1, more transparent controls below, double-click to toggle settings */}
       <div
         className="relative flex flex-1 flex-col overflow-hidden"
         onDoubleClick={() => setShowControls((v) => !v)}
@@ -293,7 +264,15 @@ export const CameraApp = memo(function CameraApp() {
           onZoom={setZoom}
         />
 
-        {/* Floating show button when hidden — centered bottom */}
+        {/* Recording indicator — centered top, not blocking window controls (window title is outside) */}
+        {recording && (
+          <div className="pointer-events-none absolute left-1/2 top-4 z-10 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-red-500/90 px-3 py-1 text-xs font-medium text-white shadow-lg backdrop-blur-md">
+            <span className="h-2 w-2 animate-pulse rounded-full bg-white" />
+            {formatClock(recordingTime)} • REC
+          </div>
+        )}
+
+        {/* Floating show button when settings hidden */}
         <AnimatePresence>
           {!showControls && (
             <motion.button
@@ -303,13 +282,13 @@ export const CameraApp = memo(function CameraApp() {
               onClick={() => setShowControls(true)}
               className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-black/40 px-3 py-1.5 text-xs font-medium text-white/90 backdrop-blur-md hover:bg-black/60"
             >
-              <Eye size={12} /> Show controls
+              <Eye size={12} /> Show settings
             </motion.button>
           )}
         </AnimatePresence>
       </div>
 
-      {/* Shutter — always visible so photo can be taken even when settings hidden */}
+      {/* Shutter — always visible, more transparent, hide toggle inside */}
       <ShutterBar
         mode={mode}
         timer={timer}
@@ -328,6 +307,7 @@ export const CameraApp = memo(function CameraApp() {
         onMirror={toggleMirror}
         onFlash={toggleFlash}
         onFlip={switchCamera}
+        onToggleSettings={() => setShowControls((v) => !v)}
         isMobile={!!isMobile}
       />
 
