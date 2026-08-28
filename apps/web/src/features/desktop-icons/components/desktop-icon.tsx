@@ -59,6 +59,25 @@ export const DesktopIcon = memo(function DesktopIcon({
 
   const handleClick = useCallback(() => onSelect(data.id), [data.id, onSelect]);
   const handleDoubleClick = useCallback(() => onDoubleClick(data), [data, onDoubleClick]);
+  const lastTapRef = useRef(0);
+  const handleTouchEnd = useCallback(
+    (e: React.TouchEvent) => {
+      e.preventDefault();
+      const now = Date.now();
+      if (now - lastTapRef.current < 300) {
+        lastTapRef.current = 0;
+        handleDoubleClick();
+      } else {
+        lastTapRef.current = now;
+        handleClick();
+        // clear single tap if no second tap
+        window.setTimeout(() => {
+          if (Date.now() - lastTapRef.current >= 300) lastTapRef.current = 0;
+        }, 310);
+      }
+    },
+    [handleClick, handleDoubleClick],
+  );
 
   const handleInputBlur = useCallback(() => {
     finishRename();
@@ -72,10 +91,7 @@ export const DesktopIcon = memo(function DesktopIcon({
     <div
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
-      onTouchEnd={(e) => {
-        e.preventDefault();
-        handleClick();
-      }}
+      onTouchEnd={handleTouchEnd}
       className={cn(
         'flex cursor-default flex-col items-center gap-1.5 rounded-xl p-2 transition-colors duration-100 hover:bg-white/5',
         outerWidth,

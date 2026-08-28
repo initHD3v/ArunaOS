@@ -22,6 +22,7 @@ import { useAuthStore } from '@/stores/auth.store';
 import { useService } from '@/providers/service-provider';
 import type { LifecycleService } from '@/services/lifecycle/lifecycle-service';
 import { LocationPermissionDialog } from '@/features/location/location-permission-dialog';
+import { MobileShortcutBar } from '@/features/mobile-shortcuts/mobile-shortcut-bar';
 import { useLocationStore, startBackgroundRefresh } from '@/stores/location.store';
 function useBackgroundLocationRefresh() {
   const { enabled, permissionAsked } = useLocationStore();
@@ -68,6 +69,7 @@ export function DesktopShell({ children }: { children: ReactNode }) {
         </main>
         <WindowManager />
         <Dock />
+        <MobileShortcutBar />
         <div id="portal-root" />
         <ContextMenu />
         <Overlay />

@@ -301,6 +301,17 @@ export const Window = memo(function Window({ data }: WindowProps) {
           onMouseDown={handlePointerDown}
           onTouchStart={handlePointerDown}
           onDoubleClick={handleTitleDoubleClick}
+          onTouchEnd={(e) => {
+            const el = e.currentTarget as HTMLElement;
+            const now = Date.now();
+            const last = Number(el.dataset.lastTap || 0);
+            if (now - last < 300) {
+              handleTitleDoubleClick();
+              el.dataset.lastTap = '0';
+            } else {
+              el.dataset.lastTap = String(now);
+            }
+          }}
           className={cn(
             'flex shrink-0 items-center border-b',
             isMobile ? 'h-11 gap-2 px-3' : 'h-10 gap-3 px-4',
@@ -331,10 +342,7 @@ export const Window = memo(function Window({ data }: WindowProps) {
             </button>
             <button
               onClick={handleMaximizeToggle}
-              className={cn(
-                'group relative flex h-5 w-5 items-center justify-center rounded-full transition-colors hover:bg-green-500/20',
-                isMobile && 'hidden',
-              )}
+              className="group relative flex h-5 w-5 items-center justify-center rounded-full transition-colors hover:bg-green-500/20"
               aria-label={isMaximized ? 'Restore' : 'Maximize'}
             >
               <span className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-black/80 px-2 py-1 text-[9px] text-white opacity-0 transition-opacity group-hover:opacity-100">

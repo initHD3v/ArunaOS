@@ -29,8 +29,12 @@ import {
   Sunrise,
   Sunset,
   Sparkles,
+  Search,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { useLocationStore } from '@/stores/location.store';
+import { useMobileShortcutStore } from '@/features/mobile-shortcuts/mobile-shortcut-store';
 
 function formatHour(time: string) {
   const d = new Date(time);
@@ -149,6 +153,11 @@ export function ControlCenterPopup({ onClose }: { onClose: () => void }) {
             <ThemeToggle />
           </div>
         </Section>
+
+        {/* Mobile */}
+        <Section label="Mobile">
+          <MobileShortcutsControl />
+        </Section>
       </div>
     </>
   );
@@ -194,6 +203,9 @@ export function ControlCenterPopup({ onClose }: { onClose: () => void }) {
                     </div>
                     <ThemeToggle />
                   </div>
+                </Section>
+                <Section label="Mobile">
+                  <MobileShortcutsControl />
                 </Section>
               </div>
             </div>
@@ -610,5 +622,99 @@ function ThemeToggle() {
       {isDark ? <Sun size={10} /> : <Moon size={10} />}
       {isDark ? 'Terang' : 'Gelap'}
     </button>
+  );
+}
+
+function MobileShortcutsControl() {
+  const isMobile = useIsMobile();
+  const visible = useMobileShortcutStore((s) => s.visible);
+  const toggle = useMobileShortcutStore((s) => s.toggle);
+
+  const openSpotlight = () => {
+    const btn = document.querySelector<HTMLButtonElement>('[data-command-palette-trigger]');
+    if (btn) btn.click();
+    else
+      document.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'k', metaKey: true, bubbles: true }),
+      );
+  };
+  const openAI = () => {
+    document.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'i',
+        code: 'KeyI',
+        metaKey: true,
+        ctrlKey: true,
+        shiftKey: true,
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
+  };
+
+  const [showMenu, setShowMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!showMenu) return;
+    const h = (e: MouseEvent | TouchEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setShowMenu(false);
+    };
+    document.addEventListener('mousedown', h);
+    document.addEventListener('touchstart', h as EventListener);
+    return () => {
+      document.removeEventListener('mousedown', h);
+      document.removeEventListener('touchstart', h as EventListener);
+    };
+  }, [showMenu]);
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <span className="text-xs">Shortcut Bar</span>
+        <button
+          onClick={toggle}
+          className={
+            visible
+              ? 'bg-primary text-primary-foreground flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-medium'
+              : 'bg-muted text-foreground/60 flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-medium'
+          }
+        >
+          {visible ? <Eye size={10} /> : <EyeOff size={10} />}
+          {visible ? 'Tampil' : 'Sembunyi'}
+        </button>
+      </div>
+      {!isMobile && <p className="text-foreground/40 text-[10px]">Hanya terlihat di mobile</p>}
+      <div ref={menuRef} className="relative">
+        <button
+          onClick={() => setShowMenu((v) => !v)}
+          className="border-border/20 bg-muted hover:bg-muted/80 flex w-full items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium"
+        >
+          <Search size={12} /> Search
+        </button>
+        {showMenu && (
+          <div className="border-border/20 bg-card absolute bottom-full left-0 right-0 z-10 mb-2 flex flex-col gap-1 rounded-xl border p-1.5 shadow-xl">
+            <button
+              onClick={() => {
+                setShowMenu(false);
+                openSpotlight();
+              }}
+              className="flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-xs font-medium text-black"
+            >
+              <Search size={12} /> Spotlight
+            </button>
+            <button
+              onClick={() => {
+                setShowMenu(false);
+                openAI();
+              }}
+              className="flex items-center gap-2 rounded-lg bg-violet-500 px-3 py-2 text-xs font-medium text-white"
+            >
+              <Sparkles size={12} /> AI Command
+            </button>
+          </div>
+        )}
+      </div>
+      <p className="text-foreground/30 text-[10px]">Spotlight: ⌘K • AI: ⌘⇧I</p>
+    </div>
   );
 }

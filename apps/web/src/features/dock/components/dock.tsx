@@ -12,6 +12,7 @@ import { createWindowConfig } from '@/lib/window-utils';
 import { useDockStore, ICON_MAP } from '@/features/dock/stores/dock.store';
 import type { DockItem } from '@/features/dock/stores/dock.store';
 import { useIsMobile } from '@/hooks/use-media-query';
+import { Search, Sparkles } from 'lucide-react';
 
 export function Dock() {
   const windows = useWindowStore((s) => s.windows);
@@ -38,6 +39,8 @@ export function Dock() {
 
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
+  const [showSearchMenu, setShowSearchMenu] = useState(false);
+  const searchMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!openMenuApp) return;
@@ -63,6 +66,20 @@ export function Dock() {
     document.addEventListener('mousedown', close);
     return () => document.removeEventListener('mousedown', close);
   }, [contextItem]);
+
+  useEffect(() => {
+    if (!showSearchMenu) return;
+    const h = (e: MouseEvent | TouchEvent) => {
+      if (searchMenuRef.current && !searchMenuRef.current.contains(e.target as Node))
+        setShowSearchMenu(false);
+    };
+    document.addEventListener('mousedown', h);
+    document.addEventListener('touchstart', h as EventListener);
+    return () => {
+      document.removeEventListener('mousedown', h);
+      document.removeEventListener('touchstart', h as EventListener);
+    };
+  }, [showSearchMenu]);
 
   const moduleWindowService = useService<ModuleWindowService>('moduleWindow');
 
@@ -136,6 +153,29 @@ export function Dock() {
     },
     [windows, focusWindow, restoreWindow, openWindow, moduleWindowService],
   );
+
+  const openSpotlight = useCallback(() => {
+    const btn = document.querySelector<HTMLButtonElement>('[data-command-palette-trigger]');
+    if (btn) btn.click();
+    else
+      document.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'k', metaKey: true, bubbles: true }),
+      );
+  }, []);
+
+  const openAICommand = useCallback(() => {
+    document.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'i',
+        code: 'KeyI',
+        metaKey: true,
+        ctrlKey: true,
+        shiftKey: true,
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
+  }, []);
 
   const handleMenuSelect = useCallback(
     (id: string, state: string) => {
@@ -266,6 +306,73 @@ export function Dock() {
                 }}
                 onDrop={(e) => handleDrop(e, idx)}
                 onDragEnd={handleDragEnd}
+                onTouchStart={(e) => {
+                  const t = e.touches[0];
+                  if (!t) return;
+                  const el = e.currentTarget as HTMLElement;
+                  el.dataset.startX = String(t.clientX);
+                  el.dataset.startY = String(t.clientY);
+                  const timer = window.setTimeout(() => {
+                    handleContextMenu(
+                      {
+                        clientX: t.clientX,
+                        clientY: t.clientY,
+                        preventDefault: () => {},
+                        stopPropagation: () => {},
+                      } as unknown as React.MouseEvent,
+                      item,
+                    );
+                  }, 550);
+                  el.dataset.longPressTimer = String(timer);
+                  handleDragStart(idx);
+                }}
+                onTouchMove={(e) => {
+                  const t = e.touches[0];
+                  if (!t) return;
+                  const el = e.currentTarget as HTMLElement;
+                  const sx = Number(el.dataset.startX || 0);
+                  const sy = Number(el.dataset.startY || 0);
+                  if (Math.hypot(t.clientX - sx, t.clientY - sy) > 10) {
+                    const timer = Number(el.dataset.longPressTimer || 0);
+                    if (timer) window.clearTimeout(timer);
+                    const rect = dockRef.current?.getBoundingClientRect();
+                    if (rect) {
+                      const x = t.clientX - rect.left;
+                      const approxIdx = Math.floor(x / 60);
+                      if (approxIdx >= 0 && approxIdx < dockItems.length) handleDragOver(approxIdx);
+                    }
+                  }
+                }}
+                onTouchEnd={(e) => {
+                  const el = e.currentTarget as HTMLElement;
+                  const timer = Number(el.dataset.longPressTimer || 0);
+                  if (timer) window.clearTimeout(timer);
+                  const t = e.changedTouches[0];
+                  if (!t) {
+                    handleDragEnd();
+                    return;
+                  }
+                  const sx = Number(el.dataset.startX || 0);
+                  const sy = Number(el.dataset.startY || 0);
+                  if (Math.hypot(t.clientX - sx, t.clientY - sy) < 10) {
+                    handleDragEnd();
+                    return;
+                  }
+                  const rect = dockRef.current?.getBoundingClientRect();
+                  if (rect) {
+                    const x = t.clientX - rect.left;
+                    const approxIdx = Math.floor(x / 60);
+                    if (
+                      approxIdx >= 0 &&
+                      approxIdx < dockItems.length &&
+                      dragIdx !== null &&
+                      dragIdx !== approxIdx
+                    ) {
+                      reorderItems(dragIdx, Math.max(0, Math.min(dockItems.length - 1, approxIdx)));
+                    }
+                  }
+                  handleDragEnd();
+                }}
                 className={cn(
                   'flex flex-col items-center rounded-xl transition-colors duration-150 hover:bg-white/10 dark:hover:bg-white/10',
                   isMobile ? 'gap-0.5 px-2 py-1.5' : 'gap-1 px-3 py-1.5',
@@ -357,6 +464,40 @@ export function Dock() {
             </div>
           );
         })}
+        {isMobile && (
+          <div ref={searchMenuRef} className="relative flex items-center gap-1">
+            <div className="mx-1 h-6 w-px bg-white/10" />
+            <button
+              onClick={() => setShowSearchMenu((v) => !v)}
+              className="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-black shadow"
+              aria-label="Search"
+            >
+              <Search size={14} />
+            </button>
+            {showSearchMenu && (
+              <div className="absolute bottom-full left-1/2 z-50 mb-2 flex -translate-x-1/2 flex-col gap-1 rounded-2xl border border-white/10 bg-black/80 p-1.5 shadow-xl backdrop-blur-xl">
+                <button
+                  onClick={() => {
+                    setShowSearchMenu(false);
+                    openSpotlight();
+                  }}
+                  className="flex items-center gap-2 rounded-xl bg-white px-3 py-2 text-xs font-medium text-black"
+                >
+                  <Search size={12} /> Spotlight
+                </button>
+                <button
+                  onClick={() => {
+                    setShowSearchMenu(false);
+                    openAICommand();
+                  }}
+                  className="flex items-center gap-2 rounded-xl bg-violet-500 px-3 py-2 text-xs font-medium text-white"
+                >
+                  <Sparkles size={12} /> AI Command
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Right-click context menu */}

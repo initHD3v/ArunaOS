@@ -183,7 +183,7 @@ export const DesktopGrid = memo(function DesktopGrid() {
               key={icon.id}
               data-desktop-icon
               draggable
-              className="pointer-events-auto absolute"
+              className="pointer-events-auto absolute touch-manipulation"
               style={{
                 left: (icon.position ?? 0) * DESKTOP_CELL_W,
                 top: (icon.row ?? 0) * DESKTOP_CELL_H,
@@ -195,6 +195,59 @@ export const DesktopGrid = memo(function DesktopGrid() {
                 e.dataTransfer.setData('text/plain', icon.id);
               }}
               onDragEnd={() => {
+                dragIdRef.current = null;
+              }}
+              onTouchStart={(e) => {
+                const t = e.touches[0];
+                if (!t) return;
+                dragIdRef.current = icon.id;
+                const el = e.currentTarget as HTMLElement;
+                el.dataset.startX = String(t.clientX);
+                el.dataset.startY = String(t.clientY);
+                const timer = window.setTimeout(() => {
+                  handleIconContextMenu(
+                    {
+                      clientX: t.clientX,
+                      clientY: t.clientY,
+                      preventDefault: () => {},
+                      stopPropagation: () => {},
+                    } as unknown as React.MouseEvent,
+                    icon,
+                  );
+                  dragIdRef.current = null;
+                }, 550);
+                el.dataset.longPressTimer = String(timer);
+              }}
+              onTouchMove={(e) => {
+                const t = e.touches[0];
+                if (!t) return;
+                const el = e.currentTarget as HTMLElement;
+                const sx = Number(el.dataset.startX || 0);
+                const sy = Number(el.dataset.startY || 0);
+                if (Math.hypot(t.clientX - sx, t.clientY - sy) > 10) {
+                  const timer = Number(el.dataset.longPressTimer || 0);
+                  if (timer) window.clearTimeout(timer);
+                }
+              }}
+              onTouchEnd={(e) => {
+                const el = e.currentTarget as HTMLElement;
+                const timer = Number(el.dataset.longPressTimer || 0);
+                if (timer) window.clearTimeout(timer);
+                const t = e.changedTouches[0];
+                if (!t || !dragIdRef.current) return;
+                // if moved significantly, treat as drag drop
+                const sx = Number(el.dataset.startX || 0);
+                const sy = Number(el.dataset.startY || 0);
+                if (Math.hypot(t.clientX - sx, t.clientY - sy) < 10) {
+                  dragIdRef.current = null;
+                  return;
+                }
+                const rect = containerRef.current?.getBoundingClientRect();
+                if (!rect) return;
+                const pad = isMobile ? 8 : 16;
+                const col = Math.round((t.clientX - rect.left - pad) / DESKTOP_CELL_W);
+                const row = Math.round((t.clientY - rect.top - pad) / DESKTOP_CELL_H);
+                moveIconToCell(dragIdRef.current, Math.max(0, col), Math.max(0, row));
                 dragIdRef.current = null;
               }}
             >

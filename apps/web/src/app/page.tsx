@@ -110,7 +110,40 @@ export default function Home() {
 
   return (
     <DesktopShell>
-      <div className="relative h-full w-full" onContextMenu={handleContextMenu}>
+      <div
+        className="relative h-full w-full"
+        onContextMenu={handleContextMenu}
+        onTouchStart={(e) => {
+          const t = e.touches[0];
+          if (!t) return;
+          const el = e.currentTarget as HTMLElement;
+          el.dataset.startX = String(t.clientX);
+          el.dataset.startY = String(t.clientY);
+          const timer = window.setTimeout(() => {
+            showContextMenu({ x: t.clientX, y: t.clientY }, desktopMenuItems);
+          }, 550);
+          el.dataset.longPressTimer = String(timer);
+        }}
+        onTouchMove={(e) => {
+          const t = e.touches[0];
+          if (!t) return;
+          const el = e.currentTarget as HTMLElement;
+          const sx = Number(el.dataset.startX || 0);
+          const sy = Number(el.dataset.startY || 0);
+          if (Math.hypot(t.clientX - sx, t.clientY - sy) > 10) {
+            const timer = Number(el.dataset.longPressTimer || 0);
+            if (timer) window.clearTimeout(timer);
+          }
+        }}
+        onTouchEnd={(e) => {
+          const timer = Number((e.currentTarget as HTMLElement).dataset.longPressTimer || 0);
+          if (timer) window.clearTimeout(timer);
+        }}
+        onTouchCancel={(e) => {
+          const timer = Number((e.currentTarget as HTMLElement).dataset.longPressTimer || 0);
+          if (timer) window.clearTimeout(timer);
+        }}
+      >
         <Selection />
         <DesktopGrid />
         <ArunaAssistant />
